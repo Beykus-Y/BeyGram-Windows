@@ -132,6 +132,13 @@ Item {
                     value: BeyGramApp.connectionTitle
                     tone: BeyGramApp.running ? "accent" : "neutral"
                 }
+                StatusRow {
+                    Layout.fillWidth: true
+                    label: "Proxy"
+                    value: BeyGramApp.proxySummary
+                    tone: BeyGramApp.proxySummary === "Direct connection" ? "neutral" : "ok"
+                    detail: "Set BEYGRAM_PROXY (for example socks5://127.0.0.1:7897) before starting BeyGram. Proxy credentials are never logged."
+                }
             }
 
             Card {

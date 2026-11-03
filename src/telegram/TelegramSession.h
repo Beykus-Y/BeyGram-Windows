@@ -108,7 +108,9 @@ private:
     void handleUpdate(const QJsonObject& update);
     void handleAuthorizationState(const QJsonObject& state);
     void setStage(AuthStage stage, const QString& detail = {});
+    void ensureTdlibParameters();
     void sendTdlibParameters();
+    [[nodiscard]] QJsonObject proxyTypeObject() const;
     void sendAuthRequest(const QJsonObject& request, const QString& failureContext,
                          int timeoutMs = 120000);
     void reportError(const QString& message, int code = 0);
@@ -141,6 +143,8 @@ private:
     int m_registrationMinAge = 16;
     QString m_qrLink;
     int m_qrRevision = 0;
+    bool m_proxySetupStarted = false;
+    bool m_tdlibParametersSent = false;
 };
 
 } // namespace beygram::telegram

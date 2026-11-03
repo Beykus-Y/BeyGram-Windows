@@ -4,6 +4,7 @@
 
 #include <QJsonDocument>
 #include <QLibrary>
+#include <QLoggingCategory>
 #include <QTimer>
 #include <QThread>
 #include <QtGlobal>
@@ -13,6 +14,7 @@
 
 namespace beygram::telegram {
 namespace {
+Q_LOGGING_CATEGORY(lcTransport, "beygram.telegram.transport")
 
 using CreateFn = void* (*)();
 using SendFn = void (*)(void*, const char*);
@@ -224,6 +226,8 @@ bool TdJsonTransport::start(QString* error)
         QMetaObject::invokeMethod(
             this, [this, update = std::move(update)] { 
                 const QJsonValue extra = update.value(QStringLiteral("@extra"));
+                qCDebug(lcTransport) << "recv" << update.value(QStringLiteral("@type")).toString()
+                                     << "extra" << extra;
                 if (extra.isDouble()) {
                     const auto id = static_cast<RequestId>(extra.toVariant().toULongLong());
                     auto it = d->pending.find(id);

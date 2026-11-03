@@ -14,6 +14,18 @@ struct TelegramCredentials {
     [[nodiscard]] static TelegramCredentials fromEnvironment();
 };
 
+struct TelegramProxySettings {
+    QString server;
+    int port = 0;
+    QString type = QStringLiteral("socks5"); // socks5 | http | mtproto
+    QString username;
+    QString password; // also the MTProto secret
+
+    [[nodiscard]] bool isValid() const;
+    [[nodiscard]] QString summary() const;
+    [[nodiscard]] static TelegramProxySettings fromEnvironment();
+};
+
 /// All parameters needed for one independent TDLib session. The Windows client
 /// is multi-account from the start: each session owns its directory pair.
 struct TelegramConfig {
@@ -23,6 +35,7 @@ struct TelegramConfig {
     QString databaseDirectory;
     QString filesDirectory;
     QString databaseEncryptionKey;
+    TelegramProxySettings proxy;
     QString systemLanguageCode = QStringLiteral("en");
     QString deviceModel = QStringLiteral("BeyGram Windows");
     QString systemVersion;
@@ -36,6 +49,7 @@ struct TelegramConfig {
 
     [[nodiscard]] bool isConfigured() const;
     [[nodiscard]] bool hasDatabaseKey() const;
+    [[nodiscard]] bool hasProxy() const { return proxy.isValid(); }
     [[nodiscard]] QJsonObject tdlibParameters() const;
     [[nodiscard]] QJsonObject setTdlibParametersRequest() const;
 };

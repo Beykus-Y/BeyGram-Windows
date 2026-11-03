@@ -12,6 +12,7 @@ Item {
     Shortcut { sequence: "Alt+1"; onActivated: shell.currentSection = 0 }
     Shortcut { sequence: "Alt+2"; onActivated: shell.currentSection = 1 }
     Shortcut { sequence: "Alt+3"; onActivated: shell.currentSection = 2 }
+    Shortcut { sequence: "Alt+4"; onActivated: shell.currentSection = 3 }
 
     RowLayout {
         anchors.fill: parent
@@ -136,21 +137,27 @@ Item {
 
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Overview"
+                    text: "Chats"
                     selected: shell.currentSection === 0
                     onClicked: shell.currentSection = 0
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Environment"
+                    text: "Account"
                     selected: shell.currentSection === 1
                     onClicked: shell.currentSection = 1
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Logs"
+                    text: "Environment"
                     selected: shell.currentSection === 2
                     onClicked: shell.currentSection = 2
+                }
+                NavButton {
+                    Layout.fillWidth: true
+                    text: "Logs"
+                    selected: shell.currentSection === 3
+                    onClicked: shell.currentSection = 3
                 }
 
                 Text {
@@ -207,7 +214,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Alt+1/2/3 navigate · Ctrl+D theme · Ctrl+R refresh"
+                    text: "Alt+1/2/3/4 navigate · Ctrl+D theme · Ctrl+R refresh"
                     color: BeyGramTheme.muted
                     font.pixelSize: 10
                     wrapMode: Text.WordWrap
@@ -223,6 +230,7 @@ Item {
             Layout.fillHeight: true
             currentIndex: shell.currentSection
 
+            ChatsPage {}
             OverviewPage {}
             EnvironmentPage {}
             LogsPage {}

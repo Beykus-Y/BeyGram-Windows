@@ -2,9 +2,13 @@
 
 #include "core/Result.h"
 #include "telegram/AccountRegistry.h"
+#include "telegram/ChatFilterModel.h"
+#include "telegram/ChatListModel.h"
 #include "telegram/CredentialStore.h"
+#include "telegram/MessageListModel.h"
 #include "telegram/TelegramConfig.h"
 
+#include <QAbstractItemModel>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -14,6 +18,7 @@
 class QTimer;
 
 namespace beygram::telegram {
+class TelegramRepository;
 class TelegramSession;
 }
 
@@ -35,6 +40,7 @@ class AppController final : public QObject {
     Q_PROPERTY(QString tdlibPath READ tdlibPath NOTIFY stateChanged)
     Q_PROPERTY(QString tdlibDetail READ tdlibDetail NOTIFY stateChanged)
     Q_PROPERTY(QString startupError READ startupError NOTIFY stateChanged)
+    Q_PROPERTY(QString proxySummary READ proxySummary NOTIFY stateChanged)
 
     Q_PROPERTY(bool credentialsConfigured READ credentialsConfigured NOTIFY stateChanged)
     Q_PROPERTY(bool credentialsFromEnvironment READ credentialsFromEnvironment NOTIFY stateChanged)
@@ -72,6 +78,17 @@ class AppController final : public QObject {
     Q_PROPERTY(QString accountDisplayName READ accountDisplayName NOTIFY stateChanged)
     Q_PROPERTY(QString accountUsername READ accountUsername NOTIFY stateChanged)
 
+    Q_PROPERTY(QAbstractItemModel* chatList READ chatList CONSTANT)
+    Q_PROPERTY(QAbstractItemModel* messages READ messages CONSTANT)
+    Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
+    Q_PROPERTY(QString currentChatTitle READ currentChatTitle NOTIFY chatStateChanged)
+    Q_PROPERTY(QString currentChatSubtitle READ currentChatSubtitle NOTIFY chatStateChanged)
+    Q_PROPERTY(bool chatLoading READ chatLoading NOTIFY chatStateChanged)
+    Q_PROPERTY(bool historyLoading READ historyLoading NOTIFY chatStateChanged)
+    Q_PROPERTY(bool hasMoreHistory READ hasMoreHistory NOTIFY chatStateChanged)
+    Q_PROPERTY(QString chatError READ chatError NOTIFY chatStateChanged)
+    Q_PROPERTY(QString chatFilter READ chatFilter WRITE setChatFilter NOTIFY chatFilterChanged)
+
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
 
@@ -89,6 +106,7 @@ public:
     [[nodiscard]] QString tdlibPath() const;
     [[nodiscard]] QString tdlibDetail() const;
     [[nodiscard]] QString startupError() const;
+    [[nodiscard]] QString proxySummary() const;
 
     [[nodiscard]] bool credentialsConfigured() const;
     [[nodiscard]] bool credentialsFromEnvironment() const;
@@ -126,6 +144,18 @@ public:
     [[nodiscard]] QString accountDisplayName() const;
     [[nodiscard]] QString accountUsername() const;
 
+    [[nodiscard]] QAbstractItemModel* chatList();
+    [[nodiscard]] QAbstractItemModel* messages();
+    [[nodiscard]] qint64 currentChatId() const;
+    [[nodiscard]] QString currentChatTitle() const;
+    [[nodiscard]] QString currentChatSubtitle() const;
+    [[nodiscard]] bool chatLoading() const;
+    [[nodiscard]] bool historyLoading() const;
+    [[nodiscard]] bool hasMoreHistory() const;
+    [[nodiscard]] QString chatError() const;
+    [[nodiscard]] QString chatFilter() const;
+    void setChatFilter(const QString& filter);
+
     [[nodiscard]] QString bgMediaTitle() const;
     [[nodiscard]] QString bgMediaDetail() const;
 
@@ -157,6 +187,16 @@ public:
     Q_INVOKABLE void clearAuthError();
     Q_INVOKABLE void logout();
 
+    // Phase 2 chat actions.
+    Q_INVOKABLE void openChat(qint64 chatId);
+    Q_INVOKABLE void closeChat();
+    Q_INVOKABLE void loadOlderMessages();
+    Q_INVOKABLE void sendChatMessage(const QString& text);
+    Q_INVOKABLE void editChatMessage(qint64 messageId, const QString& text);
+    Q_INVOKABLE void deleteChatMessage(qint64 messageId);
+    Q_INVOKABLE void copyText(const QString& text);
+    Q_INVOKABLE void clearChatError();
+
     // Credential provisioning (developer API id/hash).
     Q_INVOKABLE bool saveCredentials(const QString& apiId, const QString& apiHash);
     Q_INVOKABLE void clearStoredCredentials();
@@ -168,6 +208,9 @@ signals:
     void stateChanged();
     void qrChanged();
     void qrCodeChanged();
+    void chatStateChanged();
+    void chatFilterChanged();
+    void initialHistoryLoaded();
 
 private:
     void buildConfig();
@@ -179,10 +222,16 @@ private:
     void clearAuthErrorState();
     void requestAccountProfile();
     void onSessionStageChanged();
+    void ensureRepository();
+    void resetRepository();
 
     std::unique_ptr<telegram::TelegramSession> m_session;
+    std::unique_ptr<telegram::TelegramRepository> m_repository;
     telegram::AccountRegistry m_registry;
     telegram::CredentialStore m_credentials;
+    telegram::ChatListModel m_chatListModel;
+    telegram::MessageListModel m_messageModel;
+    telegram::ChatFilterModel m_chatFilterModel;
     QTimer* m_busyTimer = nullptr;
 
     QString m_accountId;
@@ -194,6 +243,7 @@ private:
     QString m_authError;
     QString m_accountDisplayName;
     QString m_accountUsername;
+    QString m_chatError;
     int m_authErrorCode = 0;
     bool m_tdlibAvailable = false;
     bool m_credentialsConfigured = false;

@@ -85,6 +85,9 @@ qt_add_qml_module(beygram
         qml/AuthPage.qml
         qml/components/AuthField.qml
         qml/components/Card.qml
+        qml/components/ChatRow.qml
+        qml/components/MessageBubble.qml
+        qml/pages/ChatsPage.qml
         qml/components/NavButton.qml
         qml/components/Pill.qml
         qml/components/PrimaryButton.qml

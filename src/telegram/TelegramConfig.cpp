@@ -1,6 +1,8 @@
 #include "TelegramConfig.h"
 
 #include <QProcessEnvironment>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QSysInfo>
 
 namespace beygram::telegram {
@@ -21,6 +23,48 @@ TelegramCredentials TelegramCredentials::fromEnvironment()
         credentials.apiId = 0;
     credentials.apiHash = environment.value(QStringLiteral("BEYGRAM_TELEGRAM_API_HASH")).trimmed();
     return credentials;
+}
+
+bool TelegramProxySettings::isValid() const
+{
+    return !server.trimmed().isEmpty() && port > 0 && port <= 65535
+        && (type == QLatin1String("socks5") || type == QLatin1String("http")
+            || type == QLatin1String("mtproto"));
+}
+
+QString TelegramProxySettings::summary() const
+{
+    if (!isValid())
+        return {};
+    return QStringLiteral("%1 %2:%3").arg(type, server).arg(port);
+}
+
+TelegramProxySettings TelegramProxySettings::fromEnvironment()
+{
+    const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    TelegramProxySettings settings;
+
+    const QString url = environment.value(QStringLiteral("BEYGRAM_PROXY")).trimmed();
+    if (!url.isEmpty()) {
+        const QUrl parsed(url);
+        const QString scheme = parsed.scheme().toLower();
+        settings.type = scheme == QLatin1String("https") ? QStringLiteral("http") : scheme;
+        settings.server = parsed.host();
+        settings.port = parsed.port();
+        settings.username = parsed.userName();
+        settings.password = parsed.password();
+        if (settings.type == QLatin1String("mtproto") && settings.password.isEmpty())
+            settings.password = QUrlQuery(parsed).queryItemValue(QStringLiteral("secret"));
+        return settings;
+    }
+
+    settings.server = environment.value(QStringLiteral("BEYGRAM_PROXY_SERVER")).trimmed();
+    settings.port = environment.value(QStringLiteral("BEYGRAM_PROXY_PORT")).toInt();
+    settings.type = environment.value(QStringLiteral("BEYGRAM_PROXY_TYPE"),
+                                      QStringLiteral("socks5")).toLower();
+    settings.username = environment.value(QStringLiteral("BEYGRAM_PROXY_USERNAME"));
+    settings.password = environment.value(QStringLiteral("BEYGRAM_PROXY_PASSWORD"));
+    return settings;
 }
 
 bool TelegramConfig::isConfigured() const
