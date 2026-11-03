@@ -7,6 +7,10 @@
 #include "platform/windows/DatabaseKeyStore.h"
 #include "telegram/TelegramSession.h"
 
+#ifdef BEYGRAM_EMBEDDED_CREDENTIALS
+#include "BeyGramBuildSecrets.h"
+#endif
+
 #include <QClipboard>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -29,6 +33,20 @@ telegram::TelegramCredentials environmentCredentials()
         && telegram::CredentialStore::isValidApiHash(credentials.apiHash)) {
         return credentials;
     }
+    return {};
+}
+
+telegram::TelegramCredentials buildCredentials()
+{
+#ifdef BEYGRAM_EMBEDDED_CREDENTIALS
+    telegram::TelegramCredentials credentials;
+    credentials.apiId = BEYGRAM_BUILD_API_ID;
+    credentials.apiHash = QStringLiteral(BEYGRAM_BUILD_API_HASH);
+    if (credentials.isValid()
+        && telegram::CredentialStore::isValidApiHash(credentials.apiHash)) {
+        return credentials;
+    }
+#endif
     return {};
 }
 
@@ -127,12 +145,23 @@ Result<telegram::TelegramConfig> AppController::prepareConfig()
         return Result<telegram::TelegramConfig>::fail(key.error().code, key.error().message);
 
     telegram::TelegramCredentials credentials = environmentCredentials();
-    if (!credentials.isValid()) {
+    m_credentialsSource.clear();
+    if (credentials.isValid()) {
+        m_credentialsSource = QStringLiteral("environment");
+    } else {
         const auto stored = m_credentials.load();
         if (stored.hasValue()) {
             credentials = stored.value();
-        } else if (stored.error().code != ErrorCode::NotFound) {
-            m_credentialsError = stored.error().message;
+            m_credentialsSource = QStringLiteral("DPAPI");
+        } else {
+            if (stored.error().code != ErrorCode::NotFound)
+                m_credentialsError = stored.error().message;
+
+            const telegram::TelegramCredentials embedded = buildCredentials();
+            if (embedded.isValid()) {
+                credentials = embedded;
+                m_credentialsSource = QStringLiteral("build");
+            }
         }
     }
     m_credentialsConfigured = credentials.isValid();
@@ -361,7 +390,22 @@ bool AppController::credentialsConfigured() const
 
 bool AppController::credentialsFromEnvironment() const
 {
-    return environmentCredentials().isValid();
+    return m_credentialsSource == QLatin1String("environment");
+}
+
+bool AppController::credentialsFromStore() const
+{
+    return m_credentialsSource == QLatin1String("DPAPI");
+}
+
+bool AppController::credentialsFromBuild() const
+{
+    return m_credentialsSource == QLatin1String("build");
+}
+
+QString AppController::credentialsSource() const
+{
+    return m_credentialsSource;
 }
 
 QString AppController::credentialsError() const
@@ -371,13 +415,19 @@ QString AppController::credentialsError() const
 
 QString AppController::credentialsHint() const
 {
-    if (environmentCredentials().isValid()) {
+    if (m_credentialsSource == QLatin1String("environment")) {
         return QStringLiteral(
             "API credentials come from BEYGRAM_TELEGRAM_API_ID and "
             "BEYGRAM_TELEGRAM_API_HASH. Environment variables take precedence over the "
-            "DPAPI store.");
+            "DPAPI store and build-time defaults.");
     }
-    if (m_credentials.exists()) {
+    if (m_credentialsSource == QLatin1String("build")) {
+        return QStringLiteral(
+            "This local test build embeds api_id/api_hash from secrets.properties. "
+            "They are not written to logs or the repository, but they can be extracted "
+            "from this executable: do not distribute it.");
+    }
+    if (m_credentialsSource == QLatin1String("DPAPI")) {
         return QStringLiteral(
             "API credentials are stored with Windows DPAPI for this Windows user. The hash "
             "is never shown or logged.");
@@ -602,7 +652,8 @@ QString AppController::diagnosticsText() const
           << QStringLiteral("Credentials configured: %1")
                  .arg(credentialsConfigured() ? "yes" : "no")
           << QStringLiteral("Credentials source: %1")
-                 .arg(credentialsFromEnvironment() ? "environment" : "DPAPI")
+                 .arg(m_credentialsSource.isEmpty() ? QStringLiteral("none")
+                                                    : m_credentialsSource)
           << QStringLiteral("Account id: %1").arg(m_accountId)
           << QStringLiteral("Stage: %1").arg(stageName())
           << QStringLiteral("Connection: %1").arg(connectionTitle())

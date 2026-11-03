@@ -38,6 +38,9 @@ class AppController final : public QObject {
 
     Q_PROPERTY(bool credentialsConfigured READ credentialsConfigured NOTIFY stateChanged)
     Q_PROPERTY(bool credentialsFromEnvironment READ credentialsFromEnvironment NOTIFY stateChanged)
+    Q_PROPERTY(bool credentialsFromStore READ credentialsFromStore NOTIFY stateChanged)
+    Q_PROPERTY(bool credentialsFromBuild READ credentialsFromBuild NOTIFY stateChanged)
+    Q_PROPERTY(QString credentialsSource READ credentialsSource NOTIFY stateChanged)
     Q_PROPERTY(QString credentialsError READ credentialsError NOTIFY stateChanged)
     Q_PROPERTY(QString credentialsHint READ credentialsHint NOTIFY stateChanged)
 
@@ -89,6 +92,9 @@ public:
 
     [[nodiscard]] bool credentialsConfigured() const;
     [[nodiscard]] bool credentialsFromEnvironment() const;
+    [[nodiscard]] bool credentialsFromStore() const;
+    [[nodiscard]] bool credentialsFromBuild() const;
+    [[nodiscard]] QString credentialsSource() const;
     [[nodiscard]] QString credentialsError() const;
     [[nodiscard]] QString credentialsHint() const;
 
@@ -184,6 +190,7 @@ private:
     QString m_tdlibPath;
     QString m_startupError;
     QString m_credentialsError;
+    QString m_credentialsSource;
     QString m_authError;
     QString m_accountDisplayName;
     QString m_accountUsername;

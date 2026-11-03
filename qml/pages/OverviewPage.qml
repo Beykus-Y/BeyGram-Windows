@@ -119,7 +119,9 @@ Item {
                 StatusRow {
                     Layout.fillWidth: true
                     label: "API credentials"
-                    value: BeyGramApp.credentialsFromEnvironment ? "Environment" : "DPAPI"
+                    value: BeyGramApp.credentialsSource === "environment" ? "Environment"
+                         : BeyGramApp.credentialsSource === "build" ? "Build (local)"
+                         : "DPAPI"
                     tone: "ok"
                     detail: BeyGramApp.credentialsHint
                 }

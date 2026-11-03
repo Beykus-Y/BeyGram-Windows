@@ -162,8 +162,9 @@ Item {
                         Layout.fillWidth: true
                     }
                     Pill {
-                        text: BeyGramApp.credentialsFromEnvironment ? "ENVIRONMENT"
-                              : (BeyGramApp.credentialsConfigured ? "DPAPI" : "REQUIRED")
+                        text: BeyGramApp.credentialsConfigured
+                              ? BeyGramApp.credentialsSource.toUpperCase()
+                              : "REQUIRED"
                         tone: BeyGramApp.credentialsConfigured ? "ok" : "warn"
                     }
                     SecondaryButton {
@@ -229,8 +230,7 @@ Item {
                         }
                         SecondaryButton {
                             text: "Forget saved credentials"
-                            visible: BeyGramApp.credentialsConfigured
-                                   && !BeyGramApp.credentialsFromEnvironment
+                            visible: BeyGramApp.credentialsFromStore
                             onClicked: forgetDialog.open()
                         }
                     }
@@ -655,7 +655,9 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "The TDLib database key and API hash are protected with Windows DPAPI for this user. The account database is locked against a second BeyGram process. Login codes, passwords and QR links are never written to the log."
+                    text: BeyGramApp.credentialsFromBuild
+                          ? "This local test build embeds the Telegram api_id/api_hash from secrets.properties. They are not logged, but they are extractable from this executable: do not distribute it. The TDLib database key is still protected with Windows DPAPI, and the account database is locked against a second BeyGram process."
+                          : "The TDLib database key and API hash are protected with Windows DPAPI for this user. The account database is locked against a second BeyGram process. Login codes, passwords and QR links are never written to the log."
                     color: BeyGramTheme.muted
                     font.pixelSize: 11
                     wrapMode: Text.WordWrap

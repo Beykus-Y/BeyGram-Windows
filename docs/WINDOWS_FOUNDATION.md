@@ -69,6 +69,26 @@ Run:
 
 ## First-run authentication
 
+For a local test build that uses the same `secrets.properties` as the Android
+project, configure with:
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+  -DCMAKE_PREFIX_PATH=C:\Qt\6.8.3\msvc2022_64 `
+  -DBEYGRAM_TDLIB_DIR=F:\tdlib\build\bin\Release `
+  -DBEYGRAM_BUILD_TESTS=ON `
+  -DBEYGRAM_EMBED_API_CREDENTIALS=ON
+```
+
+The api_id/api_hash are read from the gitignored `secrets.properties` and
+embedded as build defaults. Credential precedence is: environment variables,
+then the DPAPI store, then these build defaults. Such a build is for local
+testing only: the hash is extractable from the executable and must not be
+distributed. The UI marks the source as `BUILD`.
+
+Without this option, start the app and enter the api_id/api_hash in the
+credentials card; they are stored with DPAPI.
+
 1. Start the app. If `tdjson.dll` is missing, the Auth page says so and shows
    the trusted locations it checked.
 2. Enter the Telegram `api_id` and `api_hash` from
