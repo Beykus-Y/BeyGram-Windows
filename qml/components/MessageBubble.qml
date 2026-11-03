@@ -174,7 +174,8 @@ Item {
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
                 lineHeight: 1.3
-                textFormat: Text.RichText
+                textFormat: bubbleItem.textHtml.length > 0 ? Text.RichText
+                                                           : Text.PlainText
                 onLinkActivated: (link) => BeyGramApp.openLink(link)
             }
 
