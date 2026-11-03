@@ -7,10 +7,13 @@ reference. The foundation lives in `src/`, `qml/`, `tests/` and `cmake/`; the
 Android sources under `app/` remain the functional specification until each
 module is migrated.
 
-Current status: the Qt Quick shell, logging, DPAPI secret storage, TDLib JSON
-integration point and tests build and run. There is **no chat UI, login form,
-media or music playback yet**, and the app states this honestly. See
+Current status: the Qt Quick shell, real TDLib authorization (phone, code,
+two-step password, email, registration and QR), DPAPI-protected credentials and
+database keys, session restore, request correlation, logging and tests build
+and run. Chats, media, notifications and music are not implemented yet, and the
+app states this honestly. See
 [windows foundation](docs/WINDOWS_FOUNDATION.md),
+[TDLib build](docs/WINDOWS_TDLIB.md),
 [porting audit](docs/PORTING_AUDIT.md) and
 [porting roadmap](docs/PORTING_ROADMAP.md).
 
@@ -94,6 +97,10 @@ BeyGram распространяется под лицензией GNU GPL v3. �
 
 - [Android: сборка, SDK/ADB и диагностика](docs/android-development.md)
 - [TDLib и нативные библиотеки](docs/tdlib.md)
+- [Windows: foundation and authentication](docs/WINDOWS_FOUNDATION.md)
+- [Windows: building TDLib](docs/WINDOWS_TDLIB.md)
+- [Windows: porting audit](docs/PORTING_AUDIT.md)
+- [Windows: porting roadmap](docs/PORTING_ROADMAP.md)
 - [Архитектура сообщений и политик приватности](docs/conversation-architecture.md)
 - [Уведомления без Google-сервисов](docs/notifications.md)
 - [Сторонние компоненты](THIRD_PARTY_NOTICES.md)

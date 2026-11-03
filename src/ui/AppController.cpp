@@ -4,44 +4,50 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "media/BgMediaStatus.h"
-#include "telegram/TelegramConfig.h"
+#include "platform/windows/DatabaseKeyStore.h"
 #include "telegram/TelegramSession.h"
 
+#ifdef BEYGRAM_EMBEDDED_CREDENTIALS
+#include "BeyGramBuildSecrets.h"
+#endif
+
 #include <QClipboard>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QLocale>
 #include <QSysInfo>
+#include <QTimer>
 #include <QUrl>
 
 namespace beygram::ui {
 namespace {
 
-telegram::TelegramConfig makeConfig()
+telegram::TelegramCredentials environmentCredentials()
 {
-    telegram::TelegramConfig config;
-    config.credentials = telegram::TelegramCredentials::fromEnvironment();
-    config.databaseDirectory =
-        QDir(AppPaths::tdlibAccountDirectory(QStringLiteral("primary")))
-            .filePath(QStringLiteral("database"));
-    config.filesDirectory =
-        QDir(AppPaths::tdlibAccountDirectory(QStringLiteral("primary")))
-            .filePath(QStringLiteral("files"));
-    config.systemLanguageCode = QLocale::system().name().section(QLatin1Char('_'), 0, 0);
-    if (config.systemLanguageCode.isEmpty())
-        config.systemLanguageCode = QStringLiteral("en");
-    config.deviceModel = QStringLiteral("BeyGram Windows desktop");
-    config.systemVersion =
-        QStringLiteral("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
-    config.applicationVersion = QStringLiteral(BEYGRAM_VERSION_STRING);
+    const telegram::TelegramCredentials credentials = telegram::TelegramCredentials::fromEnvironment();
+    if (credentials.isValid()
+        && telegram::CredentialStore::isValidApiHash(credentials.apiHash)) {
+        return credentials;
+    }
+    return {};
+}
 
-    QString error;
-    if (!AppPaths::ensureDirectory(config.databaseDirectory, &error))
-        qWarning("%s", qUtf8Printable(error));
-    if (!AppPaths::ensureDirectory(config.filesDirectory, &error))
-        qWarning("%s", qUtf8Printable(error));
-    return config;
+telegram::TelegramCredentials buildCredentials()
+{
+#ifdef BEYGRAM_EMBEDDED_CREDENTIALS
+    telegram::TelegramCredentials credentials;
+    credentials.apiId = BEYGRAM_BUILD_API_ID;
+    credentials.apiHash = QStringLiteral(BEYGRAM_BUILD_API_HASH);
+    if (credentials.isValid()
+        && telegram::CredentialStore::isValidApiHash(credentials.apiHash)) {
+        return credentials;
+    }
+#endif
+    return {};
 }
 
 QString compilerLabel()
@@ -57,49 +63,277 @@ QString compilerLabel()
 #endif
 }
 
+QString fullName(const QJsonObject& user)
+{
+    const QString first = user.value(QStringLiteral("first_name")).toString().trimmed();
+    const QString last = user.value(QStringLiteral("last_name")).toString().trimmed();
+    if (first.isEmpty())
+        return last;
+    if (last.isEmpty())
+        return first;
+    return first + QLatin1Char(' ') + last;
+}
+
+QString username(const QJsonObject& user)
+{
+    const QJsonObject usernames = user.value(QStringLiteral("usernames")).toObject();
+    const QJsonArray active = usernames.value(QStringLiteral("active_usernames")).toArray();
+    if (!active.isEmpty())
+        return active.first().toString();
+    if (!usernames.value(QStringLiteral("editable_username")).toString().isEmpty())
+        return usernames.value(QStringLiteral("editable_username")).toString();
+    return user.value(QStringLiteral("username")).toString();
+}
+
 } // namespace
 
-AppController::AppController(QObject* parent) : QObject(parent)
+AppController::AppController(QObject* parent)
+    : QObject(parent),
+      m_credentials(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))),
+      m_registry(AppPaths::dataDirectory())
 {
     buildConfig();
 
-    m_session = std::make_unique<telegram::TelegramSession>(makeConfig());
+    m_busyTimer = new QTimer(this);
+    m_busyTimer->setSingleShot(true);
+    connect(m_busyTimer, &QTimer::timeout, this, [this] { setBusy(false); });
 
-    m_credentialsConfigured = m_session->config().credentials.isValid();
-    m_tdlibAvailable = m_session->probeTdlib(&m_tdlibDetail);
-
-    connectSession();
-
-    if (canStart()) {
-        m_session->start();
-    }
-    notifyChanged();
+    rebuildSession(true);
 }
 
 AppController::~AppController() = default;
 
 void AppController::buildConfig()
 {
-    QString error;
-    if (!AppPaths::ensureDirectory(AppPaths::dataDirectory(), &error))
-        qWarning("%s", qUtf8Printable(error));
-    if (!AppPaths::ensureDirectory(AppPaths::logDirectory(), &error))
-        qWarning("%s", qUtf8Printable(error));
+    for (const QString& path :
+         {AppPaths::dataDirectory(), AppPaths::logDirectory(),
+          QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))}) {
+        QString error;
+        if (!AppPaths::ensureDirectory(path, &error))
+            qWarning("%s", qUtf8Printable(error));
+    }
+}
+
+Result<telegram::TelegramConfig> AppController::prepareConfig()
+{
+    m_credentialsError.clear();
+
+    Status registryStatus = m_registry.load();
+    if (!registryStatus.ok())
+        return Result<telegram::TelegramConfig>::fail(registryStatus.error().code,
+                                            registryStatus.error().message);
+
+    registryStatus = m_registry.ensurePrimary();
+    if (!registryStatus.ok())
+        return Result<telegram::TelegramConfig>::fail(registryStatus.error().code,
+                                            registryStatus.error().message);
+
+    const auto account = m_registry.active();
+    if (!account.hasValue())
+        return Result<telegram::TelegramConfig>::fail(account.error().code, account.error().message);
+
+    m_accountId = account.value().id;
+    const QString accountDirectory = m_registry.accountDirectory(m_accountId);
+
+    QString pathError;
+    if (!AppPaths::ensureDirectory(accountDirectory, &pathError))
+        return Result<telegram::TelegramConfig>::fail(ErrorCode::Io, pathError);
+
+    platform::DatabaseKeyStore keyStore(accountDirectory);
+    const auto key = keyStore.loadOrCreate();
+    if (!key.hasValue())
+        return Result<telegram::TelegramConfig>::fail(key.error().code, key.error().message);
+
+    telegram::TelegramCredentials credentials = environmentCredentials();
+    m_credentialsSource.clear();
+    if (credentials.isValid()) {
+        m_credentialsSource = QStringLiteral("environment");
+    } else {
+        const auto stored = m_credentials.load();
+        if (stored.hasValue()) {
+            credentials = stored.value();
+            m_credentialsSource = QStringLiteral("DPAPI");
+        } else {
+            if (stored.error().code != ErrorCode::NotFound)
+                m_credentialsError = stored.error().message;
+
+            const telegram::TelegramCredentials embedded = buildCredentials();
+            if (embedded.isValid()) {
+                credentials = embedded;
+                m_credentialsSource = QStringLiteral("build");
+            }
+        }
+    }
+    m_credentialsConfigured = credentials.isValid();
+
+    telegram::TelegramConfig config;
+    config.credentials = credentials;
+    config.accountId = m_accountId;
+    config.accountDirectory = accountDirectory;
+    config.databaseDirectory = QDir(accountDirectory).filePath(QStringLiteral("database"));
+    config.filesDirectory = QDir(accountDirectory).filePath(QStringLiteral("files"));
+    config.databaseEncryptionKey = key.value();
+    config.systemLanguageCode = QLocale::system().name().section(QLatin1Char('_'), 0, 0);
+    if (config.systemLanguageCode.isEmpty())
+        config.systemLanguageCode = QStringLiteral("en");
+    config.deviceModel = QStringLiteral("BeyGram Windows desktop");
+    config.systemVersion =
+        QStringLiteral("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
+    config.applicationVersion = QStringLiteral(BEYGRAM_VERSION_STRING);
+
+    if (!AppPaths::ensureDirectory(config.databaseDirectory, &pathError)
+        || !AppPaths::ensureDirectory(config.filesDirectory, &pathError)) {
+        return Result<telegram::TelegramConfig>::fail(ErrorCode::Io, pathError);
+    }
+
+    return Result<telegram::TelegramConfig>::ok(config);
+}
+
+void AppController::rebuildSession(bool autoStart)
+{
+    if (m_rebuilding)
+        return;
+    m_rebuilding = true;
+
+    if (m_session) {
+        m_session->shutdown(3000);
+        m_session.reset();
+    }
+
+    m_startupError.clear();
+    m_authError.clear();
+    m_authErrorCode = 0;
+    m_accountDisplayName.clear();
+    m_accountUsername.clear();
+    setBusy(false);
+
+    auto prepared = prepareConfig();
+    if (!prepared.hasValue()) {
+        m_startupError = prepared.error().message;
+        m_tdlibAvailable = false;
+        m_tdlibPath.clear();
+        m_tdlibDetail = m_startupError;
+        m_rebuilding = false;
+        notifyChanged();
+        return;
+    }
+
+    m_session = std::make_unique<telegram::TelegramSession>(prepared.take());
+    connectSession();
+
+    QString detail;
+    m_tdlibAvailable = m_session->probeTdlib(&detail);
+    m_tdlibDetail = detail;
+    m_tdlibPath = m_session->tdlibPath();
+
+    if (autoStart)
+        m_session->start();
+
+    m_rebuilding = false;
+    notifyChanged();
 }
 
 void AppController::connectSession()
 {
+    if (!m_session)
+        return;
+
     connect(m_session.get(), &telegram::TelegramSession::stageChanged, this,
-            [this](telegram::AuthStage) { notifyChanged(); });
+            [this](telegram::AuthStage) { onSessionStageChanged(); });
     connect(m_session.get(), &telegram::TelegramSession::connectionStateChanged, this,
-            [this] { notifyChanged(); });
+            [this] { if (!m_rebuilding) notifyChanged(); });
     connect(m_session.get(), &telegram::TelegramSession::errorOccurred, this,
-            [this](const QString&) { notifyChanged(); });
+            [this](const QString& message) {
+                if (m_rebuilding)
+                    return;
+                m_authError = message;
+                m_authErrorCode = m_session ? m_session->lastErrorCode() : 0;
+                setBusy(false);
+                if (m_logoutRequested && m_session
+                    && m_session->stage() != telegram::AuthStage::Closed) {
+                    m_logoutRequested = false;
+                }
+                notifyChanged();
+            });
+    connect(m_session.get(), &telegram::TelegramSession::qrCodeChanged, this, [this] {
+        if (m_rebuilding)
+            return;
+        emit qrCodeChanged();
+        emit qrChanged();
+        notifyChanged();
+    });
+    connect(m_session.get(), &telegram::TelegramSession::authRequestFinished, this, [this] {
+        if (!m_rebuilding)
+            setBusy(false);
+    });
+}
+
+void AppController::onSessionStageChanged()
+{
+    if (m_rebuilding || !m_session)
+        return;
+
+    setBusy(false);
+    m_authError.clear();
+    m_authErrorCode = 0;
+
+    if (m_session->stage() == telegram::AuthStage::Ready) {
+        requestAccountProfile();
+        (void)m_registry.touch(m_accountId);
+    } else if (m_session->stage() == telegram::AuthStage::Closed && m_logoutRequested) {
+        m_logoutRequested = false;
+        QTimer::singleShot(0, this, [this] { rebuildSession(true); });
+        return;
+    }
+
+    notifyChanged();
 }
 
 void AppController::notifyChanged()
 {
     emit stateChanged();
+}
+
+void AppController::setBusy(bool busy)
+{
+    if (m_busy == busy)
+        return;
+    m_busy = busy;
+    if (m_busyTimer) {
+        if (busy)
+            m_busyTimer->start(30000);
+        else
+            m_busyTimer->stop();
+    }
+    emit stateChanged();
+}
+
+void AppController::clearAuthErrorState()
+{
+    m_authError.clear();
+    m_authErrorCode = 0;
+    if (m_session)
+        m_session->clearError();
+}
+
+void AppController::requestAccountProfile()
+{
+    if (!m_session)
+        return;
+    m_session->sendRequest(
+        QJsonObject{{QStringLiteral("@type"), QStringLiteral("getMe")}},
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString()
+                != QLatin1String("user")) {
+                return;
+            }
+            m_accountDisplayName = fullName(response);
+            m_accountUsername = username(response);
+            if (m_accountDisplayName.isEmpty())
+                m_accountDisplayName = QStringLiteral("Telegram account");
+            notifyChanged();
+        },
+        15000);
 }
 
 QString AppController::appVersion() const
@@ -134,14 +368,73 @@ bool AppController::tdlibAvailable() const
     return m_tdlibAvailable;
 }
 
+QString AppController::tdlibPath() const
+{
+    return m_tdlibPath;
+}
+
 QString AppController::tdlibDetail() const
 {
     return m_tdlibDetail;
 }
 
+QString AppController::startupError() const
+{
+    return m_startupError;
+}
+
 bool AppController::credentialsConfigured() const
 {
     return m_credentialsConfigured;
+}
+
+bool AppController::credentialsFromEnvironment() const
+{
+    return m_credentialsSource == QLatin1String("environment");
+}
+
+bool AppController::credentialsFromStore() const
+{
+    return m_credentialsSource == QLatin1String("DPAPI");
+}
+
+bool AppController::credentialsFromBuild() const
+{
+    return m_credentialsSource == QLatin1String("build");
+}
+
+QString AppController::credentialsSource() const
+{
+    return m_credentialsSource;
+}
+
+QString AppController::credentialsError() const
+{
+    return m_credentialsError;
+}
+
+QString AppController::credentialsHint() const
+{
+    if (m_credentialsSource == QLatin1String("environment")) {
+        return QStringLiteral(
+            "API credentials come from BEYGRAM_TELEGRAM_API_ID and "
+            "BEYGRAM_TELEGRAM_API_HASH. Environment variables take precedence over the "
+            "DPAPI store and build-time defaults.");
+    }
+    if (m_credentialsSource == QLatin1String("build")) {
+        return QStringLiteral(
+            "This local test build embeds api_id/api_hash from secrets.properties. "
+            "They are not written to logs or the repository, but they can be extracted "
+            "from this executable: do not distribute it.");
+    }
+    if (m_credentialsSource == QLatin1String("DPAPI")) {
+        return QStringLiteral(
+            "API credentials are stored with Windows DPAPI for this Windows user. The hash "
+            "is never shown or logged.");
+    }
+    return QStringLiteral(
+        "Telegram requires an api_id and api_hash from my.telegram.org. Phase 1 stores them "
+        "with Windows DPAPI; they are never written to the log or the repository.");
 }
 
 bool AppController::running() const
@@ -156,23 +449,38 @@ bool AppController::ready() const
 
 bool AppController::canStart() const
 {
-    return m_tdlibAvailable && m_credentialsConfigured && m_session && !m_session->isRunning();
+    return m_session && !m_session->isRunning() && m_tdlibAvailable;
+}
+
+bool AppController::busy() const
+{
+    return m_busy;
+}
+
+bool AppController::loggingOut() const
+{
+    return m_session && m_session->isLoggingOut();
 }
 
 QString AppController::stageName() const
 {
-    return m_session ? telegram::authStageName(m_session->stage())
-                     : QStringLiteral("idle");
+    if (!m_startupError.isEmpty())
+        return QStringLiteral("startup_error");
+    return m_session ? telegram::authStageName(m_session->stage()) : QStringLiteral("idle");
 }
 
 QString AppController::stageTitle() const
 {
+    if (!m_startupError.isEmpty())
+        return QStringLiteral("The local account could not be prepared");
     return m_session ? telegram::authStageTitle(m_session->stage())
                      : QStringLiteral("Telegram core is stopped");
 }
 
 QString AppController::stageDetail() const
 {
+    if (!m_startupError.isEmpty())
+        return m_startupError;
     return m_session ? m_session->stageDetail() : QString();
 }
 
@@ -183,14 +491,79 @@ QString AppController::connectionTitle() const
 
 QString AppController::lastError() const
 {
+    if (!m_startupError.isEmpty())
+        return m_startupError;
     return m_session ? m_session->lastError() : QString();
 }
 
-QString AppController::credentialsHint() const
+QString AppController::authError() const
 {
-    return QStringLiteral(
-        "Set BEYGRAM_TELEGRAM_API_ID and BEYGRAM_TELEGRAM_API_HASH in the environment "
-        "before starting BeyGram. Credentials are never written to the log.");
+    return m_authError;
+}
+
+int AppController::authErrorCode() const
+{
+    return m_authErrorCode;
+}
+
+int AppController::codeLength() const
+{
+    return m_session ? m_session->codeLength() : 0;
+}
+
+QString AppController::codePhoneNumber() const
+{
+    return m_session ? m_session->codePhoneNumber() : QString();
+}
+
+QString AppController::codeTypeName() const
+{
+    return m_session ? m_session->codeTypeName() : QString();
+}
+
+int AppController::emailCodeLength() const
+{
+    return m_session ? m_session->emailCodeLength() : 0;
+}
+
+QString AppController::emailPattern() const
+{
+    return m_session ? m_session->emailPattern() : QString();
+}
+
+QString AppController::passwordHint() const
+{
+    return m_session ? m_session->passwordHint() : QString();
+}
+
+bool AppController::passwordHasRecoveryEmail() const
+{
+    return m_session && m_session->passwordHasRecoveryEmail();
+}
+
+QString AppController::registrationTerms() const
+{
+    return m_session ? m_session->registrationTerms() : QString();
+}
+
+int AppController::registrationMinUserAge() const
+{
+    return m_session ? m_session->registrationMinUserAge() : 16;
+}
+
+int AppController::qrRevision() const
+{
+    return m_session ? m_session->qrRevision() : 0;
+}
+
+QString AppController::accountDisplayName() const
+{
+    return m_accountDisplayName;
+}
+
+QString AppController::accountUsername() const
+{
+    return m_accountUsername;
 }
 
 QString AppController::bgMediaTitle() const
@@ -203,28 +576,48 @@ QString AppController::bgMediaDetail() const
     return media::bgMediaStatus().detail;
 }
 
+QString AppController::qrLoginLink() const
+{
+    return m_session ? m_session->qrLoginLink() : QString();
+}
+
 void AppController::refresh()
 {
-    QString detail;
-    m_tdlibAvailable = m_session && m_session->probeTdlib(&detail);
-    m_tdlibDetail = detail;
-    m_credentialsConfigured = m_session && m_session->config().credentials.isValid();
+    if (m_session) {
+        QString detail;
+        m_tdlibAvailable = m_session->probeTdlib(&detail);
+        m_tdlibDetail = detail;
+        m_tdlibPath = m_session->tdlibPath();
+    }
     notifyChanged();
 }
 
 void AppController::startTelegram()
 {
-    if (!m_session || !canStart())
+    if (!m_session) {
+        rebuildSession(true);
         return;
-    m_session->start();
+    }
+    if (!m_session->isRunning())
+        m_session->start();
+    notifyChanged();
+}
+
+void AppController::retrySession()
+{
+    clearAuthErrorState();
+    if (!m_session || !m_session->isRunning()) {
+        startTelegram();
+        return;
+    }
+    m_session->restartSession();
     notifyChanged();
 }
 
 void AppController::stopTelegram()
 {
-    if (!m_session)
-        return;
-    m_session->stop();
+    if (m_session)
+        m_session->requestClose();
     notifyChanged();
 }
 
@@ -254,9 +647,14 @@ QString AppController::diagnosticsText() const
           << QStringLiteral("Qt: %1").arg(qtVersion())
           << QStringLiteral("Build: %1").arg(buildInfo())
           << QStringLiteral("TDLib available: %1").arg(tdlibAvailable() ? "yes" : "no")
+          << QStringLiteral("TDLib path: %1").arg(tdlibPath())
           << QStringLiteral("TDLib detail: %1").arg(tdlibDetail())
           << QStringLiteral("Credentials configured: %1")
                  .arg(credentialsConfigured() ? "yes" : "no")
+          << QStringLiteral("Credentials source: %1")
+                 .arg(m_credentialsSource.isEmpty() ? QStringLiteral("none")
+                                                    : m_credentialsSource)
+          << QStringLiteral("Account id: %1").arg(m_accountId)
           << QStringLiteral("Stage: %1").arg(stageName())
           << QStringLiteral("Connection: %1").arg(connectionTitle())
           << QStringLiteral("Data directory: %1").arg(dataDirectory())
@@ -275,10 +673,152 @@ void AppController::copyDiagnostics()
     }
 }
 
+void AppController::submitPhone(const QString& phoneNumber)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitPhoneNumber(phoneNumber);
+}
+
+void AppController::submitCode(const QString& code)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitCode(code);
+}
+
+void AppController::submitPassword(const QString& password)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitPassword(password);
+}
+
+void AppController::submitEmailAddress(const QString& emailAddress)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitEmailAddress(emailAddress);
+}
+
+void AppController::submitEmailCode(const QString& code)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitEmailCode(code);
+}
+
+void AppController::submitRegistration(const QString& firstName, const QString& lastName)
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->submitRegistration(firstName, lastName);
+}
+
+void AppController::resendCode()
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->resendCode();
+}
+
+void AppController::requestQrLogin()
+{
+    if (!m_session)
+        return;
+    clearAuthErrorState();
+    setBusy(true);
+    m_session->requestQrCodeLogin();
+}
+
+void AppController::openQrLoginInTelegram()
+{
+    if (!m_session)
+        return;
+    const QString link = m_session->qrLoginLink();
+    if (link.startsWith(QLatin1String("tg://")) || link.startsWith(QLatin1String("https://")))
+        QDesktopServices::openUrl(QUrl(link));
+}
+
+void AppController::usePhoneInstead()
+{
+    clearAuthErrorState();
+    if (m_session)
+        m_session->restartSession();
+    notifyChanged();
+}
+
+void AppController::clearAuthError()
+{
+    clearAuthErrorState();
+    notifyChanged();
+}
+
+void AppController::logout()
+{
+    if (!m_session || !m_session->isReady())
+        return;
+    m_logoutRequested = true;
+    m_session->requestLogout();
+    notifyChanged();
+}
+
+bool AppController::saveCredentials(const QString& apiId, const QString& apiHash)
+{
+    bool numberOk = false;
+    const int id = apiId.trimmed().toInt(&numberOk);
+    const QString hash = apiHash.trimmed();
+
+    if (!numberOk || id <= 0) {
+        m_credentialsError = QStringLiteral("API id must be a positive integer.");
+        notifyChanged();
+        return false;
+    }
+    if (!telegram::CredentialStore::isValidApiHash(hash)) {
+        m_credentialsError = QStringLiteral("API hash must be exactly 32 hexadecimal characters.");
+        notifyChanged();
+        return false;
+    }
+
+    telegram::TelegramCredentials credentials;
+    credentials.apiId = id;
+    credentials.apiHash = hash;
+    const Status saved = m_credentials.save(credentials);
+    if (!saved.ok()) {
+        m_credentialsError = saved.error().message;
+        notifyChanged();
+        return false;
+    }
+
+    m_credentialsError.clear();
+    rebuildSession(true);
+    return true;
+}
+
+void AppController::clearStoredCredentials()
+{
+    (void)m_credentials.clear();
+    rebuildSession(true);
+}
+
 void AppController::shutdown()
 {
     if (m_session)
-        m_session->stop();
+        m_session->shutdown(5000);
 }
 
 } // namespace beygram::ui

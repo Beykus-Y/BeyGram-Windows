@@ -1,10 +1,10 @@
 #include "TdJsonTransport.h"
 
-#include <QCoreApplication>
-#include <QDir>
+#include "TdLibLocator.h"
+
 #include <QJsonDocument>
 #include <QLibrary>
-#include <QProcessEnvironment>
+#include <QTimer>
 #include <QThread>
 #include <QtGlobal>
 
@@ -19,6 +19,7 @@ using SendFn = void (*)(void*, const char*);
 using ReceiveFn = const char* (*)(void*, double);
 using ExecuteFn = const char* (*)(const char*);
 using DestroyFn = void (*)(void*);
+using SetLogVerbosityFn = void (*)(int);
 
 /// Polls td_receive on a worker thread. td_receive itself is blocking only up
 /// to its timeout, so the thread needs no event loop.
@@ -46,22 +47,13 @@ protected:
     }
 };
 
-QStringList libraryCandidates()
+QJsonObject syntheticError(const QString& message, int code = -1)
 {
-    QStringList candidates;
-    const QString explicitPath =
-        QProcessEnvironment::systemEnvironment().value(QStringLiteral("BEYGRAM_TDLIB_DLL"));
-    if (!explicitPath.isEmpty())
-        candidates.append(explicitPath);
-
-    const QString appDirectory = QCoreApplication::applicationDirPath();
-    if (!appDirectory.isEmpty()) {
-        candidates.append(QDir(appDirectory).filePath(QStringLiteral("tdjson")));
-        candidates.append(QDir(appDirectory).filePath(QStringLiteral("tdjson.dll")));
-    }
-    candidates.append(QStringLiteral("tdjson"));
-    candidates.removeDuplicates();
-    return candidates;
+    return QJsonObject{
+        {QStringLiteral("@type"), QStringLiteral("error")},
+        {QStringLiteral("code"), code},
+        {QStringLiteral("message"), message},
+    };
 }
 
 } // namespace
@@ -73,11 +65,22 @@ struct TdJsonTransport::Impl {
     ReceiveFn receive = nullptr;
     ExecuteFn execute = nullptr;
     DestroyFn destroy = nullptr;
+    SetLogVerbosityFn setLogVerbosity = nullptr;
 
     void* client = nullptr;
     std::unique_ptr<ReceiverThread> receiver;
     QString loadError;
+    QString loadedPath;
+    bool loadedFromApplication = false;
     bool loaded = false;
+
+    struct Pending {
+        ResponseHandler handler;
+        QTimer* timer = nullptr;
+    };
+    TdJsonTransport* owner = nullptr;
+    QHash<RequestId, Pending> pending;
+    RequestId nextRequestId = 1;
 
     void resetFunctions()
     {
@@ -86,12 +89,28 @@ struct TdJsonTransport::Impl {
         receive = nullptr;
         execute = nullptr;
         destroy = nullptr;
+        setLogVerbosity = nullptr;
+    }
+
+    void finish(QHash<RequestId, Pending>::iterator it, const QJsonObject& response)
+    {
+        if (it->timer) {
+            it->timer->stop();
+            it->timer->deleteLater();
+        }
+        ResponseHandler handler = std::move(it->handler);
+        const RequestId id = it.key();
+        pending.erase(it);
+        if (handler)
+            handler(response);
+        owner->responseReceived(id, response);
     }
 };
 
 TdJsonTransport::TdJsonTransport(QObject* parent)
     : QObject(parent), d(std::make_unique<Impl>())
 {
+    d->owner = this;
 }
 
 TdJsonTransport::~TdJsonTransport()
@@ -113,38 +132,49 @@ bool TdJsonTransport::load(QString* error)
         d->library.unload();
     d->library.setFileName(QString());
 
-    QStringList attempts;
-    for (const QString& candidate : libraryCandidates()) {
-        attempts.append(candidate);
-        d->library.setFileName(candidate);
-        if (!d->library.load())
-            continue;
-
-        d->create = reinterpret_cast<CreateFn>(d->library.resolve("td_json_client_create"));
-        d->send = reinterpret_cast<SendFn>(d->library.resolve("td_json_client_send"));
-        d->receive = reinterpret_cast<ReceiveFn>(d->library.resolve("td_json_client_receive"));
-        d->execute = reinterpret_cast<ExecuteFn>(d->library.resolve("td_json_client_execute"));
-        d->destroy = reinterpret_cast<DestroyFn>(d->library.resolve("td_json_client_destroy"));
-
-        if (d->create && d->send && d->receive && d->execute && d->destroy) {
-            d->loaded = true;
-            return true;
-        }
-
-        d->loadError = QStringLiteral("%1 loaded but does not export the TDLib JSON API")
-                           .arg(candidate);
-        d->resetFunctions();
-        d->library.unload();
-        break;
+    const auto location = locateTdlibLibrary();
+    if (!location.hasValue()) {
+        d->loadError = location.error().message;
+        if (error)
+            *error = d->loadError;
+        return false;
     }
 
-    if (d->loadError.isEmpty()) {
-        d->loadError = QStringLiteral(
-                           "tdjson.dll was not found. Looked in: %1. "
-                           "Set BEYGRAM_TDLIB_DLL or place tdjson.dll next to the executable.")
-                           .arg(attempts.join(QStringLiteral(", ")));
+    d->loadedPath = location.value().path;
+    d->loadedFromApplication = location.value().applicationOwned;
+    d->library.setFileName(d->loadedPath);
+
+    if (!d->library.load()) {
+        d->loadError = QStringLiteral("Could not load %1: %2")
+                           .arg(d->loadedPath, d->library.errorString());
+        if (error)
+            *error = d->loadError;
+        return false;
     }
 
+    d->create = reinterpret_cast<CreateFn>(d->library.resolve("td_json_client_create"));
+    d->send = reinterpret_cast<SendFn>(d->library.resolve("td_json_client_send"));
+    d->receive = reinterpret_cast<ReceiveFn>(d->library.resolve("td_json_client_receive"));
+    d->execute = reinterpret_cast<ExecuteFn>(d->library.resolve("td_json_client_execute"));
+    d->destroy = reinterpret_cast<DestroyFn>(d->library.resolve("td_json_client_destroy"));
+    d->setLogVerbosity =
+        reinterpret_cast<SetLogVerbosityFn>(d->library.resolve("td_set_log_verbosity_level"));
+
+    if (d->create && d->send && d->receive && d->execute && d->destroy) {
+        d->loaded = true;
+        // TDLib logs to stderr by default and may include request details.
+        // Disable its internal log before creating any client; BeyGram keeps
+        // its own redacted log. td_set_log_verbosity_level is the C API; using
+        // td_execute for this is not supported by TDLib.
+        if (d->setLogVerbosity)
+            d->setLogVerbosity(0);
+        return true;
+    }
+
+    d->loadError = QStringLiteral("%1 loaded but does not export the TDLib JSON API")
+                       .arg(d->loadedPath);
+    d->resetFunctions();
+    d->library.unload();
     if (error)
         *error = d->loadError;
     return false;
@@ -158,6 +188,16 @@ bool TdJsonTransport::isAvailable() const
 QString TdJsonTransport::loadError() const
 {
     return d->loadError;
+}
+
+QString TdJsonTransport::loadedPath() const
+{
+    return d->loadedPath;
+}
+
+bool TdJsonTransport::loadedFromApplicationDirectory() const
+{
+    return d->loadedFromApplication;
 }
 
 bool TdJsonTransport::start(QString* error)
@@ -182,7 +222,18 @@ bool TdJsonTransport::start(QString* error)
     d->receiver->receive = d->receive;
     d->receiver->onUpdate = [this](QJsonObject update) {
         QMetaObject::invokeMethod(
-            this, [this, update = std::move(update)] { emit updateReceived(update); },
+            this, [this, update = std::move(update)] { 
+                const QJsonValue extra = update.value(QStringLiteral("@extra"));
+                if (extra.isDouble()) {
+                    const auto id = static_cast<RequestId>(extra.toVariant().toULongLong());
+                    auto it = d->pending.find(id);
+                    if (it != d->pending.end()) {
+                        d->finish(it, update);
+                        return;
+                    }
+                }
+                emit updateReceived(update);
+            },
             Qt::QueuedConnection);
     };
     d->receiver->start();
@@ -191,6 +242,8 @@ bool TdJsonTransport::start(QString* error)
 
 void TdJsonTransport::stop()
 {
+    cancelAllRequests(false);
+
     if (d->receiver) {
         d->receiver->stopped.store(true, std::memory_order_relaxed);
         // td_receive uses a 100 ms timeout, so this completes even while TDLib
@@ -212,6 +265,42 @@ bool TdJsonTransport::isRunning() const
     return d->client != nullptr;
 }
 
+TdJsonTransport::RequestId TdJsonTransport::sendRequest(const QJsonObject& request,
+                                                       ResponseHandler handler, int timeoutMs)
+{
+    if (d->client == nullptr || !d->send) {
+        const QJsonObject error = syntheticError(QStringLiteral("TDLib client is not running"));
+        if (handler)
+            handler(error);
+        emit transportError(QStringLiteral("TDLib client is not running"));
+        return 0;
+    }
+
+    const RequestId id = d->nextRequestId++;
+    QJsonObject payload = request;
+    payload.insert(QStringLiteral("@extra"), static_cast<double>(id));
+
+    Impl::Pending pending;
+    pending.handler = std::move(handler);
+    if (timeoutMs > 0) {
+        pending.timer = new QTimer(this);
+        pending.timer->setSingleShot(true);
+        connect(pending.timer, &QTimer::timeout, this, [this, id] {
+            auto it = d->pending.find(id);
+            if (it == d->pending.end())
+                return;
+            emit requestTimedOut(id);
+            d->finish(it, syntheticError(QStringLiteral("TDLib request timed out"), -2));
+        });
+        pending.timer->start(timeoutMs);
+    }
+    d->pending.insert(id, pending);
+
+    const QByteArray bytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    d->send(d->client, bytes.constData());
+    return id;
+}
+
 void TdJsonTransport::send(const QJsonObject& request)
 {
     if (d->client == nullptr || !d->send) {
@@ -220,6 +309,43 @@ void TdJsonTransport::send(const QJsonObject& request)
     }
     const QByteArray payload = QJsonDocument(request).toJson(QJsonDocument::Compact);
     d->send(d->client, payload.constData());
+}
+
+bool TdJsonTransport::cancelRequest(RequestId id)
+{
+    auto it = d->pending.find(id);
+    if (it == d->pending.end())
+        return false;
+    emit requestCancelled(id);
+    d->finish(it, syntheticError(QStringLiteral("TDLib request cancelled"), -3));
+    return true;
+}
+
+void TdJsonTransport::cancelAllRequests(bool notifyHandlers)
+{
+    if (d->pending.isEmpty())
+        return;
+
+    const auto ids = d->pending.keys();
+    for (RequestId id : ids) {
+        if (!notifyHandlers) {
+            auto it = d->pending.find(id);
+            if (it == d->pending.end())
+                continue;
+            if (it->timer) {
+                it->timer->stop();
+                it->timer->deleteLater();
+            }
+            d->pending.erase(it);
+            continue;
+        }
+        cancelRequest(id);
+    }
+}
+
+int TdJsonTransport::pendingRequestCount() const
+{
+    return d->pending.size();
 }
 
 Result<QJsonObject> TdJsonTransport::execute(const QJsonObject& request)

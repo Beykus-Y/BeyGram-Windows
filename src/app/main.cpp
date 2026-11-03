@@ -1,6 +1,7 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "ui/AppController.h"
+#include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
 
 #include <QGuiApplication>
@@ -50,6 +51,14 @@ int main(int argc, char* argv[])
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramApp", &controller);
 
     QQmlApplicationEngine engine;
+
+    auto* qrProvider = new beygram::ui::QrCodeImageProvider();
+    engine.addImageProvider(QStringLiteral("beygramqr"), qrProvider);
+    QObject::connect(&controller, &beygram::ui::AppController::qrCodeChanged, qrProvider,
+                     [&controller, qrProvider] {
+                         qrProvider->setLink(controller.qrLoginLink());
+                     });
+
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &application, handleObjectCreationFailure, Qt::QueuedConnection);
 

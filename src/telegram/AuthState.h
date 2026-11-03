@@ -9,6 +9,7 @@ namespace beygram::telegram {
 enum class AuthStage {
     Unavailable,        ///< tdjson could not be loaded
     NotConfigured,      ///< api_id/api_hash are missing
+    Locked,             ///< another process owns this TDLib database
     Idle,               ///< client not started
     Loading,            ///< client created, waiting for TDLib
     WaitTdlibParameters,
@@ -16,6 +17,8 @@ enum class AuthStage {
     WaitCode,
     WaitPassword,
     WaitRegistration,
+    WaitEmailAddress,
+    WaitEmailCode,
     WaitQrCode,
     Ready,
     Closing,

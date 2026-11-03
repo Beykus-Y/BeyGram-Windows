@@ -18,6 +18,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BEYGRAM_BUILD_TESTS "Build unit tests" ON)
 option(BEYGRAM_WITH_BGMEDIA "Link the BG Media C++ core when third_party/bg-media is present" OFF)
+option(BEYGRAM_EMBED_API_CREDENTIALS "Embed Telegram api_id/api_hash from secrets.properties (local test builds only)" OFF)
+set(BEYGRAM_SECRETS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/secrets.properties" CACHE FILEPATH "Android-style secrets.properties used for the local Windows test build")
 
 if(WIN32)
     add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
@@ -33,6 +35,42 @@ include(cmake/BeyGramBgMedia.cmake)
 
 add_subdirectory(src)
 
+if(BEYGRAM_EMBED_API_CREDENTIALS)
+    if(NOT EXISTS "${BEYGRAM_SECRETS_FILE}")
+        message(FATAL_ERROR
+            "BEYGRAM_EMBED_API_CREDENTIALS=ON but ${BEYGRAM_SECRETS_FILE} does not exist")
+    endif()
+
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${BEYGRAM_SECRETS_FILE}")
+    file(STRINGS "${BEYGRAM_SECRETS_FILE}" _beygram_secret_lines
+         REGEX "^[ \t]*telegramApi(Id|Hash)[ \t]*=")
+
+    foreach(_line IN LISTS _beygram_secret_lines)
+        if(_line MATCHES "^[ \t]*telegramApiId[ \t]*=[ \t]*(.*)$")
+            string(STRIP "${CMAKE_MATCH_1}" BEYGRAM_BUILD_API_ID)
+        elseif(_line MATCHES "^[ \t]*telegramApiHash[ \t]*=[ \t]*(.*)$")
+            string(STRIP "${CMAKE_MATCH_1}" BEYGRAM_BUILD_API_HASH)
+        endif()
+    endforeach()
+
+    if(NOT BEYGRAM_BUILD_API_ID MATCHES "^[0-9]+$")
+        message(FATAL_ERROR "telegramApiId in ${BEYGRAM_SECRETS_FILE} is missing or invalid")
+    endif()
+    string(LENGTH "${BEYGRAM_BUILD_API_HASH}" _beygram_hash_length)
+    if(NOT _beygram_hash_length EQUAL 32 OR NOT BEYGRAM_BUILD_API_HASH MATCHES "^[0-9a-fA-F]+$")
+        message(FATAL_ERROR "telegramApiHash in ${BEYGRAM_SECRETS_FILE} is missing or invalid")
+    endif()
+
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BeyGramBuildSecrets.h.in"
+        "${CMAKE_BINARY_DIR}/generated/BeyGramBuildSecrets.h"
+        @ONLY
+    )
+    target_compile_definitions(beygram_ui PRIVATE BEYGRAM_EMBEDDED_CREDENTIALS=1)
+    target_include_directories(beygram_ui PRIVATE "${CMAKE_BINARY_DIR}/generated")
+    message(STATUS "Embedding Telegram API credentials from secrets.properties (local test build)")
+endif()
+
 qt_add_executable(beygram WIN32
     src/app/main.cpp
 )
@@ -43,6 +81,9 @@ qt_add_qml_module(beygram
     RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/Main.qml
+        qml/Shell.qml
+        qml/AuthPage.qml
+        qml/components/AuthField.qml
         qml/components/Card.qml
         qml/components/NavButton.qml
         qml/components/Pill.qml
@@ -66,12 +107,7 @@ target_link_libraries(beygram
 )
 
 if(BEYGRAM_TDLIB_FOUND)
-    add_custom_command(TARGET beygram POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${BEYGRAM_TDLIB_DLL}"
-                "$<TARGET_FILE_DIR:beygram>/tdjson.dll"
-        COMMENT "Copying tdjson.dll next to the BeyGram executable"
-    )
+    beygram_copy_tdlib_runtime(beygram)
 endif()
 
 # The QML module is compiled into the executable. Qt's deployment tool creates

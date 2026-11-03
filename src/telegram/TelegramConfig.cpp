@@ -25,18 +25,25 @@ TelegramCredentials TelegramCredentials::fromEnvironment()
 
 bool TelegramConfig::isConfigured() const
 {
-    return credentials.isValid() && !databaseDirectory.isEmpty() && !filesDirectory.isEmpty();
+    return credentials.isValid() && !databaseDirectory.isEmpty() && !filesDirectory.isEmpty()
+        && hasDatabaseKey();
+}
+
+bool TelegramConfig::hasDatabaseKey() const
+{
+    return databaseEncryptionKey.size() == 64;
 }
 
 QJsonObject TelegramConfig::tdlibParameters() const
 {
-    // Mirrors TdApi.SetTdlibParameters. The api_hash is included only in the
-    // request sent to TDLib; this object must never be logged.
+    // Mirrors TdApi.SetTdlibParameters. The api_hash and the database key are
+    // included only in the request sent to TDLib; this object must never be
+    // logged.
     return QJsonObject{
         {QStringLiteral("use_test_dc"), false},
         {QStringLiteral("database_directory"), databaseDirectory},
         {QStringLiteral("files_directory"), filesDirectory},
-        {QStringLiteral("database_encryption_key"), QString()},
+        {QStringLiteral("database_encryption_key"), databaseEncryptionKey},
         {QStringLiteral("use_file_database"), useFileDatabase},
         {QStringLiteral("use_chat_info_database"), useChatInfoDatabase},
         {QStringLiteral("use_message_database"), useMessageDatabase},

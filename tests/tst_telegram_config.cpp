@@ -10,9 +10,10 @@ class TelegramConfigTest final : public QObject {
 
 private slots:
     void credentialsRequireBothFields();
-    void tdlibParametersCarryDirectoriesAndSecret();
-    void configRequiresDirectories();
+    void tdlibParametersCarryDirectoriesAndSecrets();
+    void configRequiresDirectoriesAndKey();
     void authorizationStatesMap();
+    void qrAndEmailStatesMap();
     void unknownStateIsLoading();
     void stageNamesAreStable();
 };
@@ -32,13 +33,14 @@ void TelegramConfigTest::credentialsRequireBothFields()
     QVERIFY(!credentials.isValid());
 }
 
-void TelegramConfigTest::tdlibParametersCarryDirectoriesAndSecret()
+void TelegramConfigTest::tdlibParametersCarryDirectoriesAndSecrets()
 {
     TelegramConfig config;
     config.credentials.apiId = 4242;
     config.credentials.apiHash = QStringLiteral("secret-hash");
     config.databaseDirectory = QStringLiteral("C:/data/database");
     config.filesDirectory = QStringLiteral("C:/data/files");
+    config.databaseEncryptionKey = QString(64, QLatin1Char('a'));
 
     const QJsonObject parameters = config.tdlibParameters();
     QCOMPARE(parameters.value(QStringLiteral("api_id")).toInt(), 4242);
@@ -48,21 +50,26 @@ void TelegramConfigTest::tdlibParametersCarryDirectoriesAndSecret()
              QStringLiteral("C:/data/database"));
     QCOMPARE(parameters.value(QStringLiteral("files_directory")).toString(),
              QStringLiteral("C:/data/files"));
+    QCOMPARE(parameters.value(QStringLiteral("database_encryption_key")).toString(),
+             config.databaseEncryptionKey);
 
     const QJsonObject request = config.setTdlibParametersRequest();
     QCOMPARE(request.value(QStringLiteral("@type")).toString(),
              QStringLiteral("setTdlibParameters"));
 }
 
-void TelegramConfigTest::configRequiresDirectories()
+void TelegramConfigTest::configRequiresDirectoriesAndKey()
 {
     TelegramConfig config;
     config.credentials.apiId = 1;
     config.credentials.apiHash = QStringLiteral("h");
-    QVERIFY(!config.isConfigured());
-
     config.databaseDirectory = QStringLiteral("db");
     config.filesDirectory = QStringLiteral("files");
+    QVERIFY(!config.isConfigured());
+    QVERIFY(!config.hasDatabaseKey());
+
+    config.databaseEncryptionKey = QString(64, QLatin1Char('b'));
+    QVERIFY(config.hasDatabaseKey());
     QVERIFY(config.isConfigured());
 }
 
@@ -82,6 +89,19 @@ void TelegramConfigTest::authorizationStatesMap()
              AuthStage::Closed);
 }
 
+void TelegramConfigTest::qrAndEmailStatesMap()
+{
+    QCOMPARE(authStageFromTdlib(QStringLiteral("authorizationStateWaitQrCode")),
+             AuthStage::WaitQrCode);
+    QCOMPARE(authStageFromTdlib(
+                 QStringLiteral("authorizationStateWaitOtherDeviceConfirmation")),
+             AuthStage::WaitQrCode);
+    QCOMPARE(authStageFromTdlib(QStringLiteral("authorizationStateWaitEmailAddress")),
+             AuthStage::WaitEmailAddress);
+    QCOMPARE(authStageFromTdlib(QStringLiteral("authorizationStateWaitEmailCode")),
+             AuthStage::WaitEmailCode);
+}
+
 void TelegramConfigTest::unknownStateIsLoading()
 {
     QCOMPARE(authStageFromTdlib(QStringLiteral("authorizationStateSomethingNew")),
@@ -91,8 +111,10 @@ void TelegramConfigTest::unknownStateIsLoading()
 void TelegramConfigTest::stageNamesAreStable()
 {
     QCOMPARE(authStageName(AuthStage::Unavailable), QStringLiteral("unavailable"));
+    QCOMPARE(authStageName(AuthStage::Locked), QStringLiteral("locked"));
     QCOMPARE(authStageName(AuthStage::Ready), QStringLiteral("ready"));
-    QVERIFY(authStageIsTerminalFailure(AuthStage::NotConfigured));
+    QCOMPARE(authStageName(AuthStage::WaitEmailCode), QStringLiteral("wait_email_code"));
+    QVERIFY(authStageIsTerminalFailure(AuthStage::Locked));
     QVERIFY(!authStageIsTerminalFailure(AuthStage::WaitCode));
 }
 

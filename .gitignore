@@ -20,6 +20,7 @@ secrets.properties
 /build-*/
 /out/
 /stage/
+/dist/
 /.vs/
 CMakeUserPresets.json
 

@@ -64,8 +64,8 @@ Item {
                     FieldValue { text: "BeyGram Windows " + BeyGramApp.appVersion }
                     FieldLabel { text: "Build" }
                     FieldValue { text: BeyGramApp.buildInfo }
-                    FieldLabel { text: "Qt" }
-                    FieldValue { text: BeyGramApp.qtVersion }
+                    FieldLabel { text: "TDLib path" }
+                    FieldValue { text: BeyGramApp.tdlibPath !== "" ? BeyGramApp.tdlibPath : "not loaded" }
                     FieldLabel { text: "Data directory" }
                     FieldValue { text: BeyGramApp.dataDirectory }
                     FieldLabel { text: "Log directory" }
