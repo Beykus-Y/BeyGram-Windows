@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -12,6 +12,7 @@ Item {
     Shortcut { sequence: "Alt+1"; onActivated: shell.currentSection = 0 }
     Shortcut { sequence: "Alt+2"; onActivated: shell.currentSection = 1 }
     Shortcut { sequence: "Alt+3"; onActivated: shell.currentSection = 2 }
+    Shortcut { sequence: "Alt+4"; onActivated: shell.currentSection = 3 }
 
     RowLayout {
         anchors.fill: parent
@@ -23,7 +24,7 @@ Item {
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 268
-            color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.72 : 0.82)
+            color: BeyGramTheme.surface
 
             Rectangle {
                 anchors.right: parent.right
@@ -61,11 +62,6 @@ Item {
                             color: BeyGramTheme.text
                             font.pixelSize: 17
                             font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: "Windows · Phase 1"
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 11
                         }
                     }
                     Item { Layout.fillWidth: true }
@@ -136,50 +132,27 @@ Item {
 
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Overview"
+                    text: "Chats"
                     selected: shell.currentSection === 0
                     onClicked: shell.currentSection = 0
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Environment"
+                    text: "Profile"
                     selected: shell.currentSection === 1
                     onClicked: shell.currentSection = 1
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Logs"
+                    text: "Network"
                     selected: shell.currentSection === 2
                     onClicked: shell.currentSection = 2
                 }
-
-                Text {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 18
-                    text: "ANDROID REFERENCE MODULES"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    font.letterSpacing: 1.1
-                    font.weight: Font.DemiBold
-                }
-
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Chats & media"
-                    hint: "Phase 2"
-                    enabled: false
-                }
-                NavButton {
-                    Layout.fillWidth: true
-                    text: "Music & BG Mix"
-                    hint: "Phase 4"
-                    enabled: false
-                }
-                NavButton {
-                    Layout.fillWidth: true
-                    text: "Settings & themes"
-                    hint: "Phase 3"
-                    enabled: false
+                    text: "Logs"
+                    selected: shell.currentSection === 3
+                    onClicked: shell.currentSection = 3
                 }
 
                 Item { Layout.fillHeight: true }
@@ -205,13 +178,6 @@ Item {
                     }
                 }
 
-                Text {
-                    Layout.fillWidth: true
-                    text: "Alt+1/2/3 navigate · Ctrl+D theme · Ctrl+R refresh"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
-                }
             }
         }
 
@@ -223,6 +189,7 @@ Item {
             Layout.fillHeight: true
             currentIndex: shell.currentSection
 
+            ChatsPage {}
             OverviewPage {}
             EnvironmentPage {}
             LogsPage {}

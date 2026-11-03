@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -28,7 +28,7 @@ Item {
                     Text {
                         text: "Account overview"
                         color: BeyGramTheme.text
-                        font.pixelSize: 30
+                        font.pixelSize: 26
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -39,8 +39,6 @@ Item {
                         Layout.fillWidth: true
                     }
                 }
-                Pill { text: "PHASE 1"; tone: "accent" }
-                Pill { text: "AUTHORIZED"; tone: "ok" }
             }
 
             Card {
@@ -176,69 +174,6 @@ Item {
                         wrapMode: Text.WordWrap
                         lineHeight: 1.35
                     }
-                }
-
-                Card {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    Layout.alignment: Qt.AlignTop
-                    spacing: 10
-
-                    Text {
-                        text: "Next: chats and messages"
-                        color: BeyGramTheme.text
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        text: "Phase 2 connects the chat list and message history to this authenticated session. Until then this window intentionally shows no conversations."
-                        color: BeyGramTheme.muted
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                        lineHeight: 1.35
-                    }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        Pill { text: "TDLib" }
-                        Pill { text: "DPAPI" }
-                        Pill { text: "Session lock" }
-                        Pill { text: "QR login" }
-                    }
-                }
-            }
-
-            Card {
-                Layout.fillWidth: true
-                spacing: 10
-
-                Text {
-                    text: "Porting map"
-                    color: BeyGramTheme.text
-                    font.pixelSize: 15
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    text: "docs/PORTING_AUDIT.md classifies every Android module as direct port, platform adaptation, QML rewrite or special case. docs/PORTING_ROADMAP.md orders the work. The Android tree under app/ is preserved unchanged as the functional reference."
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.35
-                }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Pill { text: "A · algorithms" }
-                    Pill { text: "B · platform" }
-                    Pill { text: "C · QML" }
-                    Pill { text: "D · special cases" }
                 }
             }
 

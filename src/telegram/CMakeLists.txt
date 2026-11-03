@@ -5,8 +5,24 @@ add_library(beygram_telegram STATIC
     AuthRequests.h
     AuthState.cpp
     AuthState.h
+    ChatFilterModel.cpp
+    ChatFilterModel.h
+    ChatListModel.cpp
+    ChatListModel.h
     CredentialStore.cpp
     CredentialStore.h
+    ReplyInfo.cpp
+    ReplyInfo.h
+    NotificationFormatter.cpp
+    NotificationFormatter.h
+    TelegramParseWorker.cpp
+    TelegramParseWorker.h
+    TelegramUpdateScheduler.cpp
+    TelegramUpdateScheduler.h
+    TextFormatting.cpp
+    TextFormatting.h
+    MessageListModel.cpp
+    MessageListModel.h
     SessionLock.cpp
     SessionLock.h
     TdJsonTransport.cpp
@@ -15,8 +31,16 @@ add_library(beygram_telegram STATIC
     TdLibLocator.h
     TelegramConfig.cpp
     TelegramConfig.h
+    TelegramRepository.cpp
+    TelegramRepository.h
+    TelegramRequests.cpp
+    TelegramRequests.h
     TelegramSession.cpp
     TelegramSession.h
+    TelegramTypes.cpp
+    TelegramTypes.h
+    MediaFileStore.cpp
+    MediaFileStore.h
 )
 
 target_include_directories(beygram_telegram PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")

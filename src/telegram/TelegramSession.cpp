@@ -91,6 +91,8 @@ void TelegramSession::start()
     m_lastErrorCode = 0;
     m_connectionState = QStringLiteral("unknown");
     m_loggingOut = false;
+    m_proxySetupStarted = false;
+    m_tdlibParametersSent = false;
 
     QString loadError;
     if (!m_transport.load(&loadError)) {
@@ -138,6 +140,8 @@ void TelegramSession::start()
 
     setStage(AuthStage::Loading,
              QStringLiteral("TDLib client created; waiting for the authorization state"));
+    if (m_config.hasProxy())
+        qCInfo(lcSession) << "Using proxy at" << m_config.proxy.summary();
 }
 
 void TelegramSession::requestClose()
@@ -367,6 +371,7 @@ void TelegramSession::handleUpdate(const QJsonObject& update)
         const QString name = state.value(QStringLiteral("@type")).toString();
         if (!name.isEmpty() && name != m_connectionState) {
             m_connectionState = name;
+            qCInfo(lcSession) << "Connection state:" << name;
             emit connectionStateChanged();
         }
     } else if (type == QLatin1String("error")) {
@@ -386,7 +391,7 @@ void TelegramSession::handleAuthorizationState(const QJsonObject& state)
     switch (next) {
     case AuthStage::WaitTdlibParameters:
         setStage(next, QStringLiteral("Sending database and API parameters to TDLib"));
-        sendTdlibParameters();
+        ensureTdlibParameters();
         break;
     case AuthStage::WaitPhoneNumber:
         resetAuthDetails();
@@ -473,8 +478,75 @@ void TelegramSession::setStage(AuthStage stage, const QString& detail)
     }
 }
 
+void TelegramSession::ensureTdlibParameters()
+{
+    if (m_config.hasProxy() && !m_proxySetupStarted) {
+        m_proxySetupStarted = true;
+        setStage(AuthStage::WaitTdlibParameters,
+                 QStringLiteral("Configuring proxy %1").arg(m_config.proxy.summary()));
+
+        QJsonObject proxy{
+            {QStringLiteral("@type"), QStringLiteral("proxy")},
+            {QStringLiteral("server"), m_config.proxy.server},
+            {QStringLiteral("port"), m_config.proxy.port},
+            {QStringLiteral("type"), proxyTypeObject()},
+        };
+
+        sendRequest(
+            QJsonObject{{QStringLiteral("@type"), QStringLiteral("addProxy")},
+                        {QStringLiteral("proxy"), proxy},
+                        {QStringLiteral("enable"), true},
+                        {QStringLiteral("comment"), QStringLiteral("BeyGram")}},
+            [this](const QJsonObject& response) {
+                if (response.value(QStringLiteral("@type")).toString()
+                    == QLatin1String("error")) {
+                    int code = 0;
+                    reportError(QStringLiteral("Proxy setup failed: %1")
+                                    .arg(friendlyAuthError(response, &code)),
+                                code);
+                }
+            },
+            0);
+
+        // TDLib may delay the addProxy response until it has attempted a
+        // connection through the proxy. The request is processed in order, so
+        // parameters can be sent immediately instead of stalling startup.
+        sendTdlibParameters();
+        return;
+    }
+
+    sendTdlibParameters();
+}
+
+QJsonObject TelegramSession::proxyTypeObject() const
+{
+    if (m_config.proxy.type == QLatin1String("http")) {
+        return QJsonObject{
+            {QStringLiteral("@type"), QStringLiteral("proxyTypeHttp")},
+            {QStringLiteral("username"), m_config.proxy.username},
+            {QStringLiteral("password"), m_config.proxy.password},
+            {QStringLiteral("http_only"), false},
+        };
+    }
+    if (m_config.proxy.type == QLatin1String("mtproto")) {
+        return QJsonObject{
+            {QStringLiteral("@type"), QStringLiteral("proxyTypeMtproto")},
+            {QStringLiteral("secret"), m_config.proxy.password},
+        };
+    }
+    return QJsonObject{
+        {QStringLiteral("@type"), QStringLiteral("proxyTypeSocks5")},
+        {QStringLiteral("username"), m_config.proxy.username},
+        {QStringLiteral("password"), m_config.proxy.password},
+    };
+}
+
 void TelegramSession::sendTdlibParameters()
 {
+    if (m_tdlibParametersSent)
+        return;
+    m_tdlibParametersSent = true;
+
     // The request contains api_hash and the database key. It is handed to
     // TDLib directly and never logged or exposed through signals.
     sendRequest(m_config.setTdlibParametersRequest(),

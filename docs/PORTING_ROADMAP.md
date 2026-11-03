@@ -34,7 +34,8 @@ Exit criteria (met locally):
 - `ctest` passes all suites.
 - Removing/omitting TDLib produces a visible "runtime missing" state, not a
   crash or fake connection.
-- Android sources are untouched; Android workflows are untouched.
+- Android sources are untouched (the inherited Android workflows were removed
+  later by the owner's request; Android remains the source reference).
 
 Not in Phase 0: login UI, chats, media, notifications, music, VPN, packaging.
 
@@ -83,8 +84,13 @@ Duration: 3–5 weeks.
 
 ## Phase 2 — Chat list, history and the conversation MVP (P0)
 
-**Goal:** read and write messages in real chats, with correct ordering and
-permissions.
+**Status:** chat MVP implemented in `feature/windows-chats` and stacked on the
+authorization branch: main chat list with pin/unread/mute/search, TDLib-update
+ordering, text history, text send/edit/delete, read receipts, proxy support,
+real avatars/thumbnails, rich-text entities, replies, a still-image viewer,
+desktop notifications, a batched update scheduler and background parsing.
+Drafts, folders/archive UI, in-chat search, albums and notification preferences
+remain open in this phase.
 
 Scope:
 

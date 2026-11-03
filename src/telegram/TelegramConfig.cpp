@@ -1,9 +1,49 @@
 #include "TelegramConfig.h"
 
+#include "core/AppPaths.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QProcessEnvironment>
+#include <QTextStream>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QSysInfo>
 
 namespace beygram::telegram {
+namespace {
+
+/// Environment first (CI and power users), then a portable proxy.txt next to
+/// the executable, then the per-user config directory. This lets a packaged
+/// build start by double-clicking beygram.exe without a .cmd launcher.
+QString configuredProxyUrl()
+{
+    const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    QString url = environment.value(QStringLiteral("BEYGRAM_PROXY")).trimmed();
+    if (!url.isEmpty())
+        return url;
+
+    const QStringList candidates{
+        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("proxy.txt")),
+        QDir(AppPaths::configDirectory()).filePath(QStringLiteral("proxy.txt")),
+    };
+    for (const QString& path : candidates) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        QTextStream stream(&file);
+        while (!stream.atEnd()) {
+            const QString line = stream.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith(QLatin1Char('#')))
+                continue;
+            return line;
+        }
+    }
+    return {};
+}
+
+} // namespace
 
 bool TelegramCredentials::isValid() const
 {
@@ -21,6 +61,48 @@ TelegramCredentials TelegramCredentials::fromEnvironment()
         credentials.apiId = 0;
     credentials.apiHash = environment.value(QStringLiteral("BEYGRAM_TELEGRAM_API_HASH")).trimmed();
     return credentials;
+}
+
+bool TelegramProxySettings::isValid() const
+{
+    return !server.trimmed().isEmpty() && port > 0 && port <= 65535
+        && (type == QLatin1String("socks5") || type == QLatin1String("http")
+            || type == QLatin1String("mtproto"));
+}
+
+QString TelegramProxySettings::summary() const
+{
+    if (!isValid())
+        return {};
+    return QStringLiteral("%1 %2:%3").arg(type, server).arg(port);
+}
+
+TelegramProxySettings TelegramProxySettings::fromEnvironment()
+{
+    const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    TelegramProxySettings settings;
+
+    const QString url = configuredProxyUrl();
+    if (!url.isEmpty()) {
+        const QUrl parsed(url);
+        const QString scheme = parsed.scheme().toLower();
+        settings.type = scheme == QLatin1String("https") ? QStringLiteral("http") : scheme;
+        settings.server = parsed.host();
+        settings.port = parsed.port();
+        settings.username = parsed.userName();
+        settings.password = parsed.password();
+        if (settings.type == QLatin1String("mtproto") && settings.password.isEmpty())
+            settings.password = QUrlQuery(parsed).queryItemValue(QStringLiteral("secret"));
+        return settings;
+    }
+
+    settings.server = environment.value(QStringLiteral("BEYGRAM_PROXY_SERVER")).trimmed();
+    settings.port = environment.value(QStringLiteral("BEYGRAM_PROXY_PORT")).toInt();
+    settings.type = environment.value(QStringLiteral("BEYGRAM_PROXY_TYPE"),
+                                      QStringLiteral("socks5")).toLower();
+    settings.username = environment.value(QStringLiteral("BEYGRAM_PROXY_USERNAME"));
+    settings.password = environment.value(QStringLiteral("BEYGRAM_PROXY_PASSWORD"));
+    return settings;
 }
 
 bool TelegramConfig::isConfigured() const

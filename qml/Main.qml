@@ -56,4 +56,6 @@ ApplicationWindow {
             AuthPage {}
         }
     }
+
+    MediaViewerOverlay {}
 }

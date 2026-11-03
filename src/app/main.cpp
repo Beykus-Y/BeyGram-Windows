@@ -1,10 +1,11 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "ui/AppController.h"
+#include "ui/MediaImageProvider.h"
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
 
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QtQml>
@@ -21,7 +22,7 @@ void handleObjectCreationFailure()
 
 int main(int argc, char* argv[])
 {
-    QGuiApplication application(argc, argv);
+    QApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("Beykus"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("beygram.app"));
     QCoreApplication::setApplicationName(QStringLiteral("BeyGram Windows"));
@@ -49,6 +50,8 @@ int main(int argc, char* argv[])
 
     qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramTheme", &theme);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramApp", &controller);
+    qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramMediaViewer",
+                                 controller.mediaViewer());
 
     QQmlApplicationEngine engine;
 
@@ -58,6 +61,10 @@ int main(int argc, char* argv[])
                      [&controller, qrProvider] {
                          qrProvider->setLink(controller.qrLoginLink());
                      });
+
+    engine.addImageProvider(
+        QStringLiteral("beygrammedia"),
+        new beygram::ui::MediaImageProvider(controller.mediaStore()));
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &application, handleObjectCreationFailure, Qt::QueuedConnection);

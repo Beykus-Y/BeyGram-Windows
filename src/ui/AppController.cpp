@@ -5,12 +5,14 @@
 #include "core/Logging.h"
 #include "media/BgMediaStatus.h"
 #include "platform/windows/DatabaseKeyStore.h"
+#include "telegram/TelegramRepository.h"
 #include "telegram/TelegramSession.h"
 
 #ifdef BEYGRAM_EMBEDDED_CREDENTIALS
 #include "BeyGramBuildSecrets.h"
 #endif
 
+#include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -19,7 +21,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLocale>
+#include <QStyle>
 #include <QSysInfo>
+#include <QSystemTrayIcon>
 #include <QTimer>
 #include <QUrl>
 
@@ -90,9 +94,12 @@ QString username(const QJsonObject& user)
 AppController::AppController(QObject* parent)
     : QObject(parent),
       m_credentials(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))),
-      m_registry(AppPaths::dataDirectory())
+      m_registry(AppPaths::dataDirectory()),
+      m_mediaViewer(&m_mediaStore)
 {
     buildConfig();
+
+    m_chatFilterModel.setSourceModel(&m_chatListModel);
 
     m_busyTimer = new QTimer(this);
     m_busyTimer->setSingleShot(true);
@@ -173,6 +180,7 @@ Result<telegram::TelegramConfig> AppController::prepareConfig()
     config.databaseDirectory = QDir(accountDirectory).filePath(QStringLiteral("database"));
     config.filesDirectory = QDir(accountDirectory).filePath(QStringLiteral("files"));
     config.databaseEncryptionKey = key.value();
+    config.proxy = telegram::TelegramProxySettings::fromEnvironment();
     config.systemLanguageCode = QLocale::system().name().section(QLatin1Char('_'), 0, 0);
     if (config.systemLanguageCode.isEmpty())
         config.systemLanguageCode = QStringLiteral("en");
@@ -196,6 +204,7 @@ void AppController::rebuildSession(bool autoStart)
     m_rebuilding = true;
 
     if (m_session) {
+        resetRepository();
         m_session->shutdown(3000);
         m_session.reset();
     }
@@ -278,12 +287,19 @@ void AppController::onSessionStageChanged()
     m_authErrorCode = 0;
 
     if (m_session->stage() == telegram::AuthStage::Ready) {
+        ensureRepository();
         requestAccountProfile();
         (void)m_registry.touch(m_accountId);
-    } else if (m_session->stage() == telegram::AuthStage::Closed && m_logoutRequested) {
+    } else if (m_session->stage() == telegram::AuthStage::Closed) {
+        const bool loggedOut = m_logoutRequested;
         m_logoutRequested = false;
-        QTimer::singleShot(0, this, [this] { rebuildSession(true); });
-        return;
+        resetRepository();
+        if (loggedOut) {
+            QTimer::singleShot(0, this, [this] { rebuildSession(true); });
+            return;
+        }
+    } else if (m_session->stage() == telegram::AuthStage::Idle) {
+        resetRepository();
     }
 
     notifyChanged();
@@ -381,6 +397,14 @@ QString AppController::tdlibDetail() const
 QString AppController::startupError() const
 {
     return m_startupError;
+}
+
+QString AppController::proxySummary() const
+{
+    if (!m_session)
+        return QStringLiteral("Direct connection");
+    return m_session->config().hasProxy() ? m_session->config().proxy.summary()
+                                          : QStringLiteral("Direct connection");
 }
 
 bool AppController::credentialsConfigured() const
@@ -566,6 +590,267 @@ QString AppController::accountUsername() const
     return m_accountUsername;
 }
 
+void AppController::ensureRepository()
+{
+    if (m_repository || !m_session)
+        return;
+
+    m_repository = std::make_unique<telegram::TelegramRepository>(
+        m_session.get(), &m_chatListModel, &m_messageModel, &m_mediaStore, this);
+    m_mediaStore.setSession(m_session.get());
+    connect(m_repository.get(), &telegram::TelegramRepository::stateChanged, this,
+            [this] { emit chatStateChanged(); });
+    connect(m_repository.get(), &telegram::TelegramRepository::currentChatChanged, this,
+            [this] { emit chatStateChanged(); });
+    connect(m_repository.get(), &telegram::TelegramRepository::errorOccurred, this,
+            [this](const QString& message) {
+                m_chatError = message;
+                emit chatStateChanged();
+            });
+    connect(m_repository.get(), &telegram::TelegramRepository::initialHistoryLoaded, this,
+            [this] { emit initialHistoryLoaded(); });
+    connect(m_repository.get(), &telegram::TelegramRepository::notificationRequested, this,
+            &AppController::showNotification);
+    m_repository->start();
+}
+
+void AppController::showNotification(const QString& title, const QString& body)
+{
+    if (title.isEmpty() || body.isEmpty() || !QSystemTrayIcon::isSystemTrayAvailable())
+        return;
+    if (!m_tray) {
+        m_tray = new QSystemTrayIcon(this);
+        m_tray->setIcon(QApplication::style()->standardIcon(
+            QStyle::SP_MessageBoxInformation));
+        m_tray->setToolTip(QStringLiteral("BeyGram Windows"));
+        m_tray->show();
+    }
+    m_tray->showMessage(title, body, QSystemTrayIcon::Information, 6000);
+}
+
+void AppController::resetRepository()
+{
+    m_mediaStore.setSession(nullptr);
+    m_repository.reset();
+    m_chatListModel.clear();
+    m_messageModel.clear();
+    m_chatError.clear();
+    m_replyToMessageId = 0;
+    m_replyChatId = 0;
+    m_replyPreview.clear();
+    emit replyStateChanged();
+    emit chatStateChanged();
+}
+
+QAbstractItemModel* AppController::chatList()
+{
+    return &m_chatFilterModel;
+}
+
+QAbstractItemModel* AppController::messages()
+{
+    return &m_messageModel;
+}
+
+qint64 AppController::currentChatId() const
+{
+    return m_repository ? m_repository->currentChatId() : 0;
+}
+
+QString AppController::currentChatTitle() const
+{
+    return m_repository ? m_repository->currentChatTitle() : QString();
+}
+
+QString AppController::currentChatSubtitle() const
+{
+    return m_repository ? m_repository->currentChatSubtitle() : QString();
+}
+
+int AppController::currentChatPhotoFileId() const
+{
+    return m_repository ? m_repository->currentChatPhotoFileId() : 0;
+}
+
+bool AppController::currentChatPhotoReady() const
+{
+    return m_repository && m_repository->currentChatPhotoReady();
+}
+
+int AppController::currentChatPhotoRevision() const
+{
+    return m_repository ? m_repository->currentChatPhotoRevision() : 0;
+}
+
+telegram::MediaFileStore* AppController::mediaStore()
+{
+    return &m_mediaStore;
+}
+
+MediaViewerController* AppController::mediaViewer()
+{
+    return &m_mediaViewer;
+}
+
+bool AppController::saveOpenMediaAs(const QUrl& target)
+{
+    return m_mediaViewer.saveAs(target.toLocalFile());
+}
+
+bool AppController::chatLoading() const
+{
+    return m_repository && m_repository->loadingChats();
+}
+
+bool AppController::historyLoading() const
+{
+    return m_repository && m_repository->historyLoading();
+}
+
+bool AppController::hasMoreHistory() const
+{
+    return m_repository && m_repository->hasMoreHistory();
+}
+
+QString AppController::chatError() const
+{
+    return m_chatError;
+}
+
+QString AppController::chatFilter() const
+{
+    return m_chatFilterModel.filterText();
+}
+
+void AppController::setChatFilter(const QString& filter)
+{
+    m_chatFilterModel.setFilterText(filter);
+    emit chatFilterChanged();
+}
+
+qint64 AppController::replyToMessageId() const
+{
+    return m_replyToMessageId;
+}
+
+QString AppController::replyPreview() const
+{
+    return m_replyPreview;
+}
+
+void AppController::openChat(qint64 chatId)
+{
+    m_chatError.clear();
+    if (chatId != m_replyChatId) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        m_replyChatId = chatId;
+        emit replyStateChanged();
+    }
+    if (m_repository)
+        m_repository->openChat(chatId);
+    emit chatStateChanged();
+}
+
+void AppController::closeChat()
+{
+    if (m_replyToMessageId != 0 || !m_replyPreview.isEmpty()) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        emit replyStateChanged();
+    }
+    m_replyChatId = 0;
+    if (m_repository)
+        m_repository->closeChat();
+    emit chatStateChanged();
+}
+
+void AppController::loadOlderMessages()
+{
+    if (m_repository)
+        m_repository->loadOlder();
+}
+
+void AppController::sendChatMessage(const QString& text)
+{
+    m_chatError.clear();
+    const qint64 replyTo = m_replyToMessageId;
+    if (m_repository)
+        m_repository->sendText(text, replyTo);
+    if (replyTo != 0 || !m_replyPreview.isEmpty()) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        emit replyStateChanged();
+    }
+    emit chatStateChanged();
+}
+
+void AppController::beginReply(qint64 messageId, const QString& preview)
+{
+    if (messageId == 0)
+        return;
+    m_replyToMessageId = messageId;
+    m_replyChatId = m_repository ? m_repository->currentChatId() : m_replyChatId;
+    m_replyPreview = preview;
+    emit replyStateChanged();
+}
+
+void AppController::cancelReply()
+{
+    if (m_replyToMessageId == 0 && m_replyPreview.isEmpty())
+        return;
+    m_replyToMessageId = 0;
+    m_replyPreview.clear();
+    emit replyStateChanged();
+}
+
+void AppController::editChatMessage(qint64 messageId, const QString& text)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->editMessage(messageId, text);
+    emit chatStateChanged();
+}
+
+void AppController::deleteChatMessage(qint64 messageId)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->deleteMessage(messageId);
+    emit chatStateChanged();
+}
+
+void AppController::copyText(const QString& text)
+{
+    if (QGuiApplication::instance() != nullptr
+        && !text.isEmpty()) {
+        QGuiApplication::clipboard()->setText(text);
+    }
+}
+
+void AppController::clearChatError()
+{
+    m_chatError.clear();
+    emit chatStateChanged();
+}
+
+void AppController::requestChatPhoto(int fileId)
+{
+    m_mediaStore.trackFileId(fileId, 8);
+}
+
+void AppController::openLink(const QString& url)
+{
+    const QUrl target(url);
+    const QString scheme = target.scheme().toLower();
+    if (scheme != QLatin1String("http") && scheme != QLatin1String("https")
+        && scheme != QLatin1String("tg") && scheme != QLatin1String("mailto")) {
+        return;
+    }
+    if (target.isValid())
+        QDesktopServices::openUrl(target);
+}
+
 QString AppController::bgMediaTitle() const
 {
     return media::bgMediaStatus().title;
@@ -654,6 +939,10 @@ QString AppController::diagnosticsText() const
           << QStringLiteral("Credentials source: %1")
                  .arg(m_credentialsSource.isEmpty() ? QStringLiteral("none")
                                                     : m_credentialsSource)
+          << QStringLiteral("Proxy: %1")
+                 .arg(m_session && m_session->config().hasProxy()
+                          ? m_session->config().proxy.summary()
+                          : QStringLiteral("direct"))
           << QStringLiteral("Account id: %1").arg(m_accountId)
           << QStringLiteral("Stage: %1").arg(stageName())
           << QStringLiteral("Connection: %1").arg(connectionTitle())
@@ -819,6 +1108,7 @@ void AppController::shutdown()
 {
     if (m_session)
         m_session->shutdown(5000);
+    resetRepository();
 }
 
 } // namespace beygram::ui

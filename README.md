@@ -9,9 +9,10 @@ module is migrated.
 
 Current status: the Qt Quick shell, real TDLib authorization (phone, code,
 two-step password, email, registration and QR), DPAPI-protected credentials and
-database keys, session restore, request correlation, logging and tests build
-and run. Chats, media, notifications and music are not implemented yet, and the
-app states this honestly. See
+database keys, session restore, a live chat list with history and text sending,
+proxy support, request correlation, logging and tests build and run. Media,
+notifications and music are not implemented yet, and the app states this
+honestly. See
 [windows foundation](docs/WINDOWS_FOUNDATION.md),
 [TDLib build](docs/WINDOWS_TDLIB.md),
 [porting audit](docs/PORTING_AUDIT.md) and
