@@ -16,15 +16,20 @@ This document describes the native Windows client. The Android client under
   single-process lock for the active TDLib database.
 - API credentials and the TDLib database key protected with Windows DPAPI.
 - Request/response correlation through TDLib `@extra`.
+- Main chat list, chat search, message history, text sending, editing,
+  deletion and read receipts through TDLib updates.
+- Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
+  is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
 - Warm/Graphite palettes and FollowSystem/Light/Dark/AMOLED brightness.
 - Qt Test suites and Windows CI.
 
 ## What does not work yet
 
-- No chat list, message history, sending, media, profiles or notifications.
-  The signed-in shell states this explicitly.
-- No music, BG Beat/BG Mix, proxy/VPN or updater.
+- Rich text entities, media, stickers, reactions, replies, albums, drafts,
+  folders/archive UI, notifications, profiles and calls are not in this slice.
+  Media messages are listed with honest placeholders such as `[Video message]`.
+- No music, BG Beat/BG Mix, VPN or updater.
 - Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
   from real TDLib errors, but automating those cases needs a dedicated test
   Telegram account. They are not run against a real account in CI.
@@ -66,6 +71,26 @@ Run:
 ```powershell
 .\build\Release\beygram.exe
 ```
+
+## Proxy
+
+If Telegram is not directly reachable, set `BEYGRAM_PROXY` before starting:
+
+```powershell
+# SOCKS5 (for example a local Clash/Mihomo mixed port)
+$env:BEYGRAM_PROXY = "socks5://127.0.0.1:7897"
+
+# HTTP CONNECT
+$env:BEYGRAM_PROXY = "http://127.0.0.1:8080"
+
+# MTProto proxy (secret in the URL query)
+$env:BEYGRAM_PROXY = "mtproto://server:443?secret=0123456789abcdef0123456789abcdef"
+```
+
+Separate variables are also accepted: `BEYGRAM_PROXY_SERVER`,
+`BEYGRAM_PROXY_PORT`, `BEYGRAM_PROXY_TYPE` (`socks5`, `http`, `mtproto`),
+`BEYGRAM_PROXY_USERNAME`, `BEYGRAM_PROXY_PASSWORD`. The proxy summary appears
+on the Environment page; the password is never shown or logged.
 
 ## First-run authentication
 
@@ -174,26 +199,30 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 17 suites:
+`ctest` runs 20 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
 - path safety and trusted TDLib locator;
-- TDLib parameter/auth-state mapping;
+- TDLib parameter/auth-state/proxy mapping;
 - DPAPI secret store, credential store and database key store;
 - account registry and session lock;
 - missing-runtime behaviour;
 - auth request builders and QR image generation;
+- chat/message parsing, chat filtering and message model invariants;
+- send/edit/history/read/delete TDLib request builders;
 - real TDLib integration (skipped when the DLL is absent): trusted load, local
   `td_execute`, `@extra` correlation, reach
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 1 run with TDLib 1.8.69: **17/17 passed**. Manual checks: the QML
-sign-in screen reached the phone-number state against the real DLL; invalid
-phone input produced a local error without contacting Telegram; closing the
-window performed the close handshake and exited with code 0; the next start
-reopened the same encrypted database and returned to the phone state quickly.
+Local Phase 2 run with TDLib 1.8.69: **20/20 passed**. Manual checks with a real
+authorized session through a local SOCKS5 proxy: the chat list loaded 500+
+chats with pins/unread/muted state, a private chat opened with real history,
+messages rendered with sender/time/edited state, and the close handshake exited
+with code 0. No API hash, phone number, code or message text appeared in the
+application log. Sending a real message was intentionally not automated because
+that mutates the owner's account; the request builder is unit-tested.
 
 ## CI
 
@@ -219,13 +248,18 @@ Android workflows are separate and unchanged.
 | API credential validation and DPAPI round trip | yes | unit tests |
 | database key creation, reuse and damage detection | yes | unit tests |
 | QR image generation | yes | unit test checks a real QR bitmap |
+| chat list parsing, ordering, filter and unread roles | yes | unit tests |
+| message parsing, model ordering, temporary-id replacement | yes | unit tests |
+| send/edit/history/read/delete request shapes | yes | unit tests |
+| real chat list and history | manual | verified with the owner's authorized session through a local SOCKS5 proxy; not automated |
+| sending a real message | not automated | would mutate the owner's account; request builder is tested |
 | phone → code → 2FA / wrong code / wrong password | UI and error mapping implemented | requires a dedicated Telegram test account; not run against a real account in CI |
 | QR confirmation by another device | UI implemented | requires a second authorized device |
 | registration and email verification | UI implemented | requires an unused phone number and email |
 
 ## Next phase
 
-Phase 2 adds the repository core, chat list, history and message actions on top
-of this authenticated session. See
+Phase 2 continues with rich text, replies, media, drafts, folders/archive and
+notifications. See
 [PORTING_ROADMAP.md](PORTING_ROADMAP.md) and
 [PORTING_AUDIT.md](PORTING_AUDIT.md).

@@ -83,8 +83,10 @@ Duration: 3–5 weeks.
 
 ## Phase 2 — Chat list, history and the conversation MVP (P0)
 
-**Goal:** read and write messages in real chats, with correct ordering and
-permissions.
+**Status:** user-facing slice implemented in `feature/windows-authentication`:
+main chat list with pin/unread/mute/search, TDLib-update ordering, text history,
+text send/edit/delete, read receipts, and proxy support. Rich text, replies,
+media, drafts, folders/archive UI and notifications remain open in this phase.
 
 Scope:
 

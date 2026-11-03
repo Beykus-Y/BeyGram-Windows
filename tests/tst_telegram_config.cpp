@@ -16,6 +16,7 @@ private slots:
     void qrAndEmailStatesMap();
     void unknownStateIsLoading();
     void stageNamesAreStable();
+    void parsesProxyEnvironment();
 };
 
 void TelegramConfigTest::credentialsRequireBothFields()
@@ -116,6 +117,26 @@ void TelegramConfigTest::stageNamesAreStable()
     QCOMPARE(authStageName(AuthStage::WaitEmailCode), QStringLiteral("wait_email_code"));
     QVERIFY(authStageIsTerminalFailure(AuthStage::Locked));
     QVERIFY(!authStageIsTerminalFailure(AuthStage::WaitCode));
+}
+
+void TelegramConfigTest::parsesProxyEnvironment()
+{
+    const QByteArray saved = qgetenv("BEYGRAM_PROXY");
+    qputenv("BEYGRAM_PROXY", "socks5://user:pass@127.0.0.1:7897");
+    const TelegramProxySettings proxy = TelegramProxySettings::fromEnvironment();
+    QVERIFY(proxy.isValid());
+    QCOMPARE(proxy.type, QStringLiteral("socks5"));
+    QCOMPARE(proxy.server, QStringLiteral("127.0.0.1"));
+    QCOMPARE(proxy.port, 7897);
+    QCOMPARE(proxy.username, QStringLiteral("user"));
+    QCOMPARE(proxy.password, QStringLiteral("pass"));
+    QVERIFY(proxy.summary().contains(QStringLiteral("127.0.0.1:7897")));
+    QVERIFY(!proxy.summary().contains(QStringLiteral("pass")));
+
+    if (saved.isEmpty())
+        qunsetenv("BEYGRAM_PROXY");
+    else
+        qputenv("BEYGRAM_PROXY", saved);
 }
 
 QTEST_GUILESS_MAIN(TelegramConfigTest)
