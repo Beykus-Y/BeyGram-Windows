@@ -1,4 +1,6 @@
 add_library(beygram_platform_windows STATIC
+    DatabaseKeyStore.cpp
+    DatabaseKeyStore.h
     DpapiSecretStore.cpp
     DpapiSecretStore.h
 )

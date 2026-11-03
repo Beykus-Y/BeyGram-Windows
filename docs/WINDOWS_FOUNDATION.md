@@ -1,57 +1,55 @@
-# BeyGram Windows — native foundation
+# BeyGram Windows — native foundation (Phase 1)
 
-This document explains what Phase 0 builds, how to build and test it, and which
-parts are deliberately incomplete. The Android client under `app/` remains the
-functional reference and is not part of this build.
+This document describes the native Windows client. The Android client under
+`app/` remains the functional reference and is not part of this build.
 
 ## What works
 
-- A C++20 / Qt 6 desktop application (`beygram.exe`) with a Qt Quick shell.
-- Module boundaries: `core`, `platform/windows`, `telegram`, `media`, `ui`, QML.
-- Runtime loading of TDLib's JSON interface (`tdjson.dll`).
-- A real TDLib authorization state machine (no login form in Phase 0).
-- Honest empty/error states: the UI never invents an account or chats.
-- Thread-safe logging with secret redaction, rotation and an in-app log page.
-- DPAPI-based secret storage with unit tests.
+- C++20 / Qt 6 desktop application (`beygram.exe`) with a Qt Quick shell.
+- Real TDLib JSON transport loaded from a trusted location.
+- Full authorization flow driven by TDLib states:
+  phone number, login code, two-step password, email address/code (when
+  Telegram asks for it), registration, and QR login.
+- Session restoration across restarts with an encrypted TDLib database.
+- Explicit `close`, explicit `logOut`, and bounded emergency shutdown.
+- Per-account storage directories, a durable account registry and a
+  single-process lock for the active TDLib database.
+- API credentials and the TDLib database key protected with Windows DPAPI.
+- Request/response correlation through TDLib `@extra`.
+- Thread-safe redacting logger with rotation and an in-app log page.
 - Warm/Graphite palettes and FollowSystem/Light/Dark/AMOLED brightness.
-- Windows CI: configure, build, tests, deployment and a QML smoke test.
+- Qt Test suites and Windows CI.
 
 ## What does not work yet
 
-- No login screen, no chats, no messages, no media, no notifications.
-- No music player, playlists, BG Beat or BG Mix audio.
-- No proxy/VPN management, app lock, updater or installer.
-- TDLib is not bundled in this repository and is not present on every machine.
-
-The window and the Overview page say this explicitly. A missing dependency is
-shown as a missing dependency.
+- No chat list, message history, sending, media, profiles or notifications.
+  The signed-in shell states this explicitly.
+- No music, BG Beat/BG Mix, proxy/VPN or updater.
+- Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
+  from real TDLib errors, but automating those cases needs a dedicated test
+  Telegram account. They are not run against a real account in CI.
+- No automatic migration of the Android TDLib database (TDLib databases are
+  platform-bound). Windows authenticates separately.
 
 ## Requirements
 
 | Tool | Version used |
 |---|---|
 | Windows | 10/11 x64 |
-| MSVC | Visual Studio 2022 (19.44 toolset tested) |
+| MSVC | Visual Studio 2022 (19.44 tested) |
 | CMake | 3.24+ |
 | Qt | 6.8.3 MSVC 2022 x64 (`Core`, `Gui`, `Quick`, `QuickControls2`, `Test`) |
-| Ninja | optional; the Visual Studio generator is supported |
+| TDLib | pinned commit `4c6377aa…` built with MSVC x64 |
+| OpenSSL / zlib | 3.6.5 / 1.3.2 via vcpkg |
 
-Qt is installable without an account with `aqtinstall`:
-
-```powershell
-python -m pip install aqtinstall
-python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 `
-    -m qtshadertools --outputdir C:\Qt
-```
+TDLib build instructions: [WINDOWS_TDLIB.md](WINDOWS_TDLIB.md).
 
 ## Configure, build and test
-
-From a Visual Studio Developer PowerShell (or let the Visual Studio generator
-locate MSVC):
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
   -DCMAKE_PREFIX_PATH=C:\Qt\6.8.3\msvc2022_64 `
+  -DBEYGRAM_TDLIB_DIR=F:\tdlib\build\bin\Release `
   -DBEYGRAM_BUILD_TESTS=ON
 
 cmake --build build --config Release --parallel
@@ -60,165 +58,154 @@ $env:PATH = "C:\Qt\6.8.3\msvc2022_64\bin;$env:PATH"
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Run the app:
+Without `-DBEYGRAM_TDLIB_DIR`, the app still builds and reports the missing
+runtime honestly. The integration test skips with an explicit message.
+
+Run:
 
 ```powershell
-$env:PATH = "C:\Qt\6.8.3\msvc2022_64\bin;$env:PATH"
 .\build\Release\beygram.exe
 ```
 
-Debug build: use `--config Debug` and `build\Debug\beygram.exe`.
+## First-run authentication
 
-## TDLib
+1. Start the app. If `tdjson.dll` is missing, the Auth page says so and shows
+   the trusted locations it checked.
+2. Enter the Telegram `api_id` and `api_hash` from
+   <https://my.telegram.org/apps>. They are validated (hash: 32 hex) and stored
+   with DPAPI. Environment variables
+   `BEYGRAM_TELEGRAM_API_ID` / `BEYGRAM_TELEGRAM_API_HASH` take precedence.
+3. Choose phone login or QR login.
+4. Follow the TDLib-driven stages: code, two-step password, email, or
+   registration if Telegram requires them.
+5. After `authorizationStateReady`, the account overview appears. The session
+   is restored automatically on the next start.
 
-The client uses TDLib's **official JSON interface**, not generated bindings:
+The app never reports a successful login before TDLib reports
+`authorizationStateReady`. Errors come from real TDLib responses.
 
-- `td_json_client_create`, `td_json_client_send`, `td_json_client_receive`,
-  `td_json_client_execute`, `td_json_client_destroy`.
-- `src/telegram/TdJsonTransport.cpp` loads the DLL at runtime and polls
-  `receive` on a worker thread.
-- Requests are JSON objects; updates are emitted to the GUI thread.
-- `src/telegram/TelegramSession.cpp` owns the auth state machine. It sends
-  `setTdlibParameters` only after TDLib asks for it.
+## Security model
 
-Build TDLib for Windows x64 with MSVC following the official instructions
-(<https://github.com/tdlib/td>), producing `tdjson.dll` and its dependencies
-(OpenSSL, zlib, etc.). Then either:
+### Trusted TDLib loading
 
-```powershell
-# Put the DLL next to the executable at configure time:
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
-  -DCMAKE_PREFIX_PATH=C:\Qt\6.8.3\msvc2022_64 `
-  -DBEYGRAM_TDLIB_DIR=C:\td\build\bin
-```
+`tdjson.dll` is loaded only from:
 
-or set it at runtime:
+1. `<application dir>\tdjson.dll`;
+2. `<application dir>\tdlib\tdjson.dll`;
+3. an absolute `BEYGRAM_TDLIB_DLL` path (explicit developer override).
 
-```powershell
-$env:BEYGRAM_TDLIB_DLL = "C:\td\build\bin\tdjson.dll"
-```
+`PATH` is not searched. Relative overrides are rejected. The Environment page
+shows the loaded path and whether it came from the application directory.
 
-When found by CMake, `tdjson.dll` is copied next to `beygram.exe`. Its dependent
-DLLs must also be reachable (same folder or `PATH`).
+### Credentials and database key
 
-### API credentials
+- API id/hash: DPAPI (`CryptProtectData`) under
+  `%APPDATA%/Beykus/BeyGram Windows/secrets`.
+- TDLib database key: 32 random bytes, DPAPI-wrapped per account in
+  `tdlib/<account>/tdlib.database.key.dpapi` (the file name is a SHA-256 of the
+  logical key).
+- The database is opened with `database_encryption_key`. The app never falls
+  back to an unencrypted database if the key cannot be read.
+- Files in `%APPDATA%` are readable by the Windows user; DPAPI protects the
+  secrets against other Windows users, not against malware running as the same
+  user. This is the same trust boundary as any desktop Telegram client.
 
-Phase 0 reads credentials from the process environment:
+### Process lock
 
-```powershell
-$env:BEYGRAM_TELEGRAM_API_ID = "123456"
-$env:BEYGRAM_TELEGRAM_API_HASH = "your_api_hash"
-```
+`tdlib/<account>/session.lock` is a `QLockFile`. A second BeyGram process gets a
+clear "already open" error instead of corrupting the database. Stale locks from
+a terminated process are recovered after the timeout.
 
-They are used only to build `setTdlibParameters`; they are never logged and
-never written to the repository. The DPAPI secret store is ready for the Phase 1
-provisioning screen.
+### Logging
 
-If either TDLib or the credentials are missing, the UI shows the exact reason
-and does not start a session.
+- `%APPDATA%/Beykus/BeyGram Windows/logs/beygram.log`, 5 MiB × 3 rotations.
+- Redaction covers API keys, tokens, phone numbers, QR login links, bot tokens,
+  proxy URLs and 32-hex secrets.
+- Raw authorization JSON, phone codes, passwords and QR links are never logged.
+- `BEYGRAM_VERBOSE_LOGS=1` enables debug lines; secrets remain redacted.
 
-### Supported authorization states
+## Authorization lifecycle
 
-The core maps TDLib `updateAuthorizationState` values to an internal
-`AuthStage`: waiting for TDLib parameters, phone, code, password, registration,
-QR, ready, closing, closed, error. Phase 0 has no forms for these states; it
-reports them. Phase 1 adds the forms and graceful close/logout.
+| Action | TDLib request | Behaviour |
+|---|---|---|
+| Close window | `Close` | waits up to 5 s for `authorizationStateClosed`, then aborts the client if needed; database key and session stay |
+| Log out (confirmed) | `LogOut` | waits for closed state; TDLib destroys its local data; automatic rebuild returns to the phone screen |
+| Crash | — | DPAPI key and encrypted database remain; next start restores the session |
+| Cancel login / stuck form | `Close` then restart | returns to the phone screen without deleting the database |
 
-## Architecture
+`AppController::shutdown()` is called before the QML engine is torn down.
 
-```
-src/app/main.cpp          composition root, QML engine, shutdown order
-src/ui/                   AppController, ThemeController (QML-facing only)
-src/telegram/             TdJsonTransport, TelegramSession, config, auth state
-src/core/                 logging, redaction, paths, Result, contrast rules
-src/platform/windows/     DPAPI secret store
-src/media/                BG Media capability boundary
-qml/                      Main window, components, pages
-tests/                    Qt Test suites
-```
+## Request correlation
 
-Dependency direction is one-way:
+Every `TdJsonTransport::sendRequest` assigns a monotonically increasing
+`@extra` id. Responses with that id are routed to the waiting handler, emitted as
+`responseReceived` and are not mistaken for updates. Timeouts produce a
+synthetic error and are cancellable. `cancelAllRequests(false)` discards
+handlers during shutdown to avoid callbacks into a destructing session.
 
-```
-qml → ui → telegram → core
-        ↓
-   platform/windows
-        ↓
-     media (optional BG Media)
-```
+## Multi-account preparation
 
-- QML never sends TDLib requests and never parses Telegram JSON.
-- `TelegramSession` is per account; no global TDLib client.
-- `TdJsonTransport` keeps TDLib's blocking receive loop off the GUI thread.
-- Failed loads and unavailable services are values, not exceptions.
-- Logs are redacted before they reach the file or the in-app viewer.
+- `AccountRegistry` stores account ids and timestamps in
+  `%APPDATA%/Beykus/BeyGram Windows/accounts/accounts.json` (no secrets).
+- Every account has an isolated TDLib database/files directory and its own
+  database key, lock and auth state.
+- Phase 1 registers a single `primary` account. The UI has no account switcher
+  yet, by design.
 
-## Logging and diagnostics
+## Tests
 
-- Location: `%APPDATA%/Beykus/BeyGram Windows/logs/beygram.log`.
-- Rotation: 5 MiB per file, 3 rotated files.
-- `BEYGRAM_VERBOSE_LOGS=1` includes debug lines.
-- Redaction covers tokens, API secrets, phone numbers, QR login links, bot
-  tokens, proxy/URL values and 32-hex secrets.
-- The Logs page and the "Copy diagnostics" action expose only redacted data.
+`ctest` runs 17 suites:
 
-## Secret storage
+- redaction and logging;
+- WCAG contrast and theme tokens;
+- path safety and trusted TDLib locator;
+- TDLib parameter/auth-state mapping;
+- DPAPI secret store, credential store and database key store;
+- account registry and session lock;
+- missing-runtime behaviour;
+- auth request builders and QR image generation;
+- real TDLib integration (skipped when the DLL is absent): trusted load, local
+  `td_execute`, `@extra` correlation, reach
+  `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
+  session for the same account, close, reopen and verify restart.
 
-`WindowsDpapiSecretStore` protects values with `CryptProtectData`
-(per-user DPAPI plus a fixed application entropy value). File names are SHA-256
-digests of logical keys, so keys do not appear on disk. Unit tests cover
-round-trip, overwrite, removal, corrupt blobs and file naming.
-
-This is foundation code; the credential provisioning UI arrives in Phase 1.
-
-## BG Media / BG Beat / BG Mix
-
-The Windows port keeps a native C++ boundary instead of JNI. Phase 0 reports
-"BG Media is not linked" because:
-
-- `third_party/bg-media` is an uninitialised git submodule in this checkout;
-- linking and audio-device work belong to the music phase.
-
-To experiment:
-
-```powershell
-git submodule update --init third_party/bg-media
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
-  -DCMAKE_PREFIX_PATH=C:\Qt\6.8.3\msvc2022_64 `
-  -DBEYGRAM_WITH_BGMEDIA=ON
-```
-
-The CMake option only links the upstream core; it does not fake playback.
+Local Phase 1 run with TDLib 1.8.69: **17/17 passed**. Manual checks: the QML
+sign-in screen reached the phone-number state against the real DLL; invalid
+phone input produced a local error without contacting Telegram; closing the
+window performed the close handshake and exited with code 0; the next start
+reopened the same encrypted database and returned to the phone state quickly.
 
 ## CI
 
-`.github/workflows/windows-foundation.yml` runs on Windows Server 2022 with
-MSVC 2022 and Qt 6.8.3:
+`.github/workflows/windows-foundation.yml`:
 
-1. configure with the Visual Studio generator;
-2. build Release;
-3. run all Qt tests;
-4. deploy Qt DLLs and QML dependencies;
-5. start the app with the offscreen platform and assert it stays alive.
+1. builds the app and unit tests on Windows Server 2022 with Qt 6.8.3;
+2. deploys Qt and smoke-tests the QML shell;
+3. a second job builds the pinned TDLib with vcpkg OpenSSL/zlib, caches it, then
+   runs the full suite including the real TDLib integration test.
 
 Android workflows are separate and unchanged.
 
-## Verification performed for Phase 0
+## Verification matrix
 
-| Check | Result |
-|---|---|
-| CMake configure (Qt 6.8.3, MSVC 19.44) | passed |
-| Debug and Release builds | passed |
-| `ctest` (8 suites) | 8/8 passed |
-| Application start with offscreen platform | stays alive, QML loads |
-| TDLib absent | reported honestly in UI/log |
-| DPAPI round trip | passed |
-| Android tree modified | no |
-| Android workflows modified | no |
+| Scenario | Automated | Notes |
+|---|---|---|
+| trusted DLL discovery / rejection of relative override | yes | unit tests |
+| TDLib exports and local `td_execute` | yes | integration test |
+| `@extra` request/response correlation | yes | integration test sends `getMe` before authorization and checks the matched error response |
+| real client reaches `authorizationStateWaitPhoneNumber` | yes | throwaway database, dummy API credentials |
+| second process cannot open the same database | yes | integration test creates a second session against the same account |
+| close handshake and database reopen | yes | integration test |
+| API credential validation and DPAPI round trip | yes | unit tests |
+| database key creation, reuse and damage detection | yes | unit tests |
+| QR image generation | yes | unit test checks a real QR bitmap |
+| phone → code → 2FA / wrong code / wrong password | UI and error mapping implemented | requires a dedicated Telegram test account; not run against a real account in CI |
+| QR confirmation by another device | UI implemented | requires a second authorized device |
+| registration and email verification | UI implemented | requires an unused phone number and email |
 
 ## Next phase
 
-Phase 1 adds the TDLib Windows build, secure credential provisioning, the full
-login UI and session persistence. See
+Phase 2 adds the repository core, chat list, history and message actions on top
+of this authenticated session. See
 [PORTING_ROADMAP.md](PORTING_ROADMAP.md) and
 [PORTING_AUDIT.md](PORTING_AUDIT.md).

@@ -18,8 +18,11 @@ struct TelegramCredentials {
 /// is multi-account from the start: each session owns its directory pair.
 struct TelegramConfig {
     TelegramCredentials credentials;
+    QString accountId;
+    QString accountDirectory;
     QString databaseDirectory;
     QString filesDirectory;
+    QString databaseEncryptionKey;
     QString systemLanguageCode = QStringLiteral("en");
     QString deviceModel = QStringLiteral("BeyGram Windows");
     QString systemVersion;
@@ -32,6 +35,7 @@ struct TelegramConfig {
     bool enableStorageOptimizer = true;
 
     [[nodiscard]] bool isConfigured() const;
+    [[nodiscard]] bool hasDatabaseKey() const;
     [[nodiscard]] QJsonObject tdlibParameters() const;
     [[nodiscard]] QJsonObject setTdlibParametersRequest() const;
 };

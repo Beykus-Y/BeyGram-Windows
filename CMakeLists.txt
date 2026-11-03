@@ -43,6 +43,9 @@ qt_add_qml_module(beygram
     RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/Main.qml
+        qml/Shell.qml
+        qml/AuthPage.qml
+        qml/components/AuthField.qml
         qml/components/Card.qml
         qml/components/NavButton.qml
         qml/components/Pill.qml
@@ -66,12 +69,7 @@ target_link_libraries(beygram
 )
 
 if(BEYGRAM_TDLIB_FOUND)
-    add_custom_command(TARGET beygram POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${BEYGRAM_TDLIB_DLL}"
-                "$<TARGET_FILE_DIR:beygram>/tdjson.dll"
-        COMMENT "Copying tdjson.dll next to the BeyGram executable"
-    )
+    beygram_copy_tdlib_runtime(beygram)
 endif()
 
 # The QML module is compiled into the executable. Qt's deployment tool creates

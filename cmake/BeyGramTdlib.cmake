@@ -29,14 +29,33 @@ endif()
 
 if(BEYGRAM_TDLIB_DLL AND EXISTS "${BEYGRAM_TDLIB_DLL}")
     get_filename_component(BEYGRAM_TDLIB_RUNTIME_DIR "${BEYGRAM_TDLIB_DLL}" DIRECTORY)
+    file(GLOB BEYGRAM_TDLIB_RUNTIME_DLLS "${BEYGRAM_TDLIB_RUNTIME_DIR}/*.dll")
     set(BEYGRAM_TDLIB_FOUND TRUE)
     set(BEYGRAM_TDLIB_STATUS "found: ${BEYGRAM_TDLIB_DLL}")
     message(STATUS "TDLib JSON interface found at ${BEYGRAM_TDLIB_DLL}")
 else()
     set(BEYGRAM_TDLIB_FOUND FALSE)
+    set(BEYGRAM_TDLIB_RUNTIME_DLLS "")
     set(BEYGRAM_TDLIB_STATUS "not found (runtime will report it; see docs/WINDOWS_FOUNDATION.md)")
     message(STATUS "tdjson.dll not found. The app will build and report the missing library at runtime.")
 endif()
+
+# Copies tdjson.dll and its runtime dependencies (OpenSSL, zlib) next to a
+# target. Dependencies must live beside tdjson.dll for the Windows loader.
+function(beygram_copy_tdlib_runtime target)
+    if(NOT BEYGRAM_TDLIB_FOUND)
+        return()
+    endif()
+    foreach(dll IN LISTS BEYGRAM_TDLIB_RUNTIME_DLLS)
+        get_filename_component(dll_name "${dll}" NAME)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${dll}"
+                    "$<TARGET_FILE_DIR:${target}>/${dll_name}"
+            COMMENT "Copying ${dll_name} next to ${target}"
+        )
+    endforeach()
+endfunction()
 
 add_library(beygram_tdlib INTERFACE)
 target_compile_definitions(beygram_tdlib INTERFACE BEYGRAM_TDLIB_RUNTIME_LOAD=1)

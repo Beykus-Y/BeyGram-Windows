@@ -26,24 +26,21 @@ Item {
                     Layout.fillWidth: true
                     spacing: 4
                     Text {
-                        text: "Desktop foundation"
+                        text: "Account overview"
                         color: BeyGramTheme.text
                         font.pixelSize: 30
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: "Native C++20 and Qt Quick shell for the BeyGram Windows port"
+                        text: "Signed in through the native TDLib session"
                         color: BeyGramTheme.muted
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
                 }
-                Pill { text: "PHASE 0"; tone: "accent" }
-                Pill {
-                    text: BeyGramApp.ready ? "AUTHORIZED" : "NO ACCOUNT"
-                    tone: BeyGramApp.ready ? "ok" : "neutral"
-                }
+                Pill { text: "PHASE 1"; tone: "accent" }
+                Pill { text: "AUTHORIZED"; tone: "ok" }
             }
 
             Card {
@@ -52,16 +49,48 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Text {
-                        text: "Telegram connection"
-                        color: BeyGramTheme.text
-                        font.pixelSize: 16
-                        font.weight: Font.DemiBold
+                    spacing: 14
+
+                    Rectangle {
+                        width: 54
+                        height: 54
+                        radius: 27
+                        color: BeyGramTheme.accentSoft
+                        Text {
+                            anchors.centerIn: parent
+                            text: BeyGramApp.accountDisplayName.length > 0
+                                  ? BeyGramApp.accountDisplayName.charAt(0).toUpperCase()
+                                  : "T"
+                            color: BeyGramTheme.accentInk
+                            font.pixelSize: 24
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    ColumnLayout {
                         Layout.fillWidth: true
+                        spacing: 2
+                        Text {
+                            Layout.fillWidth: true
+                            text: BeyGramApp.accountDisplayName.length > 0
+                                  ? BeyGramApp.accountDisplayName
+                                  : "Telegram account"
+                            color: BeyGramTheme.text
+                            font.pixelSize: 19
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: BeyGramApp.accountUsername.length > 0
+                                  ? "@" + BeyGramApp.accountUsername
+                                  : "Signed in"
+                            color: BeyGramTheme.muted
+                            font.pixelSize: 12
+                        }
                     }
                     Pill {
-                        text: BeyGramApp.running ? "CORE RUNNING" : "STOPPED"
-                        tone: BeyGramApp.running ? "ok" : "neutral"
+                        text: BeyGramApp.connectionTitle.toUpperCase()
+                        tone: BeyGramApp.connectionTitle === "Connected" ? "ok" : "warn"
                     }
                 }
 
@@ -69,86 +98,51 @@ Item {
 
                 StatusRow {
                     Layout.fillWidth: true
-                    label: "TDLib runtime"
-                    value: BeyGramApp.tdlibAvailable ? "Available" : "Missing"
-                    tone: BeyGramApp.tdlibAvailable ? "ok" : "danger"
-                    detail: BeyGramApp.tdlibDetail
-                }
-
-                StatusRow {
-                    Layout.fillWidth: true
-                    label: "Telegram API credentials"
-                    value: BeyGramApp.credentialsConfigured ? "Configured" : "Not configured"
-                    tone: BeyGramApp.credentialsConfigured ? "ok" : "warn"
-                    detail: BeyGramApp.credentialsConfigured
-                            ? "Loaded from the process environment; never written to the log or the repository."
-                            : BeyGramApp.credentialsHint
-                }
-
-                StatusRow {
-                    Layout.fillWidth: true
                     label: "Authorization"
-                    value: BeyGramApp.stageTitle
-                    tone: BeyGramApp.ready ? "ok" : (BeyGramApp.running ? "accent" : "neutral")
+                    value: "Ready"
+                    tone: "ok"
                     detail: BeyGramApp.stageDetail
                 }
-
                 StatusRow {
                     Layout.fillWidth: true
-                    visible: BeyGramApp.running
                     label: "Transport"
                     value: BeyGramApp.connectionTitle
-                    tone: BeyGramApp.ready ? "ok" : "accent"
+                    tone: BeyGramApp.connectionTitle === "Connected" ? "ok" : "accent"
                 }
-
                 StatusRow {
                     Layout.fillWidth: true
-                    visible: BeyGramApp.lastError !== ""
-                    label: "Last error"
-                    value: "Reported"
-                    tone: "danger"
-                    detail: BeyGramApp.lastError
+                    label: "TDLib runtime"
+                    value: "Loaded"
+                    tone: "ok"
+                    detail: BeyGramApp.tdlibPath
+                }
+                StatusRow {
+                    Layout.fillWidth: true
+                    label: "API credentials"
+                    value: BeyGramApp.credentialsFromEnvironment ? "Environment" : "DPAPI"
+                    tone: "ok"
+                    detail: BeyGramApp.credentialsHint
                 }
 
                 Flow {
                     Layout.fillWidth: true
                     spacing: 8
-
-                    PrimaryButton {
-                        text: BeyGramApp.running ? "Restart Telegram" : "Start Telegram"
-                        enabled: BeyGramApp.canStart || BeyGramApp.running
-                        onClicked: {
-                            if (BeyGramApp.running)
-                                BeyGramApp.stopTelegram()
-                            BeyGramApp.startTelegram()
-                        }
-                    }
-                    SecondaryButton {
-                        text: "Stop"
-                        enabled: BeyGramApp.running
-                        onClicked: BeyGramApp.stopTelegram()
-                    }
                     SecondaryButton {
                         text: "Refresh"
                         onClicked: BeyGramApp.refresh()
+                    }
+                    SecondaryButton {
+                        text: "Copy diagnostics"
+                        onClicked: BeyGramApp.copyDiagnostics()
                     }
                     SecondaryButton {
                         text: "Open data folder"
                         onClicked: BeyGramApp.openDataFolder()
                     }
                     SecondaryButton {
-                        text: "Copy diagnostics"
-                        onClicked: BeyGramApp.copyDiagnostics()
+                        text: "Log out"
+                        onClicked: logoutDialog.open()
                     }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "Phase 0 does not implement a login form. If TDLib and credentials are present, the core can reach the phone, code or password stage; the UI shows that state without offering input yet."
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 11
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.3
                 }
             }
 
@@ -164,45 +158,21 @@ Item {
                     spacing: 10
 
                     Text {
-                        text: "What this build does not do"
+                        text: "Session storage"
                         color: BeyGramTheme.text
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
-
-                    Column {
+                    Text {
                         Layout.fillWidth: true
-                        spacing: 7
-
-                        Repeater {
-                            model: [
-                                "No Telegram messages, chats, profiles or media are loaded.",
-                                "No login form, multi-account switcher or notifications.",
-                                "No calls, stories, gifts, secret chats or proxy management.",
-                                "No music player, playlists or BG Beat / BG Mix audio.",
-                                "No fake data: empty states describe the real state."
-                            ]
-                            delegate: RowLayout {
-                                width: parent.width
-                                spacing: 8
-                                Text {
-                                    text: "•"
-                                    color: BeyGramTheme.accent
-                                    font.pixelSize: 14
-                                }
-                                Text {
-                                    text: modelData
-                                    color: BeyGramTheme.muted
-                                    font.pixelSize: 12
-                                    wrapMode: Text.WordWrap
-                                    lineHeight: 1.3
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: 1
-                                }
-                            }
-                        }
+                        Layout.preferredWidth: 1
+                        text: "The TDLib database is encrypted with a key generated on this PC and wrapped by Windows DPAPI. A lock file prevents a second BeyGram process from opening the same account. The session is restored automatically on the next start."
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.35
                     }
                 }
 
@@ -214,7 +184,7 @@ Item {
                     spacing: 10
 
                     Text {
-                        text: "Next: TDLib and authorization"
+                        text: "Next: chats and messages"
                         color: BeyGramTheme.text
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
@@ -222,20 +192,21 @@ Item {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: "Phase 1 wires the real authorization flow (phone, code, two-step password, QR), keeps the session across restarts, and introduces the account-scoped TDLib hosts that the chat repository will use."
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        text: "Phase 2 connects the chat list and message history to this authenticated session. Until then this window intentionally shows no conversations."
                         color: BeyGramTheme.muted
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         lineHeight: 1.35
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
-                        Pill { text: "TDLib JSON" }
-                        Pill { text: "Auth state machine" }
-                        Pill { text: "DPAPI storage" }
+                        Pill { text: "TDLib" }
+                        Pill { text: "DPAPI" }
+                        Pill { text: "Session lock" }
+                        Pill { text: "QR login" }
                     }
                 }
             }
@@ -251,12 +222,13 @@ Item {
                     font.weight: Font.DemiBold
                 }
                 Text {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
                     text: "docs/PORTING_AUDIT.md classifies every Android module as direct port, platform adaptation, QML rewrite or special case. docs/PORTING_ROADMAP.md orders the work. The Android tree under app/ is preserved unchanged as the functional reference."
                     color: BeyGramTheme.muted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     lineHeight: 1.35
-                    Layout.fillWidth: true
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -269,6 +241,50 @@ Item {
             }
 
             Item { Layout.fillWidth: true; height: 8 }
+        }
+    }
+
+    Dialog {
+        id: logoutDialog
+        title: "Log out of Telegram?"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.NoButton
+        width: 430
+
+        ColumnLayout {
+            spacing: 12
+            Text {
+                Layout.fillWidth: true
+                text: "This sends LogOut to Telegram and destroys the local Telegram data for this account. You will need to sign in again with a phone number or QR code."
+                color: BeyGramTheme.text
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+                lineHeight: 1.35
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "API credentials stored with DPAPI are not removed by logout."
+                color: BeyGramTheme.muted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                SecondaryButton {
+                    text: "Cancel"
+                    onClicked: logoutDialog.close()
+                }
+                PrimaryButton {
+                    text: "Log out"
+                    tone: "danger"
+                    onClicked: {
+                        logoutDialog.close()
+                        BeyGramApp.logout()
+                    }
+                }
+            }
         }
     }
 }
