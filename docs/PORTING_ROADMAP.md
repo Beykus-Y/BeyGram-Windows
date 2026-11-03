@@ -42,6 +42,12 @@ Not in Phase 0: login UI, chats, media, notifications, music, VPN, packaging.
 
 ## Phase 1 — TDLib and authorization (P0)
 
+**Status:** implemented in `feature/windows-authentication` and validated with a
+real TDLib build. Automated tests cover transport loading, a throwaway
+`authorizationStateWaitPhoneNumber` session, close and database reopen. Real
+wrong-code / wrong-2FA / QR-confirmation runs need a dedicated Telegram test
+account and are left as a manual gate.
+
 **Goal:** a real Telegram session that survives restarts, without a chat UI.
 
 Scope:
