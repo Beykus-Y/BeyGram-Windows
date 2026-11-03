@@ -149,6 +149,9 @@ Item {
                             initials: model.initials
                             accentIndex: model.accentIndex
                             lastDate: model.lastDate
+                            photoFileId: model.photoFileId
+                            photoReady: model.photoReady
+                            photoRevision: model.photoRevision
                             selected: BeyGramApp.currentChatId === model.chatId
                             onClicked: {
                                 page.resetComposer()
@@ -230,8 +233,24 @@ Item {
                             height: 38
                             radius: 19
                             color: BeyGramTheme.accentSoft
+                            clip: true
+                            Image {
+                                id: chatHeaderImage
+                                anchors.fill: parent
+                                source: BeyGramApp.currentChatPhotoReady
+                                        && BeyGramApp.currentChatPhotoFileId > 0
+                                        ? "image://beygrammedia/"
+                                          + BeyGramApp.currentChatPhotoFileId
+                                          + "?v=" + BeyGramApp.currentChatPhotoRevision
+                                        : ""
+                                cache: false
+                                asynchronous: true
+                                fillMode: Image.PreserveAspectCrop
+                                visible: status === Image.Ready
+                            }
                             Text {
                                 anchors.centerIn: parent
+                                visible: chatHeaderImage.status !== Image.Ready
                                 text: BeyGramApp.currentChatTitle.length > 0
                                       ? BeyGramApp.currentChatTitle.charAt(0).toUpperCase()
                                       : "?"
@@ -309,6 +328,11 @@ Item {
                             failed: model.failed
                             edited: model.edited
                             contentType: model.contentType
+                            mediaFileId: model.mediaFileId
+                            mediaWidth: model.mediaWidth
+                            mediaHeight: model.mediaHeight
+                            mediaReady: model.mediaReady
+                            mediaRevision: model.mediaRevision
                             onEditRequested: (messageId, text) => page.beginEdit(messageId, text)
                             onDeleteRequested: (messageId) => {
                                 deleteDialog.messageId = messageId

@@ -44,9 +44,13 @@ const QList<Rule>& rules()
         {QRegularExpression(QStringLiteral(R"(\b\d{6,12}:[A-Za-z0-9_-]{25,}\b)")),
          QStringLiteral("[redacted-bot-token]")},
 
-        // Phone numbers, with or without separators. Deliberately conservative:
-        // at least 10 digits are required, so message ids and durations survive.
-        {QRegularExpression(QStringLiteral(R"((?<![\w])\+?\d(?:[\d\s().-]{8,}\d)(?![\w]))")),
+        // Phone numbers, with or without a leading +. A formatted number must
+        // contain a separator; plain long integers (chat/message ids) are not
+        // phone numbers and must survive diagnostics.
+        {QRegularExpression(QStringLiteral(R"((?<![\w])\+\d[\d\s().-]{7,}\d(?![\w]))")),
+         QStringLiteral("[redacted-phone]")},
+        {QRegularExpression(
+             QStringLiteral(R"((?<![\w])\d[\d\s().-]*[\s().-][\d\s().-]{7,}\d(?![\w]))")),
          QStringLiteral("[redacted-phone]")},
 
         // Telegram api_hash is 32 lowercase hex characters.

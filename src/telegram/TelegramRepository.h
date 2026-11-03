@@ -14,16 +14,18 @@
 namespace beygram::telegram {
 
 class TelegramSession;
+class MediaFileStore;
 
 /// Phase 2 repository slice: main chat list, text history, sending, editing,
-/// deleting and read receipts. Media, folders, threads and search arrive in
-/// later slices.
+/// deleting and read receipts. Media thumbnails are downloaded for avatars and
+/// bubbles; full media playback/viewing arrives later.
 class TelegramRepository final : public QObject {
     Q_OBJECT
 
 public:
     TelegramRepository(TelegramSession* session, ChatListModel* chatModel,
-                       MessageListModel* messageModel, QObject* parent = nullptr);
+                       MessageListModel* messageModel, MediaFileStore* mediaStore,
+                       QObject* parent = nullptr);
 
     void start();
     void openChat(qint64 chatId);
@@ -41,6 +43,9 @@ public:
     [[nodiscard]] bool hasMoreHistory() const { return m_hasMoreHistory; }
     [[nodiscard]] bool loadingChats() const { return m_loadingChats; }
     [[nodiscard]] QString error() const { return m_error; }
+    [[nodiscard]] int currentChatPhotoFileId() const { return m_currentChatPhotoFileId; }
+    [[nodiscard]] bool currentChatPhotoReady() const { return m_currentChatPhotoReady; }
+    [[nodiscard]] int currentChatPhotoRevision() const { return m_currentChatPhotoRevision; }
 
 signals:
     void currentChatChanged();
@@ -55,6 +60,7 @@ private:
     void requestHistory(qint64 chatId, qint64 fromMessageId, bool older);
     void handleHistory(const QJsonObject& response, qint64 chatId, bool older);
     void updateChatFromMessage(qint64 chatId, const QJsonObject& message);
+    void trackMessageMedia(MessageData& message);
     void resolveSender(MessageData& message);
     void requestUser(qint64 userId);
     void setError(const QString& message);
@@ -65,6 +71,7 @@ private:
     TelegramSession* m_session = nullptr;
     ChatListModel* m_chatModel = nullptr;
     MessageListModel* m_messageModel = nullptr;
+    MediaFileStore* m_mediaStore = nullptr;
 
     QHash<qint64, ChatData> m_chats;
     QSet<qint64> m_requestedChats;
@@ -77,6 +84,9 @@ private:
     QString m_currentChatType;
     qint64 m_oldestMessageId = 0;
     qint64 m_lastReadMessageId = 0;
+    int m_currentChatPhotoFileId = 0;
+    bool m_currentChatPhotoReady = false;
+    int m_currentChatPhotoRevision = 0;
     bool m_historyLoading = false;
     bool m_hasMoreHistory = true;
     bool m_loadingChats = false;

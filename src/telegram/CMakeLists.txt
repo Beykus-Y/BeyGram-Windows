@@ -29,6 +29,8 @@ add_library(beygram_telegram STATIC
     TelegramSession.h
     TelegramTypes.cpp
     TelegramTypes.h
+    MediaFileStore.cpp
+    MediaFileStore.h
 )
 
 target_include_directories(beygram_telegram PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")

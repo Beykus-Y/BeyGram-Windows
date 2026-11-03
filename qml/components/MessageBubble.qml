@@ -15,6 +15,11 @@ Item {
     property bool failed: false
     property bool edited: false
     property string contentType: "text"
+    property int mediaFileId: 0
+    property int mediaWidth: 0
+    property int mediaHeight: 0
+    property bool mediaReady: false
+    property int mediaRevision: 0
     signal editRequested(int messageId, string text)
     signal deleteRequested(int messageId)
 
@@ -25,6 +30,19 @@ Item {
         if (!date || date <= 0)
             return ""
         return Qt.formatTime(new Date(date * 1000), "hh:mm")
+    }
+
+    function displayText() {
+        if (mediaFileId > 0 && (text === "[Photo]" || text === "[Video]"
+                                || text === "[Document]" || text === "[Sticker]"))
+            return ""
+        return text
+    }
+
+    function mediaHeightForWidth(width) {
+        if (mediaWidth <= 0 || mediaHeight <= 0)
+            return Math.round(width * 0.66)
+        return Math.round(width * mediaHeight / mediaWidth)
     }
 
     Rectangle {
@@ -59,9 +77,43 @@ Item {
                 elide: Text.ElideRight
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredWidth: Math.min(320, bubbleItem.mediaWidth > 0
+                                                ? bubbleItem.mediaWidth : 240)
+                Layout.preferredHeight: bubbleItem.mediaHeightForWidth(
+                                            Math.min(320, bubbleItem.mediaWidth > 0
+                                                     ? bubbleItem.mediaWidth : 240))
+                visible: bubbleItem.mediaFileId > 0
+                radius: 10
+                clip: true
+                color: Qt.alpha(BeyGramTheme.surface2, 0.6)
+
+                Image {
+                    anchors.fill: parent
+                    source: bubbleItem.mediaReady && bubbleItem.mediaFileId > 0
+                            ? "image://beygrammedia/" + bubbleItem.mediaFileId
+                              + "?v=" + bubbleItem.mediaRevision
+                            : ""
+                    cache: false
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                    visible: status === Image.Ready
+                }
+                BusyIndicator {
+                    anchors.centerIn: parent
+                    running: bubbleItem.mediaFileId > 0
+                             && !bubbleItem.mediaReady
+                    visible: running
+                    implicitWidth: 24
+                    implicitHeight: 24
+                }
+            }
+
             Text {
                 Layout.fillWidth: true
-                text: bubbleItem.text
+                visible: bubbleItem.displayText().length > 0
+                text: bubbleItem.displayText()
                 color: BeyGramTheme.text
                 font.pixelSize: 12
                 wrapMode: Text.Wrap

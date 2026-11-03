@@ -1,4 +1,4 @@
-# BeyGram Windows — native foundation (Phase 1)
+# BeyGram Windows — native client (Phase 2)
 
 This document describes the native Windows client. The Android client under
 `app/` remains the functional reference and is not part of this build.
@@ -18,6 +18,8 @@ This document describes the native Windows client. The Android client under
 - Request/response correlation through TDLib `@extra`.
 - Main chat list, chat search, message history, text sending, editing,
   deletion and read receipts through TDLib updates.
+- Real chat avatars and photo/video/document/sticker thumbnails, downloaded
+  on demand and cached by TDLib; full media viewing is not implemented yet.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -26,9 +28,10 @@ This document describes the native Windows client. The Android client under
 
 ## What does not work yet
 
-- Rich text entities, media, stickers, reactions, replies, albums, drafts,
-  folders/archive UI, notifications, profiles and calls are not in this slice.
-  Media messages are listed with honest placeholders such as `[Video message]`.
+- Rich text entities, full media viewing/playback, stickers, reactions, replies,
+  albums, drafts, folders/archive UI, notifications, profiles and calls are not
+  in this slice. Media messages show downloaded thumbnails but have no viewer;
+  unsupported content still uses honest placeholders.
 - No music, BG Beat/BG Mix, VPN or updater.
 - Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
   from real TDLib errors, but automating those cases needs a dedicated test
@@ -249,6 +252,8 @@ Android workflows are separate and unchanged.
 | database key creation, reuse and damage detection | yes | unit tests |
 | QR image generation | yes | unit test checks a real QR bitmap |
 | chat list parsing, ordering, filter and unread roles | yes | unit tests |
+| photo/video thumbnail selection and chat-photo parsing | yes | unit tests |
+| real avatars and message thumbnails | manual | verified with the owner's authorized session through a local SOCKS5 proxy; TDLib downloads on demand |
 | message parsing, model ordering, temporary-id replacement | yes | unit tests |
 | send/edit/history/read/delete request shapes | yes | unit tests |
 | real chat list and history | manual | verified with the owner's authorized session through a local SOCKS5 proxy; not automated |

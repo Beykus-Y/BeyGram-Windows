@@ -1,6 +1,7 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "ui/AppController.h"
+#include "ui/MediaImageProvider.h"
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
 
@@ -58,6 +59,10 @@ int main(int argc, char* argv[])
                      [&controller, qrProvider] {
                          qrProvider->setLink(controller.qrLoginLink());
                      });
+
+    engine.addImageProvider(
+        QStringLiteral("beygrammedia"),
+        new beygram::ui::MediaImageProvider(controller.mediaStore()));
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &application, handleObjectCreationFailure, Qt::QueuedConnection);

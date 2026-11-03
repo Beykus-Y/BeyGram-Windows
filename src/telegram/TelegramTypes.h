@@ -18,6 +18,9 @@ struct ChatData {
     bool muted = false;
     bool inMainList = false;
     bool isChannel = false;
+    int photoFileId = 0;
+    bool photoReady = false;
+    int photoRevision = 0;
     QString initials;
     int accentIndex = 0;
 };
@@ -34,9 +37,21 @@ struct MessageData {
     bool edited = false;
     bool failed = false;
     bool pending = false;
+    int mediaFileId = 0;
+    int mediaFullFileId = 0;
+    int mediaWidth = 0;
+    int mediaHeight = 0;
+    bool mediaReady = false;
+    int mediaRevision = 0;
 };
 
 [[nodiscard]] qint64 jsonInt64(const QJsonValue& value);
+[[nodiscard]] int photoThumbnailFileId(const QJsonObject& photo, int targetSize,
+                                       int* width = nullptr, int* height = nullptr);
+[[nodiscard]] int photoLargestFileId(const QJsonObject& photo);
+[[nodiscard]] int messageThumbnailFileId(const QJsonObject& content,
+                                          int* width = nullptr, int* height = nullptr);
+[[nodiscard]] int messageFullFileId(const QJsonObject& content);
 [[nodiscard]] QString messageContentText(const QJsonObject& content);
 [[nodiscard]] QString messageContentLabel(const QJsonObject& content);
 [[nodiscard]] QString chatPreview(const QJsonObject& lastMessage);

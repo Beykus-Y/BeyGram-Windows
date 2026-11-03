@@ -24,6 +24,9 @@ public:
         AccentIndexRole,
         IsChannelRole,
         ChatTypeRole,
+        PhotoFileIdRole,
+        PhotoReadyRole,
+        PhotoRevisionRole,
     };
     Q_ENUM(Role)
 
@@ -36,6 +39,7 @@ public:
 
     void setChats(QVector<ChatData> chats);
     void clear();
+    void markPhotoReady(int fileId);
     [[nodiscard]] qint64 chatIdAt(int row) const;
 
 signals:

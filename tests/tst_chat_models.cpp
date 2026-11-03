@@ -12,6 +12,7 @@ class ChatModelsTest final : public QObject {
 
 private slots:
     void chatModelExposesRoles();
+    void chatModelMarksPhotoReady();
     void chatFilterMatchesTitleAndPreview();
     void messageModelSortsAndDeduplicates();
     void messageModelReplacesTemporaryId();
@@ -45,6 +46,22 @@ void ChatModelsTest::chatModelExposesRoles()
     QCOMPARE(model.data(model.index(1), ChatListModel::TitleRole).toString(),
              QStringLiteral("Alpha"));
     QCOMPARE(model.data(model.index(1), ChatListModel::UnreadCountRole).toInt(), 2);
+}
+
+void ChatModelsTest::chatModelMarksPhotoReady()
+{
+    ChatData chat;
+    chat.id = 1;
+    chat.title = QStringLiteral("Alice");
+    chat.photoFileId = 55;
+    ChatListModel model;
+    model.setChats({chat});
+    QVERIFY(!model.data(model.index(0), ChatListModel::PhotoReadyRole).toBool());
+    QCOMPARE(model.data(model.index(0), ChatListModel::PhotoRevisionRole).toInt(), 0);
+
+    model.markPhotoReady(55);
+    QVERIFY(model.data(model.index(0), ChatListModel::PhotoReadyRole).toBool());
+    QCOMPARE(model.data(model.index(0), ChatListModel::PhotoRevisionRole).toInt(), 1);
 }
 
 void ChatModelsTest::chatFilterMatchesTitleAndPreview()

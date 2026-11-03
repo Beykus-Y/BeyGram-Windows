@@ -2,6 +2,7 @@
 
 #include "core/Logging.h"
 #include "core/Redaction.h"
+#include "MediaFileStore.h"
 #include "TelegramRequests.h"
 #include "TelegramSession.h"
 
@@ -43,13 +44,33 @@ QString chatTypeLabel(const QString& type)
 } // namespace
 
 TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* chatModel,
-                                       MessageListModel* messageModel, QObject* parent)
+                                       MessageListModel* messageModel, MediaFileStore* mediaStore,
+                                       QObject* parent)
     : QObject(parent),
       m_session(session),
       m_chatModel(chatModel),
-      m_messageModel(messageModel)
+      m_messageModel(messageModel),
+      m_mediaStore(mediaStore)
 {
     connect(m_session, &TelegramSession::updateReceived, this, &TelegramRepository::handleUpdate);
+    if (m_mediaStore) {
+        connect(m_mediaStore, &MediaFileStore::fileReady, this, [this](int fileId) {
+            for (ChatData& chat : m_chats) {
+                if (chat.photoFileId != fileId)
+                    continue;
+                chat.photoReady = true;
+                ++chat.photoRevision;
+            }
+            m_chatModel->markPhotoReady(fileId);
+            m_messageModel->markMediaReady(fileId);
+            if (fileId == m_currentChatPhotoFileId) {
+                m_currentChatPhotoReady = true;
+                ++m_currentChatPhotoRevision;
+                emit currentChatChanged();
+            }
+            emit stateChanged();
+        });
+    }
 }
 
 void TelegramRepository::start()
@@ -99,6 +120,8 @@ void TelegramRepository::requestChats()
                                         == QLatin1String("chat")) {
                                         ChatData chat = chatFromJson(chatResponse);
                                         chat.inMainList = true;
+                                        if (m_mediaStore)
+                                            chat.photoReady = m_mediaStore->isReady(chat.photoFileId);
                                         m_chats.insert(chatId, chat);
                                         rebuildChatList();
                                         emit stateChanged();
@@ -175,6 +198,13 @@ void TelegramRepository::openChat(qint64 chatId)
     m_currentChatTitle = chat.title;
     m_currentChatType = chat.type;
     m_currentChatSubtitle = chatTypeLabel(chat.type);
+    m_currentChatPhotoFileId = chat.photoFileId;
+    m_currentChatPhotoReady = chat.photoReady;
+    m_currentChatPhotoRevision = chat.photoRevision;
+    if (m_mediaStore && chat.photoFileId != 0) {
+        m_mediaStore->trackFileId(chat.photoFileId, 8);
+        m_currentChatPhotoReady = m_mediaStore->isReady(chat.photoFileId);
+    }
     m_messageModel->clear();
     m_oldestMessageId = 0;
     m_hasMoreHistory = true;
@@ -194,6 +224,9 @@ void TelegramRepository::closeChat()
     m_currentChatTitle.clear();
     m_currentChatSubtitle.clear();
     m_currentChatType.clear();
+    m_currentChatPhotoFileId = 0;
+    m_currentChatPhotoReady = false;
+    m_currentChatPhotoRevision = 0;
     m_messageModel->clear();
     m_oldestMessageId = 0;
     m_lastReadMessageId = 0;
@@ -245,6 +278,7 @@ void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatI
         if (object.isEmpty())
             continue;
         MessageData message = messageFromJson(object);
+        trackMessageMedia(message);
         if (isPrivateChat(m_currentChatType) && !message.outgoing)
             message.senderName = m_currentChatTitle;
         resolveSender(message);
@@ -292,6 +326,7 @@ void TelegramRepository::sendText(const QString& text)
         [this, chatId = m_currentChatId](const QJsonObject& response) {
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
                 MessageData message = messageFromJson(response);
+                trackMessageMedia(message);
                 if (chatId == m_currentChatId) {
                     resolveSender(message);
                     m_messageModel->addOrUpdate(message);
@@ -386,9 +421,12 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
 
     if (type == QLatin1String("updateNewChat")) {
         const QJsonObject chat = update.value(QStringLiteral("chat")).toObject();
-        const ChatData data = chatFromJson(chat);
+        ChatData data = chatFromJson(chat);
         if (data.id == 0)
             return;
+        if (m_mediaStore) {
+            data.photoReady = m_mediaStore->isReady(data.photoFileId);
+        }
         m_chats.insert(data.id, data);
         m_requestedChats.remove(data.id);
         rebuildChatList();
@@ -489,6 +527,7 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
     if (type == QLatin1String("updateNewMessage")) {
         const QJsonObject object = update.value(QStringLiteral("message")).toObject();
         MessageData message = messageFromJson(object);
+        trackMessageMedia(message);
         if (message.chatId == m_currentChatId) {
             if (isPrivateChat(m_currentChatType) && !message.outgoing)
                 message.senderName = m_currentChatTitle;
@@ -506,6 +545,7 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
         const qint64 oldId = jsonInt64(update.value(QStringLiteral("old_message_id")));
         if (jsonInt64(object.value(QStringLiteral("chat_id"))) == m_currentChatId) {
             MessageData message = messageFromJson(object);
+            trackMessageMedia(message);
             resolveSender(message);
             m_messageModel->replaceId(oldId, message);
             markCurrentChatRead();
@@ -579,6 +619,14 @@ void TelegramRepository::updateChatFromMessage(qint64 chatId, const QJsonObject&
     it->lastMessageDate = jsonInt64(message.value(QStringLiteral("date")));
     it->lastMessageId = jsonInt64(message.value(QStringLiteral("id")));
     rebuildChatList();
+}
+
+void TelegramRepository::trackMessageMedia(MessageData& message)
+{
+    if (!m_mediaStore || message.mediaFileId == 0)
+        return;
+    m_mediaStore->trackFileId(message.mediaFileId, 16);
+    message.mediaReady = m_mediaStore->isReady(message.mediaFileId);
 }
 
 void TelegramRepository::resolveSender(MessageData& message)

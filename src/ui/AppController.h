@@ -5,6 +5,7 @@
 #include "telegram/ChatFilterModel.h"
 #include "telegram/ChatListModel.h"
 #include "telegram/CredentialStore.h"
+#include "telegram/MediaFileStore.h"
 #include "telegram/MessageListModel.h"
 #include "telegram/TelegramConfig.h"
 
@@ -20,6 +21,7 @@ class QTimer;
 namespace beygram::telegram {
 class TelegramRepository;
 class TelegramSession;
+class MediaFileStore;
 }
 
 namespace beygram::ui {
@@ -83,6 +85,9 @@ class AppController final : public QObject {
     Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatTitle READ currentChatTitle NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatSubtitle READ currentChatSubtitle NOTIFY chatStateChanged)
+    Q_PROPERTY(int currentChatPhotoFileId READ currentChatPhotoFileId NOTIFY chatStateChanged)
+    Q_PROPERTY(bool currentChatPhotoReady READ currentChatPhotoReady NOTIFY chatStateChanged)
+    Q_PROPERTY(int currentChatPhotoRevision READ currentChatPhotoRevision NOTIFY chatStateChanged)
     Q_PROPERTY(bool chatLoading READ chatLoading NOTIFY chatStateChanged)
     Q_PROPERTY(bool historyLoading READ historyLoading NOTIFY chatStateChanged)
     Q_PROPERTY(bool hasMoreHistory READ hasMoreHistory NOTIFY chatStateChanged)
@@ -149,6 +154,9 @@ public:
     [[nodiscard]] qint64 currentChatId() const;
     [[nodiscard]] QString currentChatTitle() const;
     [[nodiscard]] QString currentChatSubtitle() const;
+    [[nodiscard]] int currentChatPhotoFileId() const;
+    [[nodiscard]] bool currentChatPhotoReady() const;
+    [[nodiscard]] int currentChatPhotoRevision() const;
     [[nodiscard]] bool chatLoading() const;
     [[nodiscard]] bool historyLoading() const;
     [[nodiscard]] bool hasMoreHistory() const;
@@ -196,6 +204,10 @@ public:
     Q_INVOKABLE void deleteChatMessage(qint64 messageId);
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE void clearChatError();
+    Q_INVOKABLE void requestChatPhoto(int fileId);
+
+    /// C++-only access for the QML image provider. Not exposed to QML.
+    [[nodiscard]] telegram::MediaFileStore* mediaStore();
 
     // Credential provisioning (developer API id/hash).
     Q_INVOKABLE bool saveCredentials(const QString& apiId, const QString& apiHash);
@@ -232,6 +244,7 @@ private:
     telegram::ChatListModel m_chatListModel;
     telegram::MessageListModel m_messageModel;
     telegram::ChatFilterModel m_chatFilterModel;
+    telegram::MediaFileStore m_mediaStore;
     QTimer* m_busyTimer = nullptr;
 
     QString m_accountId;

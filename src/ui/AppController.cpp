@@ -592,7 +592,8 @@ void AppController::ensureRepository()
         return;
 
     m_repository = std::make_unique<telegram::TelegramRepository>(
-        m_session.get(), &m_chatListModel, &m_messageModel, this);
+        m_session.get(), &m_chatListModel, &m_messageModel, &m_mediaStore, this);
+    m_mediaStore.setSession(m_session.get());
     connect(m_repository.get(), &telegram::TelegramRepository::stateChanged, this,
             [this] { emit chatStateChanged(); });
     connect(m_repository.get(), &telegram::TelegramRepository::currentChatChanged, this,
@@ -609,6 +610,7 @@ void AppController::ensureRepository()
 
 void AppController::resetRepository()
 {
+    m_mediaStore.setSession(nullptr);
     m_repository.reset();
     m_chatListModel.clear();
     m_messageModel.clear();
@@ -639,6 +641,26 @@ QString AppController::currentChatTitle() const
 QString AppController::currentChatSubtitle() const
 {
     return m_repository ? m_repository->currentChatSubtitle() : QString();
+}
+
+int AppController::currentChatPhotoFileId() const
+{
+    return m_repository ? m_repository->currentChatPhotoFileId() : 0;
+}
+
+bool AppController::currentChatPhotoReady() const
+{
+    return m_repository && m_repository->currentChatPhotoReady();
+}
+
+int AppController::currentChatPhotoRevision() const
+{
+    return m_repository ? m_repository->currentChatPhotoRevision() : 0;
+}
+
+telegram::MediaFileStore* AppController::mediaStore()
+{
+    return &m_mediaStore;
 }
 
 bool AppController::chatLoading() const
@@ -729,6 +751,11 @@ void AppController::clearChatError()
 {
     m_chatError.clear();
     emit chatStateChanged();
+}
+
+void AppController::requestChatPhoto(int fileId)
+{
+    m_mediaStore.trackFileId(fileId, 8);
 }
 
 QString AppController::bgMediaTitle() const

@@ -30,6 +30,12 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case EditedRole: return message.edited;
     case ContentTypeRole: return message.contentType;
     case SenderUserIdRole: return message.senderUserId;
+    case MediaFileIdRole: return message.mediaFileId;
+    case MediaFullFileIdRole: return message.mediaFullFileId;
+    case MediaWidthRole: return message.mediaWidth;
+    case MediaHeightRole: return message.mediaHeight;
+    case MediaReadyRole: return message.mediaReady;
+    case MediaRevisionRole: return message.mediaRevision;
     default: return {};
     }
 }
@@ -47,6 +53,12 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {EditedRole, "edited"},
         {ContentTypeRole, "contentType"},
         {SenderUserIdRole, "senderUserId"},
+        {MediaFileIdRole, "mediaFileId"},
+        {MediaFullFileIdRole, "mediaFullFileId"},
+        {MediaWidthRole, "mediaWidth"},
+        {MediaHeightRole, "mediaHeight"},
+        {MediaReadyRole, "mediaReady"},
+        {MediaRevisionRole, "mediaRevision"},
     };
 }
 
@@ -182,6 +194,20 @@ bool MessageListModel::updateSenderName(qint64 userId, const QString& name)
         changedAny = true;
     }
     return changedAny;
+}
+
+void MessageListModel::markMediaReady(int fileId)
+{
+    if (fileId == 0)
+        return;
+    for (int row = 0; row < m_messages.size(); ++row) {
+        if (m_messages[row].mediaFileId != fileId)
+            continue;
+        m_messages[row].mediaReady = true;
+        ++m_messages[row].mediaRevision;
+        const QModelIndex changed = index(row);
+        emit dataChanged(changed, changed, {MediaReadyRole, MediaRevisionRole});
+    }
 }
 
 void MessageListModel::removeIds(const QVector<qint64>& ids)

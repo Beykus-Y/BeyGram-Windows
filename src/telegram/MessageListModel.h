@@ -23,6 +23,12 @@ public:
         EditedRole,
         ContentTypeRole,
         SenderUserIdRole,
+        MediaFileIdRole,
+        MediaFullFileIdRole,
+        MediaWidthRole,
+        MediaHeightRole,
+        MediaReadyRole,
+        MediaRevisionRole,
     };
     Q_ENUM(Role)
 
@@ -44,6 +50,7 @@ public:
     bool markEdited(qint64 messageId);
     bool updateContent(qint64 messageId, const QJsonObject& content, bool edited);
     bool updateSenderName(qint64 userId, const QString& name);
+    void markMediaReady(int fileId);
     void removeIds(const QVector<qint64>& ids);
     [[nodiscard]] bool contains(qint64 messageId) const;
 

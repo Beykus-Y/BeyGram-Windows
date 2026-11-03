@@ -29,6 +29,9 @@ QVariant ChatListModel::data(const QModelIndex& index, int role) const
     case AccentIndexRole: return chat.accentIndex;
     case IsChannelRole: return chat.isChannel;
     case ChatTypeRole: return chat.type;
+    case PhotoFileIdRole: return chat.photoFileId;
+    case PhotoReadyRole: return chat.photoReady;
+    case PhotoRevisionRole: return chat.photoRevision;
     default: return {};
     }
 }
@@ -47,6 +50,9 @@ QHash<int, QByteArray> ChatListModel::roleNames() const
         {AccentIndexRole, "accentIndex"},
         {IsChannelRole, "isChannel"},
         {ChatTypeRole, "chatType"},
+        {PhotoFileIdRole, "photoFileId"},
+        {PhotoReadyRole, "photoReady"},
+        {PhotoRevisionRole, "photoRevision"},
     };
 }
 
@@ -73,6 +79,20 @@ qint64 ChatListModel::chatIdAt(int row) const
     if (row < 0 || row >= m_chats.size())
         return 0;
     return m_chats.at(row).id;
+}
+
+void ChatListModel::markPhotoReady(int fileId)
+{
+    if (fileId == 0)
+        return;
+    for (int row = 0; row < m_chats.size(); ++row) {
+        if (m_chats[row].photoFileId != fileId)
+            continue;
+        m_chats[row].photoReady = true;
+        ++m_chats[row].photoRevision;
+        const QModelIndex changed = index(row);
+        emit dataChanged(changed, changed, {PhotoReadyRole, PhotoRevisionRole});
+    }
 }
 
 } // namespace beygram::telegram

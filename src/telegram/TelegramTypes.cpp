@@ -3,6 +3,8 @@
 #include <QJsonArray>
 #include <QStringList>
 
+#include <limits>
+
 namespace beygram::telegram {
 
 qint64 jsonInt64(const QJsonValue& value)
@@ -11,6 +13,170 @@ qint64 jsonInt64(const QJsonValue& value)
         return value.toString().toLongLong();
     if (value.isDouble())
         return value.toVariant().toLongLong();
+    return 0;
+}
+
+int photoThumbnailFileId(const QJsonObject& photo, int targetSize, int* width, int* height)
+{
+    const QJsonArray sizes = photo.value(QStringLiteral("sizes")).toArray();
+    int bestId = 0;
+    int bestWidth = 0;
+    int bestHeight = 0;
+    int bestScore = std::numeric_limits<int>::max();
+    int largestId = 0;
+    int largestArea = 0;
+
+    for (const QJsonValue& value : sizes) {
+        const QJsonObject size = value.toObject();
+        const QJsonObject file = size.value(QStringLiteral("photo")).toObject();
+        const int fileId = file.value(QStringLiteral("id")).toInt();
+        if (fileId == 0)
+            continue;
+        const int widthValue = size.value(QStringLiteral("width")).toInt();
+        const int heightValue = size.value(QStringLiteral("height")).toInt();
+        const int area = widthValue * heightValue;
+        if (area > largestArea) {
+            largestArea = area;
+            largestId = fileId;
+        }
+
+        const int score = widthValue >= targetSize ? widthValue - targetSize
+                                                   : (targetSize - widthValue) * 4;
+        if (score < bestScore) {
+            bestScore = score;
+            bestId = fileId;
+            bestWidth = widthValue;
+            bestHeight = heightValue;
+        }
+    }
+
+    if (bestId == 0)
+        bestId = largestId;
+    if (width)
+        *width = bestWidth;
+    if (height)
+        *height = bestHeight;
+    return bestId;
+}
+
+int photoLargestFileId(const QJsonObject& photo)
+{
+    const QJsonArray sizes = photo.value(QStringLiteral("sizes")).toArray();
+    int largestId = 0;
+    int largestArea = 0;
+    for (const QJsonValue& value : sizes) {
+        const QJsonObject size = value.toObject();
+        const int area = size.value(QStringLiteral("width")).toInt()
+            * size.value(QStringLiteral("height")).toInt();
+        if (area >= largestArea) {
+            largestArea = area;
+            largestId = size.value(QStringLiteral("photo"))
+                            .toObject()
+                            .value(QStringLiteral("id"))
+                            .toInt();
+        }
+    }
+    return largestId;
+}
+
+int messageThumbnailFileId(const QJsonObject& content, int* width, int* height)
+{
+    const QString type = content.value(QStringLiteral("@type")).toString();
+
+    if (type == QLatin1String("messagePhoto"))
+        return photoThumbnailFileId(content.value(QStringLiteral("photo")).toObject(), 320,
+                                    width, height);
+
+    if (type == QLatin1String("messageVideo")) {
+        const QJsonObject video = content.value(QStringLiteral("video")).toObject();
+        if (width)
+            *width = video.value(QStringLiteral("width")).toInt();
+        if (height)
+            *height = video.value(QStringLiteral("height")).toInt();
+        return video.value(QStringLiteral("thumbnail"))
+            .toObject()
+            .value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    if (type == QLatin1String("messageAnimation")) {
+        const QJsonObject animation = content.value(QStringLiteral("animation")).toObject();
+        if (width)
+            *width = animation.value(QStringLiteral("width")).toInt();
+        if (height)
+            *height = animation.value(QStringLiteral("height")).toInt();
+        return animation.value(QStringLiteral("thumbnail"))
+            .toObject()
+            .value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    if (type == QLatin1String("messageSticker")) {
+        const QJsonObject sticker = content.value(QStringLiteral("sticker")).toObject();
+        if (width)
+            *width = sticker.value(QStringLiteral("width")).toInt();
+        if (height)
+            *height = sticker.value(QStringLiteral("height")).toInt();
+        return sticker.value(QStringLiteral("thumbnail"))
+            .toObject()
+            .value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    if (type == QLatin1String("messageDocument")) {
+        const QJsonObject document = content.value(QStringLiteral("document")).toObject();
+        const QJsonObject thumbnail = document.value(QStringLiteral("thumbnail")).toObject();
+        if (width)
+            *width = thumbnail.value(QStringLiteral("width")).toInt();
+        if (height)
+            *height = thumbnail.value(QStringLiteral("height")).toInt();
+        return thumbnail.value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    if (type == QLatin1String("messageAudio")) {
+        const QJsonObject audio = content.value(QStringLiteral("audio")).toObject();
+        const QJsonObject thumbnail = audio.value(QStringLiteral("album_cover_thumbnail")).toObject();
+        if (width)
+            *width = thumbnail.value(QStringLiteral("width")).toInt();
+        if (height)
+            *height = thumbnail.value(QStringLiteral("height")).toInt();
+        return thumbnail.value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    if (type == QLatin1String("messageVideoNote")) {
+        const QJsonObject note = content.value(QStringLiteral("video_note")).toObject();
+        const int size = note.value(QStringLiteral("length")).toInt();
+        if (width)
+            *width = size;
+        if (height)
+            *height = size;
+        return note.value(QStringLiteral("thumbnail"))
+            .toObject()
+            .value(QStringLiteral("file"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    }
+
+    return 0;
+}
+
+int messageFullFileId(const QJsonObject& content)
+{
+    if (content.value(QStringLiteral("@type")).toString() == QLatin1String("messagePhoto"))
+        return photoLargestFileId(content.value(QStringLiteral("photo")).toObject());
     return 0;
 }
 
@@ -174,6 +340,14 @@ ChatData chatFromJson(const QJsonObject& chat)
         data.preview = chatPreview(lastMessage);
     }
 
+    const QJsonObject photo = chat.value(QStringLiteral("photo")).toObject();
+    if (!photo.isEmpty()) {
+        data.photoFileId = photo.value(QStringLiteral("small"))
+                               .toObject()
+                               .value(QStringLiteral("id"))
+                               .toInt();
+    }
+
     const QJsonArray positions = chat.value(QStringLiteral("positions")).toArray();
     for (const QJsonValue& value : positions) {
         const QJsonObject position = value.toObject();
@@ -222,6 +396,8 @@ MessageData messageFromJson(const QJsonObject& message)
     const QJsonObject content = message.value(QStringLiteral("content")).toObject();
     data.contentType = messageContentLabel(content);
     data.text = messageContentText(content);
+    data.mediaFileId = messageThumbnailFileId(content, &data.mediaWidth, &data.mediaHeight);
+    data.mediaFullFileId = messageFullFileId(content);
     if (data.text.isEmpty()) {
         if (data.contentType == QLatin1String("photo"))
             data.text = QStringLiteral("[Photo]");

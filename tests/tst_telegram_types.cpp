@@ -13,6 +13,7 @@ private slots:
     void appliesChatPositionRemoval();
     void buildsPreviews();
     void parsesMessages();
+    void parsesPhotoMedia();
     void handlesTemporarySendingState();
     void computesInitialsAndAccent();
     void readsInt64FromNumbersAndStrings();
@@ -36,7 +37,11 @@ void TelegramTypesTest::parsesAChat()
             "list": {"@type": "chatListMain"},
             "order": 900,
             "is_pinned": true
-        }]
+        }],
+        "photo": {
+            "small": {"id": 77},
+            "big": {"id": 78}
+        }
     })")
                                   .object();
 
@@ -52,6 +57,7 @@ void TelegramTypesTest::parsesAChat()
     QVERIFY(data.pinned);
     QVERIFY(data.inMainList);
     QCOMPARE(data.order, qint64(900));
+    QCOMPARE(data.photoFileId, 77);
 }
 
 void TelegramTypesTest::appliesChatPositionRemoval()
@@ -117,6 +123,54 @@ void TelegramTypesTest::parsesMessages()
     QVERIFY(!data.pending);
     QVERIFY(!data.failed);
     QCOMPARE(data.senderName, QStringLiteral("You"));
+}
+
+void TelegramTypesTest::parsesPhotoMedia()
+{
+    const QJsonObject photo = QJsonDocument::fromJson(R"({
+        "sizes": [
+            {"@type": "photoSize", "type": "s", "width": 100, "height": 80,
+             "photo": {"id": 10}},
+            {"@type": "photoSize", "type": "m", "width": 320, "height": 240,
+             "photo": {"id": 11}},
+            {"@type": "photoSize", "type": "x", "width": 800, "height": 600,
+             "photo": {"id": 12}}
+        ]
+    })")
+                                 .object();
+    int width = 0;
+    int height = 0;
+    const int thumb = photoThumbnailFileId(photo, 320, &width, &height);
+    QCOMPARE(thumb, 11);
+    QCOMPARE(width, 320);
+    QCOMPARE(height, 240);
+    QCOMPARE(photoLargestFileId(photo), 12);
+
+    const QJsonObject message = QJsonDocument::fromJson(R"({
+        "id": 700,
+        "chat_id": 42,
+        "date": 1700000400,
+        "content": {
+            "@type": "messagePhoto",
+            "photo": {
+                "sizes": [
+                    {"@type": "photoSize", "width": 320, "height": 240,
+                     "photo": {"id": 11}},
+                    {"@type": "photoSize", "width": 800, "height": 600,
+                     "photo": {"id": 12}}
+                ]
+            },
+            "caption": {"text": "Sunset"}
+        }
+    })")
+                                    .object();
+    const MessageData data = messageFromJson(message);
+    QCOMPARE(data.mediaFileId, 11);
+    QCOMPARE(data.mediaFullFileId, 12);
+    QCOMPARE(data.mediaWidth, 320);
+    QCOMPARE(data.mediaHeight, 240);
+    QCOMPARE(data.text, QStringLiteral("Sunset"));
+    QCOMPARE(data.contentType, QStringLiteral("photo"));
 }
 
 void TelegramTypesTest::handlesTemporarySendingState()

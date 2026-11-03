@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import BeyGram.App 1.0
 
 Item {
     id: row
@@ -14,7 +15,18 @@ Item {
     property int accentIndex: 0
     property var lastDate: 0
     property bool selected: false
+    property int photoFileId: 0
+    property bool photoReady: false
+    property int photoRevision: 0
     signal clicked()
+
+    function requestAvatar() {
+        if (photoFileId > 0)
+            BeyGramApp.requestChatPhoto(photoFileId)
+    }
+
+    Component.onCompleted: requestAvatar()
+    onPhotoFileIdChanged: requestAvatar()
 
     implicitHeight: 74
 
@@ -57,8 +69,22 @@ Item {
             height: 46
             radius: 23
             color: row.avatarColors[Math.abs(row.accentIndex) % row.avatarColors.length]
+            clip: true
+
+            Image {
+                id: avatarImage
+                anchors.fill: parent
+                source: row.photoReady && row.photoFileId > 0
+                        ? "image://beygrammedia/" + row.photoFileId + "?v=" + row.photoRevision
+                        : ""
+                cache: false
+                asynchronous: true
+                fillMode: Image.PreserveAspectCrop
+                visible: status === Image.Ready
+            }
             Text {
                 anchors.centerIn: parent
+                visible: avatarImage.status !== Image.Ready
                 text: row.initials
                 color: "white"
                 font.pixelSize: 18
