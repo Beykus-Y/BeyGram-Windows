@@ -1,8 +1,8 @@
 name: Windows foundation CI
 
-# Builds and tests only the native Windows client. The Android workflows are
-# untouched and keep their own triggers. Path filters keep Android-only changes
-# from spending a Windows runner and vice versa.
+# Builds and tests only the native Windows client. The inherited Android
+# workflows were removed, so this is the only CI pipeline. Path filters avoid
+# spending a runner on documentation-only changes.
 
 on:
   push:
@@ -169,7 +169,7 @@ jobs:
       - name: Upload runnable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: beygram-windows-x64-phase1
+          name: beygram-windows-x64
           path: stage/
           if-no-files-found: error
           retention-days: 14
