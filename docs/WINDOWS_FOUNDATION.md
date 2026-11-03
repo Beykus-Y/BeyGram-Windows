@@ -209,7 +209,7 @@ Android workflows are separate and unchanged.
 |---|---|
 | CMake configure (Qt 6.8.3, MSVC 19.44) | passed |
 | Debug and Release builds | passed |
-| `ctest` (7 suites) | 7/7 passed |
+| `ctest` (8 suites) | 8/8 passed |
 | Application start with offscreen platform | stays alive, QML loads |
 | TDLib absent | reported honestly in UI/log |
 | DPAPI round trip | passed |
