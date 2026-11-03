@@ -52,6 +52,7 @@ signals:
     void stateChanged();
     void errorOccurred(const QString& message);
     void initialHistoryLoaded();
+    void notificationRequested(const QString& title, const QString& body);
 
 private:
     void handleUpdate(const QJsonObject& update);

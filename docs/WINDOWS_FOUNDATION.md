@@ -25,6 +25,8 @@ This document describes the native Windows client. The Android client under
   rendered as safe HTML from TDLib formatted text.
 - Replies: the reply target and quote are parsed, shown in bubbles and sent
   through `inputMessageReplyToMessage`.
+- Desktop notifications for incoming messages through the system tray; the
+  current chat, outgoing, service and muted messages are suppressed.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -34,9 +36,9 @@ This document describes the native Windows client. The Android client under
 ## What does not work yet
 
 - Video/audio playback, stickers, reactions, albums, drafts, folders/archive UI,
-  notifications, profiles and calls are not in this slice. Media messages show
-  downloaded thumbnails and still images in a viewer; unsupported content still
-  uses honest placeholders.
+  notification preferences, profiles and calls are not in this slice. Media
+  messages show downloaded thumbnails and still images in a viewer; unsupported
+  content still uses honest placeholders.
 - No music, BG Beat/BG Mix, VPN or updater.
 - Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
   from real TDLib errors, but automating those cases needs a dedicated test
@@ -207,7 +209,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 23 suites:
+`ctest` runs 24 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -221,16 +223,14 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - rich-text HTML rendering and link-scheme safety;
 - reply parsing and reply request building;
 - media viewer state, source URLs and save-as;
-- rich-text HTML rendering and link-scheme safety;
-- reply parsing and reply request building;
-- media viewer state, source URLs and save-as;
+- incoming-message notification filtering and formatting;
 - send/edit/history/read/delete TDLib request builders;
 - real TDLib integration (skipped when the DLL is absent): trusted load, local
   `td_execute`, `@extra` correlation, reach
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **23/23 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **24/24 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

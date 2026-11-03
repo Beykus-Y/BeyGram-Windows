@@ -87,9 +87,9 @@ Duration: 3–5 weeks.
 **Status:** chat MVP implemented in `feature/windows-chats` and stacked on the
 authorization branch: main chat list with pin/unread/mute/search, TDLib-update
 ordering, text history, text send/edit/delete, read receipts, proxy support,
-real avatars/thumbnails, rich-text entities, replies and a still-image viewer.
-Drafts, folders/archive UI, in-chat search, albums and desktop notifications
-remain open in this phase.
+real avatars/thumbnails, rich-text entities, replies, a still-image viewer and
+desktop notifications. Drafts, folders/archive UI, in-chat search, albums and
+notification preferences remain open in this phase.
 
 Scope:
 

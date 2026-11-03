@@ -13,6 +13,8 @@ add_library(beygram_telegram STATIC
     CredentialStore.h
     ReplyInfo.cpp
     ReplyInfo.h
+    NotificationFormatter.cpp
+    NotificationFormatter.h
     TextFormatting.cpp
     TextFormatting.h
     MessageListModel.cpp

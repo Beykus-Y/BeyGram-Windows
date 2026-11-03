@@ -19,6 +19,7 @@
 #include <memory>
 
 class QTimer;
+class QSystemTrayIcon;
 
 namespace beygram::telegram {
 class TelegramRepository;
@@ -248,6 +249,7 @@ private:
     void onSessionStageChanged();
     void ensureRepository();
     void resetRepository();
+    void showNotification(const QString& title, const QString& body);
 
     std::unique_ptr<telegram::TelegramSession> m_session;
     std::unique_ptr<telegram::TelegramRepository> m_repository;
@@ -259,6 +261,7 @@ private:
     telegram::MediaFileStore m_mediaStore;
     MediaViewerController m_mediaViewer;
     QTimer* m_busyTimer = nullptr;
+    QSystemTrayIcon* m_tray = nullptr;
 
     QString m_accountId;
     QString m_tdlibDetail;

@@ -3,6 +3,7 @@
 #include "core/Logging.h"
 #include "core/Redaction.h"
 #include "MediaFileStore.h"
+#include "NotificationFormatter.h"
 #include "TelegramRequests.h"
 #include "TelegramSession.h"
 
@@ -530,6 +531,16 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
         const QJsonObject object = update.value(QStringLiteral("message")).toObject();
         MessageData message = messageFromJson(object);
         trackMessageMedia(message);
+        const auto chatIt = m_chats.constFind(message.chatId);
+        const QString chatTitle = chatIt != m_chats.cend() ? chatIt->title : QString();
+        const bool muted = chatIt != m_chats.cend() && chatIt->muted;
+        const bool privateChat = chatIt != m_chats.cend()
+            ? isPrivateChat(chatIt->type)
+            : (message.chatId == m_currentChatId && isPrivateChat(m_currentChatType));
+        const NotificationPayload payload = notificationForMessage(
+            object, chatTitle, privateChat, m_currentChatId, muted);
+        if (payload.shouldNotify)
+            emit notificationRequested(payload.title, payload.body);
         if (message.chatId == m_currentChatId) {
             if (isPrivateChat(m_currentChatType) && !message.outgoing)
                 message.senderName = m_currentChatTitle;

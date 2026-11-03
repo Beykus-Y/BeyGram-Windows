@@ -5,7 +5,7 @@
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
 
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QtQml>
@@ -22,7 +22,7 @@ void handleObjectCreationFailure()
 
 int main(int argc, char* argv[])
 {
-    QGuiApplication application(argc, argv);
+    QApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("Beykus"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("beygram.app"));
     QCoreApplication::setApplicationName(QStringLiteral("BeyGram Windows"));

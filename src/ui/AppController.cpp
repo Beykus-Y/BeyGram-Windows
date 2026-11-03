@@ -12,6 +12,7 @@
 #include "BeyGramBuildSecrets.h"
 #endif
 
+#include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -20,7 +21,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLocale>
+#include <QStyle>
 #include <QSysInfo>
+#include <QSystemTrayIcon>
 #include <QTimer>
 #include <QUrl>
 
@@ -606,7 +609,23 @@ void AppController::ensureRepository()
             });
     connect(m_repository.get(), &telegram::TelegramRepository::initialHistoryLoaded, this,
             [this] { emit initialHistoryLoaded(); });
+    connect(m_repository.get(), &telegram::TelegramRepository::notificationRequested, this,
+            &AppController::showNotification);
     m_repository->start();
+}
+
+void AppController::showNotification(const QString& title, const QString& body)
+{
+    if (title.isEmpty() || body.isEmpty() || !QSystemTrayIcon::isSystemTrayAvailable())
+        return;
+    if (!m_tray) {
+        m_tray = new QSystemTrayIcon(this);
+        m_tray->setIcon(QApplication::style()->standardIcon(
+            QStyle::SP_MessageBoxInformation));
+        m_tray->setToolTip(QStringLiteral("BeyGram Windows"));
+        m_tray->show();
+    }
+    m_tray->showMessage(title, body, QSystemTrayIcon::Information, 6000);
 }
 
 void AppController::resetRepository()

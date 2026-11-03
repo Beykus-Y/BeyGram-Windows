@@ -25,7 +25,7 @@ if(WIN32)
     add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Test Widgets)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
