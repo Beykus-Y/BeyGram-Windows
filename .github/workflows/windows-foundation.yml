@@ -1,0 +1,98 @@
+name: Windows foundation CI
+
+# Builds and tests only the native Windows client. The Android workflows are
+# untouched and keep their own triggers. Path filters keep Android-only changes
+# from spending a Windows runner and vice versa.
+
+on:
+  push:
+    branches:
+      - feature/windows-foundation
+      - 'windows/**'
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/**'
+      - 'qml/**'
+      - 'tests/**'
+      - '.github/workflows/windows-foundation.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/**'
+      - 'qml/**'
+      - 'tests/**'
+      - '.github/workflows/windows-foundation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: windows-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: MSVC 2022 · Qt 6.8.3 · x64
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    env:
+      QT_VERSION: 6.8.3
+      QT_MODULES: qtshadertools
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: ${{ env.QT_MODULES }}
+          cache: true
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+          -DBEYGRAM_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Deploy runtime
+        run: >
+          cmake -E make_directory stage &&
+          cmake -E copy build/Release/beygram.exe stage/ &&
+          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --qmldir qml stage/beygram.exe
+
+      - name: Smoke test the QML shell
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $process = Start-Process -FilePath "stage/beygram.exe" -PassThru
+          Start-Sleep -Seconds 6
+          if ($process.HasExited) {
+            Write-Error "beygram.exe exited during the smoke test with code $($process.ExitCode)"
+            exit 1
+          }
+          Stop-Process -Id $process.Id -Force
+          Write-Host "QML root loaded and the application stayed alive for 6 seconds."
+
+      - name: Upload runnable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beygram-windows-x64-phase0
+          path: stage/
+          if-no-files-found: error
+          retention-days: 14

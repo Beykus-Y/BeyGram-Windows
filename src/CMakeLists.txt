@@ -1,0 +1,5 @@
+add_subdirectory(core)
+add_subdirectory(platform/windows)
+add_subdirectory(telegram)
+add_subdirectory(media)
+add_subdirectory(ui)

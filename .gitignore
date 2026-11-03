@@ -15,6 +15,14 @@
 local.properties
 secrets.properties
 
+# Native Windows build trees and local IDE state.
+/build/
+/build-*/
+/out/
+/stage/
+/.vs/
+CMakeUserPresets.json
+
 # Local IDE state, tool downloads, generated build trees and native source checkout.
 /.idea/
 /.agents/

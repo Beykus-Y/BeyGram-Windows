@@ -1,5 +1,19 @@
 # BeyGram
 
+## Windows port (Phase 0)
+
+A native C++20 / Qt 6 / TDLib Windows client is being ported from this Android
+reference. The foundation lives in `src/`, `qml/`, `tests/` and `cmake/`; the
+Android sources under `app/` remain the functional specification until each
+module is migrated.
+
+Current status: the Qt Quick shell, logging, DPAPI secret storage, TDLib JSON
+integration point and tests build and run. There is **no chat UI, login form,
+media or music playback yet**, and the app states this honestly. See
+[windows foundation](docs/WINDOWS_FOUNDATION.md),
+[porting audit](docs/PORTING_AUDIT.md) and
+[porting roadmap](docs/PORTING_ROADMAP.md).
+
 Android-клиент Telegram на Kotlin, Jetpack Compose и TDLib. Проект находится в активной разработке; интерфейс пока использует простые функциональные экраны.
 
 ## Что реализовано
