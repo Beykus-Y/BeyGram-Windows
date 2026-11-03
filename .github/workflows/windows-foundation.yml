@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - feature/windows-foundation
+      - feature/windows-authentication
       - 'windows/**'
     paths:
       - 'CMakeLists.txt'
@@ -15,6 +16,7 @@ on:
       - 'src/**'
       - 'qml/**'
       - 'tests/**'
+      - 'docs/WINDOWS_TDLIB.md'
       - '.github/workflows/windows-foundation.yml'
   pull_request:
     paths:
@@ -23,6 +25,7 @@ on:
       - 'src/**'
       - 'qml/**'
       - 'tests/**'
+      - 'docs/WINDOWS_TDLIB.md'
       - '.github/workflows/windows-foundation.yml'
   workflow_dispatch:
 
@@ -33,15 +36,16 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  QT_VERSION: 6.8.3
+  TDLIB_COMMIT: 4c6377aa7386c39217878a9a56d581922ad37ca4
+  TDLIB_STAGE: C:\tdlib\stage
+
 jobs:
   build-and-test:
-    name: MSVC 2022 · Qt 6.8.3 · x64
+    name: MSVC 2022 · Qt 6.8.3 · TDLib · x64
     runs-on: windows-2022
-    timeout-minutes: 45
-
-    env:
-      QT_VERSION: 6.8.3
-      QT_MODULES: qtshadertools
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -54,14 +58,86 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
-          modules: ${{ env.QT_MODULES }}
+          modules: qtshadertools
           cache: true
+
+      - name: Restore TDLib build
+        id: tdlib-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TDLIB_STAGE }}
+          key: tdlib-${{ env.TDLIB_COMMIT }}-msvc2022-x64-v1
+
+      - name: Build TDLib
+        if: steps.tdlib-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if (-not (Get-Command gperf -ErrorAction SilentlyContinue)) {
+            choco install gperf -y --no-progress
+            $env:PATH = "C:\ProgramData\chocolatey\bin;$env:PATH"
+          }
+          if (-not (Get-Command php -ErrorAction SilentlyContinue)) {
+            choco install php -y --no-progress
+            $env:PATH = "C:\tools\php;C:\ProgramData\chocolatey\bin;$env:PATH"
+          }
+          if (-not (Get-Command gperf -ErrorAction SilentlyContinue)) { throw "gperf is unavailable" }
+          if (-not (Get-Command php -ErrorAction SilentlyContinue)) { throw "php is unavailable" }
+
+          $vcpkg = "C:\vcpkg\vcpkg.exe"
+          if (-not (Test-Path $vcpkg)) {
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git C:\vcpkg
+            C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          }
+          & $vcpkg install openssl:x64-windows zlib:x64-windows --triplet x64-windows
+
+          if (-not (Test-Path C:\tdlib\src)) {
+            git clone https://github.com/tdlib/td.git C:\tdlib\src
+          }
+          git -C C:\tdlib\src checkout $env:TDLIB_COMMIT
+
+          cmake -S C:\tdlib\src -B C:\tdlib\build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DTD_ENABLE_LTO=OFF `
+            -DTD_ENABLE_PCH=OFF
+
+          cmake --build C:\tdlib\build --config Release --target tdjson --parallel 4
+
+          New-Item -ItemType Directory -Force $env:TDLIB_STAGE | Out-Null
+          $dll = Get-ChildItem C:\tdlib\build -Recurse -Filter tdjson.dll |
+            Select-Object -First 1
+          if (-not $dll) { throw "tdjson.dll was not produced" }
+          Copy-Item "$($dll.DirectoryName)\*.dll" $env:TDLIB_STAGE -Force
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\*.dll $env:TDLIB_STAGE -Force
+          Get-ChildItem $env:TDLIB_STAGE | Select-Object Name, Length
+
+      - name: Verify TDLib exports
+        shell: pwsh
+        run: |
+          $dumpbin = (Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022" -Recurse -Filter dumpbin.exe |
+            Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1).FullName
+          if (-not $dumpbin) { throw "dumpbin.exe was not found" }
+          $required = @(
+            "td_json_client_create", "td_json_client_send",
+            "td_json_client_receive", "td_json_client_execute",
+            "td_json_client_destroy"
+          )
+          $exportLines = & $dumpbin /exports "$env:TDLIB_STAGE\tdjson.dll"
+          $exports = $exportLines -join "`n"
+          foreach ($name in $required) {
+            if ($exports -notmatch [regex]::Escape($name)) { throw "Missing export: $name" }
+          }
+          $exportLines | Select-String "td_json_client_" | ForEach-Object { $_.Line.Trim() }
 
       - name: Configure
         run: >
           cmake -S . -B build
           -G "Visual Studio 17 2022" -A x64
           -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+          -DBEYGRAM_TDLIB_DIR="$env:TDLIB_STAGE"
           -DBEYGRAM_BUILD_TESTS=ON
 
       - name: Build
@@ -92,7 +168,7 @@ jobs:
       - name: Upload runnable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: beygram-windows-x64-phase0
+          name: beygram-windows-x64-phase1
           path: stage/
           if-no-files-found: error
           retention-days: 14
