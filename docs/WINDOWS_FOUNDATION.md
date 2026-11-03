@@ -236,7 +236,9 @@ that mutates the owner's account; the request builder is unit-tested.
 3. a second job builds the pinned TDLib with vcpkg OpenSSL/zlib, caches it, then
    runs the full suite including the real TDLib integration test.
 
-Android workflows are separate and unchanged.
+The inherited Android workflows were removed by the owner's request so only the
+Windows pipeline runs. The Android sources under `app/` remain the functional
+reference.
 
 ## Verification matrix
 

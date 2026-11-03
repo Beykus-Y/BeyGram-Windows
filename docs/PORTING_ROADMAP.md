@@ -34,7 +34,8 @@ Exit criteria (met locally):
 - `ctest` passes all suites.
 - Removing/omitting TDLib produces a visible "runtime missing" state, not a
   crash or fake connection.
-- Android sources are untouched; Android workflows are untouched.
+- Android sources are untouched (the inherited Android workflows were removed
+  later by the owner's request; Android remains the source reference).
 
 Not in Phase 0: login UI, chats, media, notifications, music, VPN, packaging.
 
