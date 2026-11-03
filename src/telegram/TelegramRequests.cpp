@@ -1,5 +1,7 @@
 #include "TelegramRequests.h"
 
+#include "ReplyInfo.h"
+
 #include <QJsonArray>
 
 namespace beygram::telegram {
@@ -26,13 +28,16 @@ QJsonObject inputTextContent(const QString& text, bool clearDraft)
 
 } // namespace
 
-QJsonObject sendTextMessageRequest(qint64 chatId, const QString& text)
+QJsonObject sendTextMessageRequest(qint64 chatId, const QString& text, qint64 replyToMessageId)
 {
+    const QJsonValue reply = replyToMessageId > 0
+        ? QJsonValue(inputReplyToMessageRequest(replyToMessageId))
+        : QJsonValue(QJsonValue::Null);
     return QJsonObject{
         {QStringLiteral("@type"), QStringLiteral("sendMessage")},
         {QStringLiteral("chat_id"), chatId},
         {QStringLiteral("topic_id"), QJsonValue::Null},
-        {QStringLiteral("reply_to"), QJsonValue::Null},
+        {QStringLiteral("reply_to"), reply},
         {QStringLiteral("options"), QJsonValue::Null},
         {QStringLiteral("reply_markup"), QJsonValue::Null},
         {QStringLiteral("input_message_content"), inputTextContent(text, true)},

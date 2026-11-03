@@ -39,6 +39,16 @@ void TelegramRequestsTest::buildsSendTextRequest()
                  .toArray()
                  .size(),
              0);
+
+    const QJsonObject replyRequest =
+        sendTextMessageRequest(42, QStringLiteral("Hello"), 777);
+    const QJsonObject reply =
+        replyRequest.value(QStringLiteral("reply_to")).toObject();
+    QCOMPARE(reply.value(QStringLiteral("@type")).toString(),
+             QStringLiteral("inputMessageReplyToMessage"));
+    QCOMPARE(reply.value(QStringLiteral("message_id")).toVariant().toLongLong(),
+             qint64(777));
+    QVERIFY(reply.value(QStringLiteral("quote")).isNull());
 }
 
 void TelegramRequestsTest::buildsEditRequest()

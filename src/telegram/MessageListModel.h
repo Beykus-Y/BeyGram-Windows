@@ -15,6 +15,7 @@ public:
     enum Role {
         MessageIdRole = Qt::UserRole + 1,
         TextRole,
+        TextHtmlRole,
         OutgoingRole,
         DateRole,
         SenderNameRole,
@@ -29,6 +30,8 @@ public:
         MediaHeightRole,
         MediaReadyRole,
         MediaRevisionRole,
+        ReplyToMessageIdRole,
+        ReplyPreviewRole,
     };
     Q_ENUM(Role)
 
@@ -51,6 +54,7 @@ public:
     bool updateContent(qint64 messageId, const QJsonObject& content, bool edited);
     bool updateSenderName(qint64 userId, const QString& name);
     void markMediaReady(int fileId);
+    void resolveReplyPreviews();
     void removeIds(const QVector<qint64>& ids);
     [[nodiscard]] bool contains(qint64 messageId) const;
 

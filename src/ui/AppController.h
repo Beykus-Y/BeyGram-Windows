@@ -7,12 +7,14 @@
 #include "telegram/CredentialStore.h"
 #include "telegram/MediaFileStore.h"
 #include "telegram/MessageListModel.h"
+#include "ui/MediaViewerController.h"
 #include "telegram/TelegramConfig.h"
 
 #include <QAbstractItemModel>
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 
 #include <memory>
 
@@ -93,6 +95,8 @@ class AppController final : public QObject {
     Q_PROPERTY(bool hasMoreHistory READ hasMoreHistory NOTIFY chatStateChanged)
     Q_PROPERTY(QString chatError READ chatError NOTIFY chatStateChanged)
     Q_PROPERTY(QString chatFilter READ chatFilter WRITE setChatFilter NOTIFY chatFilterChanged)
+    Q_PROPERTY(qint64 replyToMessageId READ replyToMessageId NOTIFY replyStateChanged)
+    Q_PROPERTY(QString replyPreview READ replyPreview NOTIFY replyStateChanged)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -163,6 +167,8 @@ public:
     [[nodiscard]] QString chatError() const;
     [[nodiscard]] QString chatFilter() const;
     void setChatFilter(const QString& filter);
+    [[nodiscard]] qint64 replyToMessageId() const;
+    [[nodiscard]] QString replyPreview() const;
 
     [[nodiscard]] QString bgMediaTitle() const;
     [[nodiscard]] QString bgMediaDetail() const;
@@ -200,14 +206,19 @@ public:
     Q_INVOKABLE void closeChat();
     Q_INVOKABLE void loadOlderMessages();
     Q_INVOKABLE void sendChatMessage(const QString& text);
+    Q_INVOKABLE void beginReply(qint64 messageId, const QString& preview);
+    Q_INVOKABLE void cancelReply();
     Q_INVOKABLE void editChatMessage(qint64 messageId, const QString& text);
     Q_INVOKABLE void deleteChatMessage(qint64 messageId);
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE void clearChatError();
     Q_INVOKABLE void requestChatPhoto(int fileId);
+    Q_INVOKABLE void openLink(const QString& url);
 
     /// C++-only access for the QML image provider. Not exposed to QML.
     [[nodiscard]] telegram::MediaFileStore* mediaStore();
+    [[nodiscard]] MediaViewerController* mediaViewer();
+    Q_INVOKABLE bool saveOpenMediaAs(const QUrl& target);
 
     // Credential provisioning (developer API id/hash).
     Q_INVOKABLE bool saveCredentials(const QString& apiId, const QString& apiHash);
@@ -222,6 +233,7 @@ signals:
     void qrCodeChanged();
     void chatStateChanged();
     void chatFilterChanged();
+    void replyStateChanged();
     void initialHistoryLoaded();
 
 private:
@@ -245,6 +257,7 @@ private:
     telegram::MessageListModel m_messageModel;
     telegram::ChatFilterModel m_chatFilterModel;
     telegram::MediaFileStore m_mediaStore;
+    MediaViewerController m_mediaViewer;
     QTimer* m_busyTimer = nullptr;
 
     QString m_accountId;
@@ -257,6 +270,9 @@ private:
     QString m_accountDisplayName;
     QString m_accountUsername;
     QString m_chatError;
+    qint64 m_replyToMessageId = 0;
+    qint64 m_replyChatId = 0;
+    QString m_replyPreview;
     int m_authErrorCode = 0;
     bool m_tdlibAvailable = false;
     bool m_credentialsConfigured = false;

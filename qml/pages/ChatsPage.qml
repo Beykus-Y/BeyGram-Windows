@@ -12,10 +12,12 @@ Item {
     function resetComposer() {
         editingId = 0
         composer.text = ""
+        BeyGramApp.cancelReply()
     }
 
     function beginEdit(messageId, text) {
         editingId = messageId
+        BeyGramApp.cancelReply()
         composer.text = text
         composer.forceActiveFocus()
         composer.cursorPosition = composer.length
@@ -321,6 +323,8 @@ Item {
                         delegate: MessageBubble {
                             messageId: model.messageId
                             text: model.text
+                            textHtml: model.textHtml
+                            replyPreview: model.replyPreview
                             outgoing: model.outgoing
                             senderName: model.senderName
                             date: model.date
@@ -329,11 +333,16 @@ Item {
                             edited: model.edited
                             contentType: model.contentType
                             mediaFileId: model.mediaFileId
+                            mediaFullFileId: model.mediaFullFileId
                             mediaWidth: model.mediaWidth
                             mediaHeight: model.mediaHeight
                             mediaReady: model.mediaReady
                             mediaRevision: model.mediaRevision
+                            onMediaOpenRequested: (fileId) => BeyGramMediaViewer.open(
+                                                      fileId, BeyGramApp.currentChatTitle)
                             onEditRequested: (messageId, text) => page.beginEdit(messageId, text)
+                            onReplyRequested: (messageId, preview) => BeyGramApp.beginReply(
+                                                  messageId, preview)
                             onDeleteRequested: (messageId) => {
                                 deleteDialog.messageId = messageId
                                 deleteDialog.open()
@@ -434,6 +443,24 @@ Item {
                                 text: "Cancel"
                                 implicitHeight: 26
                                 onClicked: page.resetComposer()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: page.editingId === 0
+                                     && BeyGramApp.replyToMessageId > 0
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Replying: " + BeyGramApp.replyPreview
+                                color: BeyGramTheme.muted
+                                font.pixelSize: 10
+                                elide: Text.ElideRight
+                            }
+                            SecondaryButton {
+                                text: "Cancel"
+                                implicitHeight: 26
+                                onClicked: BeyGramApp.cancelReply()
                             }
                         }
 

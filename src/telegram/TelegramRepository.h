@@ -31,7 +31,7 @@ public:
     void openChat(qint64 chatId);
     void closeChat();
     void loadOlder();
-    void sendText(const QString& text);
+    void sendText(const QString& text, qint64 replyToMessageId = 0);
     void editMessage(qint64 messageId, const QString& text);
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();

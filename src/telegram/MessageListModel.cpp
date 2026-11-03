@@ -1,5 +1,7 @@
 #include "MessageListModel.h"
 
+#include "TextFormatting.h"
+
 #include <algorithm>
 
 namespace beygram::telegram {
@@ -22,6 +24,7 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     switch (role) {
     case MessageIdRole: return message.id;
     case TextRole: return message.text;
+    case TextHtmlRole: return message.textHtml;
     case OutgoingRole: return message.outgoing;
     case DateRole: return message.date;
     case SenderNameRole: return message.senderName;
@@ -36,6 +39,8 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case MediaHeightRole: return message.mediaHeight;
     case MediaReadyRole: return message.mediaReady;
     case MediaRevisionRole: return message.mediaRevision;
+    case ReplyToMessageIdRole: return message.replyToMessageId;
+    case ReplyPreviewRole: return message.replyPreview;
     default: return {};
     }
 }
@@ -45,6 +50,7 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
     return {
         {MessageIdRole, "messageId"},
         {TextRole, "text"},
+        {TextHtmlRole, "textHtml"},
         {OutgoingRole, "outgoing"},
         {DateRole, "date"},
         {SenderNameRole, "senderName"},
@@ -59,6 +65,8 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {MediaHeightRole, "mediaHeight"},
         {MediaReadyRole, "mediaReady"},
         {MediaRevisionRole, "mediaRevision"},
+        {ReplyToMessageIdRole, "replyToMessageId"},
+        {ReplyPreviewRole, "replyPreview"},
     };
 }
 
@@ -172,6 +180,11 @@ bool MessageListModel::updateContent(qint64 messageId, const QJsonObject& conten
     MessageData& message = m_messages[existing];
     message.text = messageContentText(content);
     message.contentType = messageContentLabel(content);
+    const QJsonObject formatted =
+        content.contains(QStringLiteral("text"))
+        ? content.value(QStringLiteral("text")).toObject()
+        : content.value(QStringLiteral("caption")).toObject();
+    message.textHtml = formatTdlibText(formatted).html;
     if (message.text.isEmpty())
         message.text = QStringLiteral("[%1]").arg(message.contentType);
     if (edited)
@@ -207,6 +220,27 @@ void MessageListModel::markMediaReady(int fileId)
         ++m_messages[row].mediaRevision;
         const QModelIndex changed = index(row);
         emit dataChanged(changed, changed, {MediaReadyRole, MediaRevisionRole});
+    }
+}
+
+void MessageListModel::resolveReplyPreviews()
+{
+    for (int row = 0; row < m_messages.size(); ++row) {
+        MessageData& message = m_messages[row];
+        if (message.replyToMessageId == 0 || !message.replyPreview.isEmpty())
+            continue;
+        const int targetRow = indexForId(message.replyToMessageId);
+        if (targetRow < 0 || targetRow == row)
+            continue;
+        const MessageData& target = m_messages.at(targetRow);
+        QString preview = target.text;
+        if (preview.isEmpty())
+            preview = QStringLiteral("Message");
+        if (!target.senderName.isEmpty())
+            preview = target.senderName + QStringLiteral(": ") + preview;
+        message.replyPreview = preview;
+        const QModelIndex changed = index(row);
+        emit dataChanged(changed, changed, {ReplyPreviewRole});
     }
 }
 

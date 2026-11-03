@@ -30,7 +30,11 @@ struct MessageData {
     qint64 chatId = 0;
     qint64 date = 0;
     qint64 senderUserId = 0;
+    qint64 replyToMessageId = 0;
+    qint64 replyChatId = 0;
     QString text;
+    QString textHtml;
+    QString replyPreview;
     QString senderName;
     QString contentType;
     bool outgoing = false;

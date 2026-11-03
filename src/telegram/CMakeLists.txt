@@ -11,6 +11,10 @@ add_library(beygram_telegram STATIC
     ChatListModel.h
     CredentialStore.cpp
     CredentialStore.h
+    ReplyInfo.cpp
+    ReplyInfo.h
+    TextFormatting.cpp
+    TextFormatting.h
     MessageListModel.cpp
     MessageListModel.h
     SessionLock.cpp

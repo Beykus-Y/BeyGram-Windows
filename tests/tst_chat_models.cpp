@@ -17,6 +17,7 @@ private slots:
     void messageModelSortsAndDeduplicates();
     void messageModelReplacesTemporaryId();
     void messageModelUpdatesAndRemoves();
+    void messageModelResolvesReplyPreviews();
 };
 
 void ChatModelsTest::chatModelExposesRoles()
@@ -172,6 +173,37 @@ void ChatModelsTest::messageModelUpdatesAndRemoves()
 
     model.removeIds({5});
     QCOMPARE(model.count(), 0);
+}
+
+void ChatModelsTest::messageModelResolvesReplyPreviews()
+{
+    MessageListModel model;
+    MessageData original;
+    original.id = 10;
+    original.chatId = 1;
+    original.senderName = QStringLiteral("Alice");
+    original.text = QStringLiteral("original text");
+    model.addOrUpdate(original);
+
+    MessageData reply;
+    reply.id = 20;
+    reply.chatId = 1;
+    reply.replyToMessageId = 10;
+    reply.text = QStringLiteral("my answer");
+    model.addOrUpdate(reply);
+
+    QCOMPARE(model.data(model.index(1), MessageListModel::ReplyPreviewRole).toString(),
+             QString());
+
+    QSignalSpy spy(&model, &QAbstractItemModel::dataChanged);
+    model.resolveReplyPreviews();
+    QCOMPARE(model.data(model.index(1), MessageListModel::ReplyPreviewRole).toString(),
+             QStringLiteral("Alice: original text"));
+    QCOMPARE(spy.count(), 1);
+
+    // A second pass must not emit or change anything.
+    model.resolveReplyPreviews();
+    QCOMPARE(spy.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(ChatModelsTest)

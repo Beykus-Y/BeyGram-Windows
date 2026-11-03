@@ -91,7 +91,8 @@ QString username(const QJsonObject& user)
 AppController::AppController(QObject* parent)
     : QObject(parent),
       m_credentials(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))),
-      m_registry(AppPaths::dataDirectory())
+      m_registry(AppPaths::dataDirectory()),
+      m_mediaViewer(&m_mediaStore)
 {
     buildConfig();
 
@@ -615,6 +616,10 @@ void AppController::resetRepository()
     m_chatListModel.clear();
     m_messageModel.clear();
     m_chatError.clear();
+    m_replyToMessageId = 0;
+    m_replyChatId = 0;
+    m_replyPreview.clear();
+    emit replyStateChanged();
     emit chatStateChanged();
 }
 
@@ -663,6 +668,16 @@ telegram::MediaFileStore* AppController::mediaStore()
     return &m_mediaStore;
 }
 
+MediaViewerController* AppController::mediaViewer()
+{
+    return &m_mediaViewer;
+}
+
+bool AppController::saveOpenMediaAs(const QUrl& target)
+{
+    return m_mediaViewer.saveAs(target.toLocalFile());
+}
+
 bool AppController::chatLoading() const
 {
     return m_repository && m_repository->loadingChats();
@@ -694,9 +709,25 @@ void AppController::setChatFilter(const QString& filter)
     emit chatFilterChanged();
 }
 
+qint64 AppController::replyToMessageId() const
+{
+    return m_replyToMessageId;
+}
+
+QString AppController::replyPreview() const
+{
+    return m_replyPreview;
+}
+
 void AppController::openChat(qint64 chatId)
 {
     m_chatError.clear();
+    if (chatId != m_replyChatId) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        m_replyChatId = chatId;
+        emit replyStateChanged();
+    }
     if (m_repository)
         m_repository->openChat(chatId);
     emit chatStateChanged();
@@ -704,6 +735,12 @@ void AppController::openChat(qint64 chatId)
 
 void AppController::closeChat()
 {
+    if (m_replyToMessageId != 0 || !m_replyPreview.isEmpty()) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        emit replyStateChanged();
+    }
+    m_replyChatId = 0;
     if (m_repository)
         m_repository->closeChat();
     emit chatStateChanged();
@@ -718,9 +755,34 @@ void AppController::loadOlderMessages()
 void AppController::sendChatMessage(const QString& text)
 {
     m_chatError.clear();
+    const qint64 replyTo = m_replyToMessageId;
     if (m_repository)
-        m_repository->sendText(text);
+        m_repository->sendText(text, replyTo);
+    if (replyTo != 0 || !m_replyPreview.isEmpty()) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        emit replyStateChanged();
+    }
     emit chatStateChanged();
+}
+
+void AppController::beginReply(qint64 messageId, const QString& preview)
+{
+    if (messageId == 0)
+        return;
+    m_replyToMessageId = messageId;
+    m_replyChatId = m_repository ? m_repository->currentChatId() : m_replyChatId;
+    m_replyPreview = preview;
+    emit replyStateChanged();
+}
+
+void AppController::cancelReply()
+{
+    if (m_replyToMessageId == 0 && m_replyPreview.isEmpty())
+        return;
+    m_replyToMessageId = 0;
+    m_replyPreview.clear();
+    emit replyStateChanged();
 }
 
 void AppController::editChatMessage(qint64 messageId, const QString& text)
@@ -756,6 +818,18 @@ void AppController::clearChatError()
 void AppController::requestChatPhoto(int fileId)
 {
     m_mediaStore.trackFileId(fileId, 8);
+}
+
+void AppController::openLink(const QString& url)
+{
+    const QUrl target(url);
+    const QString scheme = target.scheme().toLower();
+    if (scheme != QLatin1String("http") && scheme != QLatin1String("https")
+        && scheme != QLatin1String("tg") && scheme != QLatin1String("mailto")) {
+        return;
+    }
+    if (target.isValid())
+        QDesktopServices::openUrl(target);
 }
 
 QString AppController::bgMediaTitle() const

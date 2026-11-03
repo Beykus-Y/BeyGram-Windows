@@ -1,5 +1,8 @@
 #include "TelegramTypes.h"
 
+#include "ReplyInfo.h"
+#include "TextFormatting.h"
+
 #include <QJsonArray>
 #include <QStringList>
 
@@ -396,7 +399,18 @@ MessageData messageFromJson(const QJsonObject& message)
     const QJsonObject content = message.value(QStringLiteral("content")).toObject();
     data.contentType = messageContentLabel(content);
     data.text = messageContentText(content);
+    const QJsonObject formatted =
+        content.contains(QStringLiteral("text"))
+        ? content.value(QStringLiteral("text")).toObject()
+        : content.value(QStringLiteral("caption")).toObject();
+    data.textHtml = formatTdlibText(formatted).html;
     data.mediaFileId = messageThumbnailFileId(content, &data.mediaWidth, &data.mediaHeight);
+    const ReplyTarget reply = replyTargetFromMessage(message);
+    if (reply.isValid()) {
+        data.replyToMessageId = reply.messageId;
+        data.replyChatId = reply.chatId != 0 ? reply.chatId : data.chatId;
+        data.replyPreview = reply.quoteText;
+    }
     data.mediaFullFileId = messageFullFileId(content);
     if (data.text.isEmpty()) {
         if (data.contentType == QLatin1String("photo"))

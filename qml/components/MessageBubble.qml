@@ -8,6 +8,8 @@ Item {
     id: bubbleItem
     property int messageId: 0
     property string text: ""
+    property string textHtml: ""
+    property string replyPreview: ""
     property bool outgoing: false
     property string senderName: ""
     property var date: 0
@@ -16,12 +18,15 @@ Item {
     property bool edited: false
     property string contentType: "text"
     property int mediaFileId: 0
+    property int mediaFullFileId: 0
     property int mediaWidth: 0
     property int mediaHeight: 0
     property bool mediaReady: false
     property int mediaRevision: 0
     signal editRequested(int messageId, string text)
     signal deleteRequested(int messageId)
+    signal mediaOpenRequested(int fileId)
+    signal replyRequested(int messageId, string preview)
 
     implicitHeight: bubble.height + 8
     width: ListView.view ? ListView.view.width : parent.width
@@ -79,6 +84,45 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
+                visible: bubbleItem.replyPreview.length > 0
+                implicitHeight: quoteText.implicitHeight + 10
+                radius: 8
+                color: Qt.alpha(BeyGramTheme.accent, 0.10)
+                clip: true
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 3
+                    color: BeyGramTheme.accent
+                }
+
+                Text {
+                    id: quoteText
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 9
+                    anchors.rightMargin: 8
+                    text: bubbleItem.replyPreview
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 10
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bubbleItem.replyRequested(bubbleItem.messageId,
+                                                         bubbleItem.replyPreview)
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
                 Layout.preferredWidth: Math.min(320, bubbleItem.mediaWidth > 0
                                                 ? bubbleItem.mediaWidth : 240)
                 Layout.preferredHeight: bubbleItem.mediaHeightForWidth(
@@ -108,17 +152,30 @@ Item {
                     implicitWidth: 24
                     implicitHeight: 24
                 }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    enabled: bubbleItem.mediaReady
+                    onClicked: bubbleItem.mediaOpenRequested(
+                                   bubbleItem.mediaFullFileId > 0
+                                   ? bubbleItem.mediaFullFileId
+                                   : bubbleItem.mediaFileId)
+                }
             }
 
             Text {
                 Layout.fillWidth: true
                 visible: bubbleItem.displayText().length > 0
-                text: bubbleItem.displayText()
+                text: bubbleItem.textHtml.length > 0
+                      ? bubbleItem.textHtml
+                      : bubbleItem.displayText()
                 color: BeyGramTheme.text
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
                 lineHeight: 1.3
-                textFormat: Text.PlainText
+                textFormat: Text.RichText
+                onLinkActivated: (link) => BeyGramApp.openLink(link)
             }
 
             RowLayout {
@@ -171,6 +228,11 @@ Item {
     Menu {
         id: menu
 
+        MenuItem {
+            text: "Reply"
+            enabled: bubbleItem.messageId > 0
+            onClicked: bubbleItem.replyRequested(bubbleItem.messageId, bubbleItem.text)
+        }
         MenuItem {
             text: "Copy text"
             enabled: bubbleItem.text.length > 0

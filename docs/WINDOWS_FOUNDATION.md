@@ -19,7 +19,12 @@ This document describes the native Windows client. The Android client under
 - Main chat list, chat search, message history, text sending, editing,
   deletion and read receipts through TDLib updates.
 - Real chat avatars and photo/video/document/sticker thumbnails, downloaded
-  on demand and cached by TDLib; full media viewing is not implemented yet.
+  on demand and cached by TDLib.
+- A full-screen image viewer for downloaded media with save-as.
+- Rich text entities (bold, italic, links, code, spoilers, quotes and more)
+  rendered as safe HTML from TDLib formatted text.
+- Replies: the reply target and quote are parsed, shown in bubbles and sent
+  through `inputMessageReplyToMessage`.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -28,10 +33,10 @@ This document describes the native Windows client. The Android client under
 
 ## What does not work yet
 
-- Rich text entities, full media viewing/playback, stickers, reactions, replies,
-  albums, drafts, folders/archive UI, notifications, profiles and calls are not
-  in this slice. Media messages show downloaded thumbnails but have no viewer;
-  unsupported content still uses honest placeholders.
+- Video/audio playback, stickers, reactions, albums, drafts, folders/archive UI,
+  notifications, profiles and calls are not in this slice. Media messages show
+  downloaded thumbnails and still images in a viewer; unsupported content still
+  uses honest placeholders.
 - No music, BG Beat/BG Mix, VPN or updater.
 - Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
   from real TDLib errors, but automating those cases needs a dedicated test
@@ -202,7 +207,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 20 suites:
+`ctest` runs 23 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -213,13 +218,19 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - missing-runtime behaviour;
 - auth request builders and QR image generation;
 - chat/message parsing, chat filtering and message model invariants;
+- rich-text HTML rendering and link-scheme safety;
+- reply parsing and reply request building;
+- media viewer state, source URLs and save-as;
+- rich-text HTML rendering and link-scheme safety;
+- reply parsing and reply request building;
+- media viewer state, source URLs and save-as;
 - send/edit/history/read/delete TDLib request builders;
 - real TDLib integration (skipped when the DLL is absent): trusted load, local
   `td_execute`, `@extra` correlation, reach
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **20/20 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **23/23 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
@@ -266,7 +277,7 @@ reference.
 
 ## Next phase
 
-Phase 2 continues with rich text, replies, media, drafts, folders/archive and
-notifications. See
+Phase 2 continues with video/audio playback, notifications, drafts and
+folders/archive. See
 [PORTING_ROADMAP.md](PORTING_ROADMAP.md) and
 [PORTING_AUDIT.md](PORTING_AUDIT.md).

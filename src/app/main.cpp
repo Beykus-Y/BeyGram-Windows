@@ -50,6 +50,8 @@ int main(int argc, char* argv[])
 
     qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramTheme", &theme);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramApp", &controller);
+    qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramMediaViewer",
+                                 controller.mediaViewer());
 
     QQmlApplicationEngine engine;
 

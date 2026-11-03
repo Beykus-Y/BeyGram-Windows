@@ -295,6 +295,7 @@ void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatI
         m_messageModel->setMessages(parsed);
         m_lastReadMessageId = 0;
     }
+    m_messageModel->resolveReplyPreviews();
 
     if (!parsed.isEmpty())
         m_oldestMessageId = m_messageModel->firstMessageId();
@@ -312,7 +313,7 @@ void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatI
     emit stateChanged();
 }
 
-void TelegramRepository::sendText(const QString& text)
+void TelegramRepository::sendText(const QString& text, qint64 replyToMessageId)
 {
     if (m_currentChatId == 0)
         return;
@@ -322,7 +323,7 @@ void TelegramRepository::sendText(const QString& text)
 
     m_error.clear();
     sendRequest(
-        sendTextMessageRequest(m_currentChatId, body),
+        sendTextMessageRequest(m_currentChatId, body, replyToMessageId),
         [this, chatId = m_currentChatId](const QJsonObject& response) {
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
                 MessageData message = messageFromJson(response);
@@ -330,6 +331,7 @@ void TelegramRepository::sendText(const QString& text)
                 if (chatId == m_currentChatId) {
                     resolveSender(message);
                     m_messageModel->addOrUpdate(message);
+                    m_messageModel->resolveReplyPreviews();
                     markCurrentChatRead();
                 }
             } else if (response.value(QStringLiteral("@type")).toString()
@@ -533,6 +535,7 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
                 message.senderName = m_currentChatTitle;
             resolveSender(message);
             m_messageModel->addOrUpdate(message);
+            m_messageModel->resolveReplyPreviews();
             markCurrentChatRead();
             emit stateChanged();
         }
@@ -548,6 +551,7 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
             trackMessageMedia(message);
             resolveSender(message);
             m_messageModel->replaceId(oldId, message);
+            m_messageModel->resolveReplyPreviews();
             markCurrentChatRead();
             emit stateChanged();
         }
