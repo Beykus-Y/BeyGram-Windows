@@ -245,6 +245,13 @@ void TelegramRepository::applyParsedChat(quint64 jobId, qint64 chatId, const Cha
     data.inMainList = true;
     if (m_mediaStore)
         data.photoReady = m_mediaStore->isReady(data.photoFileId);
+    const auto existing = m_chats.constFind(chatId != 0 ? chatId : data.id);
+    if (existing != m_chats.cend() && existing->photoFileId == data.photoFileId) {
+        // Keep the revision that already made the avatar visible. Resetting it
+        // here used to swap the image URL and made avatars flicker on refresh.
+        data.photoReady = data.photoReady || existing->photoReady;
+        data.photoRevision = existing->photoRevision;
+    }
     m_chats.insert(chatId != 0 ? chatId : data.id, data);
     rebuildChatList();
     emit stateChanged();
@@ -510,6 +517,11 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
             return;
         if (m_mediaStore) {
             data.photoReady = m_mediaStore->isReady(data.photoFileId);
+        }
+        const auto existing = m_chats.constFind(data.id);
+        if (existing != m_chats.cend() && existing->photoFileId == data.photoFileId) {
+            data.photoReady = data.photoReady || existing->photoReady;
+            data.photoRevision = existing->photoRevision;
         }
         m_chats.insert(data.id, data);
         m_requestedChats.remove(data.id);

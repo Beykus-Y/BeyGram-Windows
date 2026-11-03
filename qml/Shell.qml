@@ -64,7 +64,7 @@ Item {
                             font.weight: Font.DemiBold
                         }
                         Text {
-                            text: "Windows · Phase 1"
+                            text: "Windows / Phase 2"
                             color: BeyGramTheme.muted
                             font.pixelSize: 11
                         }
@@ -143,13 +143,13 @@ Item {
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Account"
+                    text: "Profile"
                     selected: shell.currentSection === 1
                     onClicked: shell.currentSection = 1
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Environment"
+                    text: "Network"
                     selected: shell.currentSection === 2
                     onClicked: shell.currentSection = 2
                 }
@@ -158,35 +158,6 @@ Item {
                     text: "Logs"
                     selected: shell.currentSection === 3
                     onClicked: shell.currentSection = 3
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 18
-                    text: "ANDROID REFERENCE MODULES"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    font.letterSpacing: 1.1
-                    font.weight: Font.DemiBold
-                }
-
-                NavButton {
-                    Layout.fillWidth: true
-                    text: "Chats & media"
-                    hint: "Phase 2"
-                    enabled: false
-                }
-                NavButton {
-                    Layout.fillWidth: true
-                    text: "Music & BG Mix"
-                    hint: "Phase 4"
-                    enabled: false
-                }
-                NavButton {
-                    Layout.fillWidth: true
-                    text: "Settings & themes"
-                    hint: "Phase 3"
-                    enabled: false
                 }
 
                 Item { Layout.fillHeight: true }
@@ -214,7 +185,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Alt+1/2/3/4 navigate · Ctrl+D theme · Ctrl+R refresh"
+                    text: "Alt+1/2/3/4 navigate В· Ctrl+D theme В· Ctrl+R refresh"
                     color: BeyGramTheme.muted
                     font.pixelSize: 10
                     wrapMode: Text.WordWrap

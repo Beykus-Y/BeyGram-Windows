@@ -1,6 +1,9 @@
 #include "telegram/AuthState.h"
 #include "telegram/TelegramConfig.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QtTest>
 
 using namespace beygram::telegram;
@@ -17,6 +20,7 @@ private slots:
     void unknownStateIsLoading();
     void stageNamesAreStable();
     void parsesProxyEnvironment();
+    void readsProxyFileNextToExecutable();
 };
 
 void TelegramConfigTest::credentialsRequireBothFields()
@@ -137,6 +141,65 @@ void TelegramConfigTest::parsesProxyEnvironment()
         qunsetenv("BEYGRAM_PROXY");
     else
         qputenv("BEYGRAM_PROXY", saved);
+}
+
+void TelegramConfigTest::readsProxyFileNextToExecutable()
+{
+    const QByteArray savedUrl = qgetenv("BEYGRAM_PROXY");
+    const QByteArray savedServer = qgetenv("BEYGRAM_PROXY_SERVER");
+    const QByteArray savedPort = qgetenv("BEYGRAM_PROXY_PORT");
+    const QByteArray savedType = qgetenv("BEYGRAM_PROXY_TYPE");
+
+    qunsetenv("BEYGRAM_PROXY");
+    qunsetenv("BEYGRAM_PROXY_SERVER");
+    qunsetenv("BEYGRAM_PROXY_PORT");
+    qunsetenv("BEYGRAM_PROXY_TYPE");
+
+    const QString path =
+        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("proxy.txt"));
+    QFile existing(path);
+    QByteArray previous;
+    const bool hadFile = existing.exists();
+    if (hadFile) {
+        QVERIFY(existing.open(QIODevice::ReadOnly));
+        previous = existing.readAll();
+        existing.close();
+    }
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+    file.write("# test proxy\nsocks5://127.0.0.1:7897\n");
+    file.close();
+
+    const TelegramProxySettings proxy = TelegramProxySettings::fromEnvironment();
+    QVERIFY(proxy.isValid());
+    QCOMPARE(proxy.type, QStringLiteral("socks5"));
+    QCOMPARE(proxy.server, QStringLiteral("127.0.0.1"));
+    QCOMPARE(proxy.port, 7897);
+
+    QFile::remove(path);
+    if (hadFile) {
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+        file.write(previous);
+        file.close();
+    }
+
+    if (savedUrl.isEmpty())
+        qunsetenv("BEYGRAM_PROXY");
+    else
+        qputenv("BEYGRAM_PROXY", savedUrl);
+    if (savedServer.isEmpty())
+        qunsetenv("BEYGRAM_PROXY_SERVER");
+    else
+        qputenv("BEYGRAM_PROXY_SERVER", savedServer);
+    if (savedPort.isEmpty())
+        qunsetenv("BEYGRAM_PROXY_PORT");
+    else
+        qputenv("BEYGRAM_PROXY_PORT", savedPort);
+    if (savedType.isEmpty())
+        qunsetenv("BEYGRAM_PROXY_TYPE");
+    else
+        qputenv("BEYGRAM_PROXY_TYPE", savedType);
 }
 
 QTEST_GUILESS_MAIN(TelegramConfigTest)

@@ -143,6 +143,8 @@ void ChatListModel::markPhotoReady(int fileId)
     for (int row = 0; row < m_chats.size(); ++row) {
         if (m_chats[row].photoFileId != fileId)
             continue;
+        if (m_chats[row].photoReady)
+            continue;
         m_chats[row].photoReady = true;
         ++m_chats[row].photoRevision;
         const QModelIndex changed = index(row);

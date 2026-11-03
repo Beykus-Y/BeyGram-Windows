@@ -44,9 +44,16 @@ void MediaFileStore::trackFileObject(const QJsonObject& file, int priority)
     const QString path = local.value(QStringLiteral("path")).toString();
     const bool complete = local.value(QStringLiteral("is_downloading_completed")).toBool();
     if (complete && !path.isEmpty()) {
-        if (m_paths.value(fileId) != path) {
-            m_paths.insert(fileId, path);
-            ++m_revision;
+        bool changed = false;
+        {
+            QWriteLocker locker(&m_pathsLock);
+            if (m_paths.value(fileId) != path) {
+                m_paths.insert(fileId, path);
+                ++m_revision;
+                changed = true;
+            }
+        }
+        if (changed) {
             emit fileReady(fileId);
             emit revisionChanged();
         }
@@ -58,18 +65,25 @@ void MediaFileStore::trackFileObject(const QJsonObject& file, int priority)
 
 void MediaFileStore::trackFileId(int fileId, int priority)
 {
-    if (fileId == 0 || m_paths.contains(fileId))
+    if (fileId == 0)
         return;
+    {
+        QReadLocker locker(&m_pathsLock);
+        if (m_paths.contains(fileId))
+            return;
+    }
     requestDownload(fileId, priority);
 }
 
 QString MediaFileStore::path(int fileId) const
 {
+    QReadLocker locker(&m_pathsLock);
     return m_paths.value(fileId);
 }
 
 bool MediaFileStore::isReady(int fileId) const
 {
+    QReadLocker locker(&m_pathsLock);
     return m_paths.contains(fileId);
 }
 
@@ -94,11 +108,18 @@ void MediaFileStore::handleFile(const QJsonObject& file)
         return;
 
     m_requested.remove(fileId);
-    if (m_paths.value(fileId) == path)
+    bool changed = false;
+    {
+        QWriteLocker locker(&m_pathsLock);
+        if (m_paths.value(fileId) == path)
+            return;
+        m_paths.insert(fileId, path);
+        ++m_revision;
+        changed = true;
+    }
+    if (!changed)
         return;
 
-    m_paths.insert(fileId, path);
-    ++m_revision;
     qCDebug(lcMedia) << "file ready" << fileId;
     emit fileReady(fileId);
     emit revisionChanged();
@@ -108,7 +129,12 @@ void MediaFileStore::requestDownload(int fileId, int priority)
 {
     if (fileId == 0 || !m_session || !m_session->isRunning())
         return;
-    if (m_paths.contains(fileId) || m_requested.contains(fileId))
+    {
+        QReadLocker locker(&m_pathsLock);
+        if (m_paths.contains(fileId))
+            return;
+    }
+    if (m_requested.contains(fileId))
         return;
 
     m_requested.insert(fileId);

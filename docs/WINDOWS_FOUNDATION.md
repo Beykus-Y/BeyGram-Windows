@@ -27,6 +27,8 @@ This document describes the native Windows client. The Android client under
   through `inputMessageReplyToMessage`.
 - Desktop notifications for incoming messages through the system tray; the
   current chat, outgoing, service and muted messages are suppressed.
+- Android-inspired chat wallpaper, circular avatars and stable avatar updates
+  (no reload/flicker when only a preview or unread counter changes).
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -45,7 +47,12 @@ This document describes the native Windows client. The Android client under
 - Chat list rebuilds are debounced (120 ms) and rows are updated in place when
   their order did not change, so a preview or unread change no longer resets the
   whole `ListView`.
-- Thumbnail and avatar images load through Qt Quick's asynchronous image path.
+- Thumbnail and avatar images load through Qt Quick's asynchronous image path;
+  the media image provider applies a circular alpha mask for avatars and the
+  file-path cache is read/write locked for the image thread.
+- A packaged build can start by double-clicking `beygram.exe`: proxy settings
+  are read from `proxy.txt` next to the executable (or the per-user config
+  directory), with `BEYGRAM_PROXY` still taking precedence.
 
 ## What does not work yet
 
@@ -223,7 +230,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 25 suites:
+`ctest` runs 26 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -237,6 +244,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - rich-text HTML rendering and link-scheme safety;
 - reply parsing and reply request building;
 - media viewer state, source URLs and save-as;
+- circular avatar masking and non-round thumbnail behavior;
 - incoming-message notification filtering and formatting;
 - update-scheduler batching, coalescing, urgent delivery and ignored traffic;
 - send/edit/history/read/delete TDLib request builders;
@@ -245,7 +253,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **25/25 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **26/26 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

@@ -216,6 +216,8 @@ void MessageListModel::markMediaReady(int fileId)
     for (int row = 0; row < m_messages.size(); ++row) {
         if (m_messages[row].mediaFileId != fileId)
             continue;
+        if (m_messages[row].mediaReady)
+            continue;
         m_messages[row].mediaReady = true;
         ++m_messages[row].mediaRevision;
         const QModelIndex changed = index(row);

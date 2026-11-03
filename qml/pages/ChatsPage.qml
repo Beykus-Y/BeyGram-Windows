@@ -206,6 +206,14 @@ Item {
             Layout.fillHeight: true
             color: "transparent"
 
+            ChatBackground {
+                anchors.fill: parent
+                darkMode: BeyGramTheme.darkMode
+                amoled: BeyGramTheme.modeName === "Amoled"
+                preset: "lavender-flow"
+                opacity: 0.92
+            }
+
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
@@ -230,36 +238,16 @@ Item {
                         anchors.rightMargin: 18
                         spacing: 12
 
-                        Rectangle {
-                            width: 38
-                            height: 38
-                            radius: 19
-                            color: BeyGramTheme.accentSoft
-                            clip: true
-                            Image {
-                                id: chatHeaderImage
-                                anchors.fill: parent
-                                source: BeyGramApp.currentChatPhotoReady
-                                        && BeyGramApp.currentChatPhotoFileId > 0
-                                        ? "image://beygrammedia/"
-                                          + BeyGramApp.currentChatPhotoFileId
-                                          + "?v=" + BeyGramApp.currentChatPhotoRevision
-                                        : ""
-                                cache: false
-                                asynchronous: true
-                                fillMode: Image.PreserveAspectCrop
-                                visible: status === Image.Ready
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                visible: chatHeaderImage.status !== Image.Ready
-                                text: BeyGramApp.currentChatTitle.length > 0
+                        Avatar {
+                            size: 38
+                            fileId: BeyGramApp.currentChatPhotoFileId
+                            ready: BeyGramApp.currentChatPhotoReady
+                            revision: BeyGramApp.currentChatPhotoRevision
+                            initials: BeyGramApp.currentChatTitle.length > 0
                                       ? BeyGramApp.currentChatTitle.charAt(0).toUpperCase()
                                       : "?"
-                                color: BeyGramTheme.accentInk
-                                font.pixelSize: 16
-                                font.weight: Font.DemiBold
-                            }
+                            tint: BeyGramTheme.accentSoft
+                            ink: BeyGramTheme.accentInk
                         }
 
                         ColumnLayout {
@@ -269,7 +257,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: BeyGramApp.currentChatTitle
                                 color: BeyGramTheme.text
-                                font.pixelSize: 15
+                                font.pixelSize: 16
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
@@ -296,7 +284,7 @@ Item {
                         id: messageListView
                         anchors.fill: parent
                         clip: true
-                        spacing: 2
+                        spacing: 4
                         model: BeyGramApp.messages
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 

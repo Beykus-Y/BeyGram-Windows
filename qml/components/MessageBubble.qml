@@ -58,10 +58,9 @@ Item {
         anchors.left: bubbleItem.outgoing ? undefined : bubbleItem.left
         anchors.rightMargin: 14
         anchors.leftMargin: 14
-        radius: 14
+        radius: 16
         color: bubbleItem.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface2
-        border.width: 1
-        border.color: BeyGramTheme.line
+        border.width: 0
         opacity: bubbleItem.failed ? 0.8 : 1.0
 
         ColumnLayout {
@@ -139,7 +138,7 @@ Item {
                             ? "image://beygrammedia/" + bubbleItem.mediaFileId
                               + "?v=" + bubbleItem.mediaRevision
                             : ""
-                    cache: false
+                    cache: true
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                     visible: status === Image.Ready
@@ -171,9 +170,9 @@ Item {
                       ? bubbleItem.textHtml
                       : bubbleItem.displayText()
                 color: BeyGramTheme.text
-                font.pixelSize: 12
+                font.pixelSize: 13
                 wrapMode: Text.Wrap
-                lineHeight: 1.3
+                lineHeight: 1.35
                 textFormat: bubbleItem.textHtml.length > 0 ? Text.RichText
                                                            : Text.PlainText
                 onLinkActivated: (link) => BeyGramApp.openLink(link)
@@ -190,31 +189,31 @@ Item {
                           ? "[" + bubbleItem.contentType + "]"
                           : ""
                     color: BeyGramTheme.muted
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                     elide: Text.ElideRight
                 }
                 Text {
                     visible: bubbleItem.pending
                     text: "sending…"
                     color: BeyGramTheme.muted
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
                 Text {
                     visible: bubbleItem.failed
                     text: "failed"
                     color: BeyGramTheme.danger
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
                 Text {
                     visible: bubbleItem.edited
                     text: "edited"
                     color: BeyGramTheme.muted
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
                 Text {
                     text: bubbleItem.timeText()
                     color: BeyGramTheme.muted
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                 }
             }
         }

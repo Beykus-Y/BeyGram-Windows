@@ -4,6 +4,8 @@
 
 #include <QFileInfo>
 #include <QImageReader>
+#include <QPainter>
+#include <QPainterPath>
 
 namespace beygram::ui {
 
@@ -50,6 +52,37 @@ QImage MediaImageProvider::requestImage(const QString& id, QSize* size,
     }
 
     QImage image = reader.read();
+    if (image.isNull()) {
+        if (size)
+            *size = QSize();
+        return image;
+    }
+
+    if (id.contains(QStringLiteral("round=1"))) {
+        const int side = qMin(image.width(), image.height());
+        if (side <= 0) {
+            if (size)
+                *size = QSize();
+            return {};
+        }
+        image = image.copy((image.width() - side) / 2, (image.height() - side) / 2,
+                           side, side);
+        if (image.width() > 512 || image.height() > 512) {
+            image = image.scaled(512, 512, Qt::KeepAspectRatioByExpanding,
+                                 Qt::SmoothTransformation);
+        }
+        QImage rounded(image.size(), QImage::Format_ARGB32_Premultiplied);
+        rounded.fill(Qt::transparent);
+        QPainter painter(&rounded);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        QPainterPath path;
+        path.addEllipse(QRectF(0, 0, image.width(), image.height()));
+        painter.setClipPath(path);
+        painter.drawImage(0, 0, image);
+        painter.end();
+        image = rounded;
+    }
+
     if (size)
         *size = image.size();
     return image;

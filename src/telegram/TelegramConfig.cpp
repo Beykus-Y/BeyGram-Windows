@@ -1,11 +1,49 @@
 #include "TelegramConfig.h"
 
+#include "core/AppPaths.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QProcessEnvironment>
+#include <QTextStream>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QSysInfo>
 
 namespace beygram::telegram {
+namespace {
+
+/// Environment first (CI and power users), then a portable proxy.txt next to
+/// the executable, then the per-user config directory. This lets a packaged
+/// build start by double-clicking beygram.exe without a .cmd launcher.
+QString configuredProxyUrl()
+{
+    const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    QString url = environment.value(QStringLiteral("BEYGRAM_PROXY")).trimmed();
+    if (!url.isEmpty())
+        return url;
+
+    const QStringList candidates{
+        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("proxy.txt")),
+        QDir(AppPaths::configDirectory()).filePath(QStringLiteral("proxy.txt")),
+    };
+    for (const QString& path : candidates) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        QTextStream stream(&file);
+        while (!stream.atEnd()) {
+            const QString line = stream.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith(QLatin1Char('#')))
+                continue;
+            return line;
+        }
+    }
+    return {};
+}
+
+} // namespace
 
 bool TelegramCredentials::isValid() const
 {
@@ -44,7 +82,7 @@ TelegramProxySettings TelegramProxySettings::fromEnvironment()
     const QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     TelegramProxySettings settings;
 
-    const QString url = environment.value(QStringLiteral("BEYGRAM_PROXY")).trimmed();
+    const QString url = configuredProxyUrl();
     if (!url.isEmpty()) {
         const QUrl parsed(url);
         const QString scheme = parsed.scheme().toLower();

@@ -28,7 +28,7 @@ Item {
     Component.onCompleted: requestAvatar()
     onPhotoFileIdChanged: requestAvatar()
 
-    implicitHeight: 74
+    implicitHeight: 76
 
     readonly property var avatarColors: [
         "#C2593F", "#5B4BC4", "#2F8A7B",
@@ -64,32 +64,13 @@ Item {
         anchors.bottomMargin: 8
         spacing: 11
 
-        Rectangle {
-            width: 46
-            height: 46
-            radius: 23
-            color: row.avatarColors[Math.abs(row.accentIndex) % row.avatarColors.length]
-            clip: true
-
-            Image {
-                id: avatarImage
-                anchors.fill: parent
-                source: row.photoReady && row.photoFileId > 0
-                        ? "image://beygrammedia/" + row.photoFileId + "?v=" + row.photoRevision
-                        : ""
-                cache: false
-                asynchronous: true
-                fillMode: Image.PreserveAspectCrop
-                visible: status === Image.Ready
-            }
-            Text {
-                anchors.centerIn: parent
-                visible: avatarImage.status !== Image.Ready
-                text: row.initials
-                color: "white"
-                font.pixelSize: 18
-                font.weight: Font.DemiBold
-            }
+        Avatar {
+            size: 46
+            fileId: row.photoFileId
+            ready: row.photoReady
+            revision: row.photoRevision
+            initials: row.initials
+            tint: row.avatarColors[Math.abs(row.accentIndex) % row.avatarColors.length]
         }
 
         ColumnLayout {
@@ -103,7 +84,7 @@ Item {
                     Layout.fillWidth: true
                     text: row.title
                     color: BeyGramTheme.text
-                    font.pixelSize: 13
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -120,7 +101,7 @@ Item {
                 Layout.fillWidth: true
                 text: row.preview
                 color: BeyGramTheme.muted
-                font.pixelSize: 11
+                font.pixelSize: 12
                 elide: Text.ElideRight
             }
         }
@@ -132,7 +113,7 @@ Item {
                 Layout.alignment: Qt.AlignRight
                 text: row.timeText()
                 color: BeyGramTheme.muted
-                font.pixelSize: 9
+                font.pixelSize: 10
             }
             Rectangle {
                 Layout.alignment: Qt.AlignRight
@@ -146,7 +127,7 @@ Item {
                     anchors.centerIn: parent
                     text: row.unreadCount > 99 ? "99+" : row.unreadCount
                     color: BeyGramTheme.onAccent
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                     font.weight: Font.DemiBold
                 }
             }

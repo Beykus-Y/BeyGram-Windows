@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
+#include <QReadWriteLock>
 #include <QSet>
 #include <QString>
 
@@ -40,6 +41,7 @@ private:
     void requestDownload(int fileId, int priority);
 
     TelegramSession* m_session = nullptr;
+    mutable QReadWriteLock m_pathsLock;
     QHash<int, QString> m_paths;
     QSet<int> m_requested;
     int m_revision = 0;
