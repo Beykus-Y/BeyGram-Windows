@@ -28,7 +28,7 @@ Item {
     Component.onCompleted: requestAvatar()
     onPhotoFileIdChanged: requestAvatar()
 
-    implicitHeight: 76
+    implicitHeight: 74
 
     readonly property var avatarColors: [
         "#C2593F", "#5B4BC4", "#2F8A7B",
@@ -47,30 +47,30 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 12
+        radius: 0
         color: row.selected
-               ? Qt.alpha(BeyGramTheme.accentSoft, 0.95)
-               : (mouse.containsMouse ? Qt.alpha(BeyGramTheme.surface2, 0.55) : "transparent")
-        border.width: row.selected ? 1 : 0
-        border.color: Qt.alpha(BeyGramTheme.accent, 0.22)
+               ? BeyGramTheme.accentSoft
+               : (mouse.containsMouse ? BeyGramTheme.surface2 : "transparent")
+        border.width: 0
         Behavior on color { ColorAnimation { duration: 120 } }
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 10
-        anchors.rightMargin: 12
-        anchors.topMargin: 8
-        anchors.bottomMargin: 8
+        anchors.leftMargin: 16
+        anchors.rightMargin: 14
+        anchors.topMargin: 10
+        anchors.bottomMargin: 10
         spacing: 11
 
         Avatar {
-            size: 46
+            size: 54
             fileId: row.photoFileId
             ready: row.photoReady
             revision: row.photoRevision
             initials: row.initials
             tint: row.avatarColors[Math.abs(row.accentIndex) % row.avatarColors.length]
+            ink: "white"
         }
 
         ColumnLayout {
@@ -84,16 +84,9 @@ Item {
                     Layout.fillWidth: true
                     text: row.title
                     color: BeyGramTheme.text
-                    font.pixelSize: 14
+                    font.pixelSize: 15
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
-                }
-                Text {
-                    visible: row.pinned
-                    text: "PIN"
-                    color: BeyGramTheme.accentInk
-                    font.pixelSize: 8
-                    font.weight: Font.DemiBold
                 }
             }
 
@@ -101,7 +94,7 @@ Item {
                 Layout.fillWidth: true
                 text: row.preview
                 color: BeyGramTheme.muted
-                font.pixelSize: 12
+                font.pixelSize: 13
                 elide: Text.ElideRight
             }
         }
@@ -113,14 +106,14 @@ Item {
                 Layout.alignment: Qt.AlignRight
                 text: row.timeText()
                 color: BeyGramTheme.muted
-                font.pixelSize: 10
+                font.pixelSize: 11
             }
             Rectangle {
                 Layout.alignment: Qt.AlignRight
                 visible: row.unreadCount > 0
-                width: Math.max(18, badgeText.implicitWidth + 9)
-                height: 18
-                radius: 9
+                width: Math.max(20, badgeText.implicitWidth + 10)
+                height: 20
+                radius: 10
                 color: BeyGramTheme.accent
                 Text {
                     id: badgeText
@@ -130,13 +123,6 @@ Item {
                     font.pixelSize: 10
                     font.weight: Font.DemiBold
                 }
-            }
-            Text {
-                Layout.alignment: Qt.AlignRight
-                visible: row.muted && row.unreadCount > 0
-                text: "muted"
-                color: BeyGramTheme.muted
-                font.pixelSize: 8
             }
         }
     }

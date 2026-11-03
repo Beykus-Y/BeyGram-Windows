@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -52,14 +52,16 @@ Item {
 
     Rectangle {
         id: bubble
-        width: Math.min(bubbleItem.width * 0.72, content.implicitWidth + 26)
-        height: content.implicitHeight + 18
+        width: Math.min(420, Math.min(bubbleItem.width * 0.78, content.implicitWidth + 26))
+        height: content.implicitHeight + 14
         anchors.right: bubbleItem.outgoing ? bubbleItem.right : undefined
         anchors.left: bubbleItem.outgoing ? undefined : bubbleItem.left
         anchors.rightMargin: 14
         anchors.leftMargin: 14
-        radius: 16
-        color: bubbleItem.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface2
+        radius: 20
+        bottomRightRadius: bubbleItem.outgoing ? 6 : 20
+        bottomLeftRadius: bubbleItem.outgoing ? 20 : 6
+        color: bubbleItem.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface
         border.width: 0
         opacity: bubbleItem.failed ? 0.8 : 1.0
 
@@ -68,7 +70,10 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 11
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            anchors.topMargin: 8
+            anchors.bottomMargin: 6
             spacing: 3
 
             Text {
@@ -76,7 +81,7 @@ Item {
                 visible: !bubbleItem.outgoing && bubbleItem.senderName !== ""
                 text: bubbleItem.senderName
                 color: BeyGramTheme.accentInk
-                font.pixelSize: 10
+                font.pixelSize: 11
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -106,7 +111,7 @@ Item {
                     anchors.rightMargin: 8
                     text: bubbleItem.replyPreview
                     color: BeyGramTheme.muted
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                     wrapMode: Text.Wrap
                     maximumLineCount: 3
                     elide: Text.ElideRight
@@ -170,7 +175,7 @@ Item {
                       ? bubbleItem.textHtml
                       : bubbleItem.displayText()
                 color: BeyGramTheme.text
-                font.pixelSize: 13
+                font.pixelSize: 15
                 wrapMode: Text.Wrap
                 lineHeight: 1.35
                 textFormat: bubbleItem.textHtml.length > 0 ? Text.RichText
@@ -182,38 +187,30 @@ Item {
                 Layout.fillWidth: true
                 spacing: 5
 
-                Text {
-                    Layout.fillWidth: true
-                    text: bubbleItem.contentType !== "text" && bubbleItem.contentType !== "service"
-                          && !bubbleItem.text.startsWith("[")
-                          ? "[" + bubbleItem.contentType + "]"
-                          : ""
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    elide: Text.ElideRight
-                }
+                Item { Layout.fillWidth: true }
+
                 Text {
                     visible: bubbleItem.pending
-                    text: "sending…"
+                    text: "sending..."
                     color: BeyGramTheme.muted
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 Text {
                     visible: bubbleItem.failed
-                    text: "failed"
+                    text: "Not sent"
                     color: BeyGramTheme.danger
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 Text {
                     visible: bubbleItem.edited
                     text: "edited"
                     color: BeyGramTheme.muted
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 Text {
                     text: bubbleItem.timeText()
                     color: BeyGramTheme.muted
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
             }
         }

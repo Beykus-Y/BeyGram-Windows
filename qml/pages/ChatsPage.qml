@@ -45,8 +45,8 @@ Item {
         // ------------------------------------------------------------------
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 344
-            color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.58 : 0.72)
+            Layout.preferredWidth: 360
+            color: BeyGramTheme.surface
 
             Rectangle {
                 anchors.right: parent.right
@@ -69,14 +69,9 @@ Item {
                     Text {
                         text: "Chats"
                         color: BeyGramTheme.text
-                        font.pixelSize: 23
+                        font.pixelSize: 26
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
-                    }
-                    Text {
-                        text: BeyGramApp.connectionTitle
-                        color: BeyGramTheme.muted
-                        font.pixelSize: 10
                     }
                     Text {
                         text: chatListView.count
@@ -88,7 +83,7 @@ Item {
                 TextField {
                     id: searchField
                     Layout.fillWidth: true
-                    implicitHeight: 38
+                    implicitHeight: 44
                     leftPadding: 13
                     rightPadding: 30
                     placeholderText: "Search chats"
@@ -96,17 +91,15 @@ Item {
                     color: BeyGramTheme.text
                     selectionColor: BeyGramTheme.accent
                     selectedTextColor: BeyGramTheme.onAccent
-                    font.pixelSize: 12
+                    font.pixelSize: 13
                     text: BeyGramApp.chatFilter
                     onTextEdited: BeyGramApp.chatFilter = text
 
                     background: Rectangle {
-                        radius: 10
-                        color: Qt.alpha(BeyGramTheme.surface2, 0.72)
-                        border.width: 1
-                        border.color: searchField.activeFocus
-                                      ? BeyGramTheme.accent
-                                      : Qt.alpha(BeyGramTheme.line, 1.0)
+                        radius: 22
+                        color: BeyGramTheme.surface2
+                        border.width: searchField.activeFocus ? 1 : 0
+                        border.color: BeyGramTheme.accent
                     }
 
                     Text {
@@ -204,15 +197,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "transparent"
-
-            ChatBackground {
-                anchors.fill: parent
-                darkMode: BeyGramTheme.darkMode
-                amoled: BeyGramTheme.modeName === "Amoled"
-                preset: "lavender-flow"
-                opacity: 0.92
-            }
+            color: BeyGramTheme.bg
 
             ColumnLayout {
                 anchors.fill: parent
@@ -222,7 +207,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 64
-                    color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.62 : 0.8)
+                    color: BeyGramTheme.surface
 
                     Rectangle {
                         anchors.left: parent.left
@@ -239,7 +224,7 @@ Item {
                         spacing: 12
 
                         Avatar {
-                            size: 38
+                            size: 40
                             fileId: BeyGramApp.currentChatPhotoFileId
                             ready: BeyGramApp.currentChatPhotoReady
                             revision: BeyGramApp.currentChatPhotoRevision
@@ -265,13 +250,14 @@ Item {
                                 Layout.fillWidth: true
                                 text: BeyGramApp.currentChatSubtitle
                                 color: BeyGramTheme.muted
-                                font.pixelSize: 10
+                                font.pixelSize: 12
                             }
                         }
 
                         Pill {
+                            visible: BeyGramApp.connectionTitle !== "Connected"
                             text: BeyGramApp.connectionTitle.toUpperCase()
-                            tone: BeyGramApp.connectionTitle === "Connected" ? "ok" : "warn"
+                            tone: "warn"
                         }
                     }
                 }
@@ -469,15 +455,13 @@ Item {
                                 color: BeyGramTheme.text
                                 selectionColor: BeyGramTheme.accent
                                 selectedTextColor: BeyGramTheme.onAccent
-                                font.pixelSize: 12
+                                font.pixelSize: 14
                                 wrapMode: TextArea.Wrap
                                 background: Rectangle {
-                                    radius: 12
-                                    color: Qt.alpha(BeyGramTheme.surface2, 0.82)
-                                    border.width: 1
-                                    border.color: composer.activeFocus
-                                                  ? BeyGramTheme.accent
-                                                  : Qt.alpha(BeyGramTheme.line, 1.0)
+                                    radius: 20
+                                    color: BeyGramTheme.surface2
+                                    border.width: composer.activeFocus ? 1 : 0
+                                    border.color: BeyGramTheme.accent
                                 }
                                 Keys.onPressed: (event) => {
                                     if (event.key === Qt.Key_Return
@@ -495,12 +479,6 @@ Item {
                             }
                         }
 
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Enter to send · Shift+Enter for a new line"
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 9
-                        }
                     }
                 }
             }

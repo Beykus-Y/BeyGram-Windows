@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -24,7 +24,7 @@ Item {
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 268
-            color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.72 : 0.82)
+            color: BeyGramTheme.surface
 
             Rectangle {
                 anchors.right: parent.right
@@ -62,11 +62,6 @@ Item {
                             color: BeyGramTheme.text
                             font.pixelSize: 17
                             font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: "Windows / Phase 2"
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 11
                         }
                     }
                     Item { Layout.fillWidth: true }
@@ -183,13 +178,6 @@ Item {
                     }
                 }
 
-                Text {
-                    Layout.fillWidth: true
-                    text: "Alt+1/2/3/4 navigate В· Ctrl+D theme В· Ctrl+R refresh"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
-                }
             }
         }
 

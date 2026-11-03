@@ -27,8 +27,9 @@ This document describes the native Windows client. The Android client under
   through `inputMessageReplyToMessage`.
 - Desktop notifications for incoming messages through the system tray; the
   current chat, outgoing, service and muted messages are suppressed.
-- Android-inspired chat wallpaper, circular avatars and stable avatar updates
-  (no reload/flicker when only a preview or unread counter changes).
+- Android-inspired conversation styling: circular avatars, `surface` incoming
+  bubbles, `bubbleOut` outgoing bubbles, a plain chat canvas and stable avatar
+  updates (no reload/flicker when only a preview or unread counter changes).
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
