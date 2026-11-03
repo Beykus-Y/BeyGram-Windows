@@ -3,18 +3,25 @@
 #include "ChatListModel.h"
 #include "MessageListModel.h"
 #include "TelegramTypes.h"
+#include "TelegramUpdateScheduler.h"
 
 #include <QHash>
+#include <QJsonArray>
 #include <QObject>
 #include <QSet>
 #include <QVector>
 
 #include <functional>
+#include <memory>
+
+class QThread;
+class QTimer;
 
 namespace beygram::telegram {
 
 class TelegramSession;
 class MediaFileStore;
+class TelegramParseWorker;
 
 /// Phase 2 repository slice: main chat list, text history, sending, editing,
 /// deleting and read receipts. Media thumbnails are downloaded for avatars and
@@ -26,6 +33,7 @@ public:
     TelegramRepository(TelegramSession* session, ChatListModel* chatModel,
                        MessageListModel* messageModel, MediaFileStore* mediaStore,
                        QObject* parent = nullptr);
+    ~TelegramRepository() override;
 
     void start();
     void openChat(qint64 chatId);
@@ -54,12 +62,25 @@ signals:
     void initialHistoryLoaded();
     void notificationRequested(const QString& title, const QString& body);
 
+    // Internal request signals: they carry plain JSON to the parse worker.
+    void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
+    void parseHistoryRequested(quint64 jobId, qint64 chatId, bool older,
+                               const QJsonArray& messages);
+
 private:
     void handleUpdate(const QJsonObject& update);
+    void processUpdate(const QJsonObject& update);
+    void processUpdates(const QVector<QJsonObject>& updates);
     void requestChats();
     void rebuildChatList();
+    void rebuildChatListNow();
     void requestHistory(qint64 chatId, qint64 fromMessageId, bool older);
-    void handleHistory(const QJsonObject& response, qint64 chatId, bool older);
+    void handleHistory(const QJsonObject& response, qint64 chatId, bool older,
+                       quint64 jobId);
+    void applyHistory(quint64 jobId, qint64 chatId, bool older,
+                      const QVector<MessageData>& parsed);
+    void applyParsedChat(quint64 jobId, qint64 chatId, const ChatData& chat);
+    void enqueueChatParse(qint64 chatId, const QJsonObject& chat);
     void updateChatFromMessage(qint64 chatId, const QJsonObject& message);
     void trackMessageMedia(MessageData& message);
     void resolveSender(MessageData& message);
@@ -92,7 +113,15 @@ private:
     bool m_hasMoreHistory = true;
     bool m_loadingChats = false;
     bool m_started = false;
+    bool m_chatListRebuildPending = false;
     QString m_error;
+
+    TelegramUpdateScheduler m_scheduler;
+    QThread* m_parseThread = nullptr;
+    TelegramParseWorker* m_parseWorker = nullptr;
+    QTimer* m_chatListRebuildTimer = nullptr;
+    quint64 m_nextParseJob = 0;
+    quint64 m_historyJob = 0;
 };
 
 } // namespace beygram::telegram

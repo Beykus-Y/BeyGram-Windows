@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QJsonObject>
+#include <QMetaType>
 #include <QString>
+#include <QVector>
 
 namespace beygram::telegram {
 
@@ -66,3 +68,7 @@ void applyChatPosition(ChatData& chat, const QJsonObject& position);
 [[nodiscard]] int accentIndexForId(qint64 id);
 
 } // namespace beygram::telegram
+
+Q_DECLARE_METATYPE(beygram::telegram::ChatData)
+Q_DECLARE_METATYPE(beygram::telegram::MessageData)
+Q_DECLARE_METATYPE(QVector<beygram::telegram::MessageData>)

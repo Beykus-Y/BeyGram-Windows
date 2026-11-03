@@ -4,12 +4,15 @@
 #include "core/Redaction.h"
 #include "MediaFileStore.h"
 #include "NotificationFormatter.h"
+#include "TelegramParseWorker.h"
 #include "TelegramRequests.h"
 #include "TelegramSession.h"
 
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QLoggingCategory>
+#include <QThread>
+#include <QTimer>
 
 #include <algorithm>
 
@@ -53,7 +56,36 @@ TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* 
       m_messageModel(messageModel),
       m_mediaStore(mediaStore)
 {
-    connect(m_session, &TelegramSession::updateReceived, this, &TelegramRepository::handleUpdate);
+    connect(m_session, &TelegramSession::updateReceived, this,
+            &TelegramRepository::handleUpdate);
+    connect(&m_scheduler, &TelegramUpdateScheduler::batchReady, this,
+            &TelegramRepository::processUpdates);
+
+    m_chatListRebuildTimer = new QTimer(this);
+    m_chatListRebuildTimer->setSingleShot(true);
+    m_chatListRebuildTimer->setInterval(120);
+    connect(m_chatListRebuildTimer, &QTimer::timeout, this, [this] {
+        m_chatListRebuildPending = false;
+        rebuildChatListNow();
+    });
+
+    // Parsing and text formatting run off the GUI thread. TDLib still receives
+    // on its own thread, and the parse thread hands immutable snapshots back
+    // through queued signals.
+    m_parseThread = new QThread;
+    m_parseWorker = new TelegramParseWorker;
+    m_parseWorker->moveToThread(m_parseThread);
+    connect(m_parseThread, &QThread::finished, m_parseWorker, &QObject::deleteLater);
+    connect(this, &TelegramRepository::parseChatRequested, m_parseWorker,
+            &TelegramParseWorker::parseChat);
+    connect(this, &TelegramRepository::parseHistoryRequested, m_parseWorker,
+            &TelegramParseWorker::parseHistory);
+    connect(m_parseWorker, &TelegramParseWorker::chatParsed, this,
+            &TelegramRepository::applyParsedChat);
+    connect(m_parseWorker, &TelegramParseWorker::historyParsed, this,
+            &TelegramRepository::applyHistory);
+    m_parseThread->start();
+
     if (m_mediaStore) {
         connect(m_mediaStore, &MediaFileStore::fileReady, this, [this](int fileId) {
             for (ChatData& chat : m_chats) {
@@ -72,6 +104,17 @@ TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* 
             emit stateChanged();
         });
     }
+}
+
+TelegramRepository::~TelegramRepository()
+{
+    if (!m_parseThread)
+        return;
+    m_parseThread->quit();
+    m_parseThread->wait();
+    m_parseWorker = nullptr;
+    delete m_parseThread;
+    m_parseThread = nullptr;
 }
 
 void TelegramRepository::start()
@@ -116,16 +159,11 @@ void TelegramRepository::requestChats()
                                 QJsonObject{{QStringLiteral("@type"), QStringLiteral("getChat")},
                                             {QStringLiteral("chat_id"), chatId}},
                                 [this, chatId](const QJsonObject& chatResponse) {
-                                    m_requestedChats.remove(chatId);
                                     if (chatResponse.value(QStringLiteral("@type")).toString()
                                         == QLatin1String("chat")) {
-                                        ChatData chat = chatFromJson(chatResponse);
-                                        chat.inMainList = true;
-                                        if (m_mediaStore)
-                                            chat.photoReady = m_mediaStore->isReady(chat.photoFileId);
-                                        m_chats.insert(chatId, chat);
-                                        rebuildChatList();
-                                        emit stateChanged();
+                                        enqueueChatParse(chatId, chatResponse);
+                                    } else {
+                                        m_requestedChats.remove(chatId);
                                     }
                                 },
                                 QStringLiteral("Could not read a chat"));
@@ -167,6 +205,13 @@ void TelegramRepository::requestChats()
 
 void TelegramRepository::rebuildChatList()
 {
+    m_chatListRebuildPending = true;
+    if (m_chatListRebuildTimer && !m_chatListRebuildTimer->isActive())
+        m_chatListRebuildTimer->start();
+}
+
+void TelegramRepository::rebuildChatListNow()
+{
     QVector<ChatData> chats;
     chats.reserve(m_chats.size());
     for (const ChatData& chat : m_chats) {
@@ -183,6 +228,26 @@ void TelegramRepository::rebuildChatList()
     });
 
     m_chatModel->setChats(std::move(chats));
+}
+
+void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat)
+{
+    emit parseChatRequested(++m_nextParseJob, chatId, chat);
+}
+
+void TelegramRepository::applyParsedChat(quint64 jobId, qint64 chatId, const ChatData& chat)
+{
+    Q_UNUSED(jobId)
+    m_requestedChats.remove(chatId);
+    if (chat.id == 0)
+        return;
+    ChatData data = chat;
+    data.inMainList = true;
+    if (m_mediaStore)
+        data.photoReady = m_mediaStore->isReady(data.photoFileId);
+    m_chats.insert(chatId != 0 ? chatId : data.id, data);
+    rebuildChatList();
+    emit stateChanged();
 }
 
 void TelegramRepository::openChat(qint64 chatId)
@@ -249,18 +314,20 @@ void TelegramRepository::loadOlder()
 
 void TelegramRepository::requestHistory(qint64 chatId, qint64 fromMessageId, bool older)
 {
+    const quint64 jobId = ++m_historyJob;
     sendRequest(
         getChatHistoryRequest(chatId, fromMessageId, MessagePageSize, false),
-        [this, chatId, older](const QJsonObject& response) {
-            handleHistory(response, chatId, older);
+        [this, chatId, older, jobId](const QJsonObject& response) {
+            handleHistory(response, chatId, older, jobId);
         },
         older ? QStringLiteral("Could not load older messages")
               : QStringLiteral("Could not load message history"));
 }
 
-void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatId, bool older)
+void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatId,
+                                       bool older, quint64 jobId)
 {
-    if (chatId != m_currentChatId)
+    if (chatId != m_currentChatId || jobId != m_historyJob)
         return;
 
     if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
@@ -272,38 +339,40 @@ void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatI
     }
 
     const QJsonArray messages = response.value(QStringLiteral("messages")).toArray();
-    QVector<MessageData> parsed;
-    parsed.reserve(messages.size());
-    for (const QJsonValue& value : messages) {
-        const QJsonObject object = value.toObject();
-        if (object.isEmpty())
-            continue;
-        MessageData message = messageFromJson(object);
+    emit parseHistoryRequested(jobId, chatId, older, messages);
+}
+
+void TelegramRepository::applyHistory(quint64 jobId, qint64 chatId, bool older,
+                                      const QVector<MessageData>& parsed)
+{
+    if (chatId != m_currentChatId || jobId != m_historyJob)
+        return;
+
+    QVector<MessageData> messages = parsed;
+    qCDebug(lcRepo) << "history page parsed off-thread" << messages.size()
+                    << "older" << older;
+    for (MessageData& message : messages) {
         trackMessageMedia(message);
         if (isPrivateChat(m_currentChatType) && !message.outgoing)
             message.senderName = m_currentChatTitle;
         resolveSender(message);
-        parsed.append(message);
     }
 
-    // TDLib returns newest-first. The model stores oldest-first.
-    std::reverse(parsed.begin(), parsed.end());
-
     if (older) {
-        for (const MessageData& message : parsed)
+        for (const MessageData& message : messages)
             m_messageModel->addOrUpdate(message);
     } else {
-        m_messageModel->setMessages(parsed);
+        m_messageModel->setMessages(messages);
         m_lastReadMessageId = 0;
     }
     m_messageModel->resolveReplyPreviews();
 
-    if (!parsed.isEmpty())
+    if (!messages.isEmpty())
         m_oldestMessageId = m_messageModel->firstMessageId();
     else
         m_hasMoreHistory = false;
 
-    if (parsed.size() < MessagePageSize)
+    if (messages.size() < MessagePageSize)
         m_hasMoreHistory = false;
 
     m_historyLoading = false;
@@ -414,7 +483,19 @@ void TelegramRepository::handleUpdate(const QJsonObject& update)
 {
     if (!m_started)
         return;
+    m_scheduler.enqueue(update);
+}
 
+void TelegramRepository::processUpdates(const QVector<QJsonObject>& updates)
+{
+    if (updates.size() > 1)
+        qCDebug(lcRepo) << "scheduler batch" << updates.size();
+    for (const QJsonObject& update : updates)
+        processUpdate(update);
+}
+
+void TelegramRepository::processUpdate(const QJsonObject& update)
+{
     const QString type = update.value(QStringLiteral("@type")).toString();
 
     if (type.startsWith(QLatin1String("updateChat")) || type == QLatin1String("updateNewChat")

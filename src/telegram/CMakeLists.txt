@@ -15,6 +15,10 @@ add_library(beygram_telegram STATIC
     ReplyInfo.h
     NotificationFormatter.cpp
     NotificationFormatter.h
+    TelegramParseWorker.cpp
+    TelegramParseWorker.h
+    TelegramUpdateScheduler.cpp
+    TelegramUpdateScheduler.h
     TextFormatting.cpp
     TextFormatting.h
     MessageListModel.cpp

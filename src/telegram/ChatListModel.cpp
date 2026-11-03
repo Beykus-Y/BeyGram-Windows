@@ -1,6 +1,30 @@
 #include "ChatListModel.h"
 
 namespace beygram::telegram {
+namespace {
+
+bool sameChatFields(const ChatData& left, const ChatData& right)
+{
+    return left.id == right.id
+        && left.title == right.title
+        && left.type == right.type
+        && left.preview == right.preview
+        && left.order == right.order
+        && left.lastMessageDate == right.lastMessageDate
+        && left.lastMessageId == right.lastMessageId
+        && left.unreadCount == right.unreadCount
+        && left.pinned == right.pinned
+        && left.muted == right.muted
+        && left.inMainList == right.inMainList
+        && left.isChannel == right.isChannel
+        && left.photoFileId == right.photoFileId
+        && left.photoReady == right.photoReady
+        && left.photoRevision == right.photoRevision
+        && left.initials == right.initials
+        && left.accentIndex == right.accentIndex;
+}
+
+} // namespace
 
 ChatListModel::ChatListModel(QObject* parent) : QAbstractListModel(parent)
 {
@@ -58,6 +82,37 @@ QHash<int, QByteArray> ChatListModel::roleNames() const
 
 void ChatListModel::setChats(QVector<ChatData> chats)
 {
+    // Most updates only change a preview or an unread counter. When the id
+    // order is unchanged, update those rows in place instead of resetting the
+    // whole ListView (which destroys and recreates every delegate).
+    if (!m_chats.isEmpty() && m_chats.size() == chats.size()) {
+        bool sameOrder = true;
+        for (int row = 0; row < chats.size(); ++row) {
+            if (m_chats.at(row).id != chats.at(row).id) {
+                sameOrder = false;
+                break;
+            }
+        }
+        if (sameOrder) {
+            int firstChanged = -1;
+            int lastChanged = -1;
+            for (int row = 0; row < chats.size(); ++row) {
+                if (sameChatFields(m_chats.at(row), chats.at(row)))
+                    continue;
+                m_chats[row] = chats.at(row);
+                if (firstChanged < 0)
+                    firstChanged = row;
+                lastChanged = row;
+            }
+            if (firstChanged >= 0) {
+                const QModelIndex first = index(firstChanged);
+                const QModelIndex last = index(lastChanged);
+                emit dataChanged(first, last);
+            }
+            return;
+        }
+    }
+
     beginResetModel();
     m_chats = std::move(chats);
     endResetModel();

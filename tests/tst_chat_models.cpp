@@ -13,6 +13,7 @@ class ChatModelsTest final : public QObject {
 private slots:
     void chatModelExposesRoles();
     void chatModelMarksPhotoReady();
+    void chatModelUpdatesRowsWithoutReset();
     void chatFilterMatchesTitleAndPreview();
     void messageModelSortsAndDeduplicates();
     void messageModelReplacesTemporaryId();
@@ -63,6 +64,32 @@ void ChatModelsTest::chatModelMarksPhotoReady()
     model.markPhotoReady(55);
     QVERIFY(model.data(model.index(0), ChatListModel::PhotoReadyRole).toBool());
     QCOMPARE(model.data(model.index(0), ChatListModel::PhotoRevisionRole).toInt(), 1);
+}
+
+void ChatModelsTest::chatModelUpdatesRowsWithoutReset()
+{
+    ChatData first;
+    first.id = 1;
+    first.title = QStringLiteral("Alice");
+    first.preview = QStringLiteral("old");
+    ChatData second;
+    second.id = 2;
+    second.title = QStringLiteral("Bob");
+    second.preview = QStringLiteral("hello");
+
+    ChatListModel model;
+    model.setChats({first, second});
+
+    QSignalSpy resetSpy(&model, &QAbstractItemModel::modelReset);
+    QSignalSpy changedSpy(&model, &QAbstractItemModel::dataChanged);
+
+    first.preview = QStringLiteral("new");
+    model.setChats({first, second});
+
+    QCOMPARE(resetSpy.count(), 0);
+    QCOMPARE(changedSpy.count(), 1);
+    QCOMPARE(model.data(model.index(0), ChatListModel::PreviewRole).toString(),
+             QStringLiteral("new"));
 }
 
 void ChatModelsTest::chatFilterMatchesTitleAndPreview()

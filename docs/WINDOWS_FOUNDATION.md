@@ -33,6 +33,20 @@ This document describes the native Windows client. The Android client under
 - Warm/Graphite palettes and FollowSystem/Light/Dark/AMOLED brightness.
 - Qt Test suites and Windows CI.
 
+## Threading and scheduling
+
+- TDLib JSON is received on a dedicated receiver thread; the GUI thread only
+  handles parsed domain objects.
+- A dedicated parse worker thread converts chat history, chat metadata and
+  formatted text into model data. The GUI thread applies the finished snapshot.
+- Incoming TDLib updates pass through a scheduler that batches every 16 ms,
+  caps a batch at 64 updates, drops update types the client does not consume,
+  and coalesces repeated position/last-message/read-marker updates per chat.
+- Chat list rebuilds are debounced (120 ms) and rows are updated in place when
+  their order did not change, so a preview or unread change no longer resets the
+  whole `ListView`.
+- Thumbnail and avatar images load through Qt Quick's asynchronous image path.
+
 ## What does not work yet
 
 - Video/audio playback, stickers, reactions, albums, drafts, folders/archive UI,
@@ -209,7 +223,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 24 suites:
+`ctest` runs 25 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -224,13 +238,14 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - reply parsing and reply request building;
 - media viewer state, source URLs and save-as;
 - incoming-message notification filtering and formatting;
+- update-scheduler batching, coalescing, urgent delivery and ignored traffic;
 - send/edit/history/read/delete TDLib request builders;
 - real TDLib integration (skipped when the DLL is absent): trusted load, local
   `td_execute`, `@extra` correlation, reach
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **24/24 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **25/25 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
