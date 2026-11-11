@@ -59,7 +59,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
-          modules: qtshadertools
+          modules: qtshadertools qtmultimedia
           cache: true
 
       - name: Restore TDLib build
