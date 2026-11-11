@@ -42,6 +42,9 @@ Item {
         if (mediaFileId > 0 && (text === "[Photo]" || text === "[Video]"
                                 || text === "[Document]" || text === "[Sticker]"))
             return ""
+        if (contentType === "voice" || contentType === "audio"
+            || contentType === "video_note")
+            return ""
         return text
     }
 
@@ -175,6 +178,29 @@ Item {
                         else
                             bubbleItem.mediaOpenRequested(fullId)
                     }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                visible: bubbleItem.contentType === "voice"
+                         || bubbleItem.contentType === "audio"
+                         || bubbleItem.contentType === "video_note"
+
+                PrimaryButton {
+                    text: "Play"
+                    implicitHeight: 30
+                    enabled: bubbleItem.mediaFullFileId > 0
+                    onClicked: bubbleItem.mediaPlayRequested(bubbleItem.mediaFullFileId)
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: bubbleItem.contentType === "voice" ? "Voice message"
+                          : bubbleItem.contentType === "video_note" ? "Video message"
+                          : "Audio"
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 11
                 }
             }
 

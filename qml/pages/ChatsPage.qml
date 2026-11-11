@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
@@ -166,7 +166,7 @@ Item {
                 }
 
                 TextField {
-                    id: searchField
+                    id: chatSearchField
                     Layout.fillWidth: true
                     implicitHeight: 44
                     leftPadding: 13
@@ -183,7 +183,7 @@ Item {
                     background: Rectangle {
                         radius: 22
                         color: BeyGramTheme.surface2
-                        border.width: searchField.activeFocus ? 1 : 0
+                        border.width: chatSearchField.activeFocus ? 1 : 0
                         border.color: BeyGramTheme.accent
                     }
 
@@ -191,15 +191,15 @@ Item {
                         anchors.right: parent.right
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: searchField.text.length > 0
-                        text: "×"
+                        visible: chatSearchField.text.length > 0
+                        text: "Г—"
                         color: BeyGramTheme.muted
                         font.pixelSize: 16
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                searchField.text = ""
+                                chatSearchField.text = ""
                                 BeyGramApp.chatFilter = ""
                             }
                         }
@@ -584,13 +584,13 @@ Item {
                             wrapMode: Text.WordWrap
                         }
                         Button {
-                            text: "×"
+                            text: "Г—"
                             flat: true
                             implicitWidth: 26
                             implicitHeight: 26
                             onClicked: BeyGramApp.clearChatError()
                             contentItem: Text {
-                                text: "×"
+                                text: "Г—"
                                 color: BeyGramTheme.danger
                                 font.pixelSize: 16
                                 horizontalAlignment: Text.AlignHCenter
@@ -777,7 +777,7 @@ Item {
                         visible: BeyGramApp.profileIsGroup || BeyGramApp.profileIsChannel
                         text: (BeyGramApp.profileIsChannel ? "Channel" : "Group")
                               + (BeyGramApp.profileMemberCount > 0
-                                 ? " · " + BeyGramApp.profileMemberCount + " members" : "")
+                                 ? " В· " + BeyGramApp.profileMemberCount + " members" : "")
                         color: BeyGramTheme.muted
                         font.pixelSize: 12
                     }

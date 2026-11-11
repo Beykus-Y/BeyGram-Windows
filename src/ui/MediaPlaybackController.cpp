@@ -155,6 +155,21 @@ QObject* MediaPlaybackController::mediaPlayer() const
     return m_player;
 }
 
+QObject* MediaPlaybackController::videoOutput() const
+{
+    return m_videoOutput;
+}
+
+void MediaPlaybackController::setVideoOutput(QObject* output)
+{
+    if (m_videoOutput == output)
+        return;
+    m_videoOutput = output;
+    if (m_player)
+        m_player->setVideoOutput(output);
+    emit stateChanged();
+}
+
 bool MediaPlaybackController::open(const QUrl& localSource, const QString& title)
 {
     m_error.clear();

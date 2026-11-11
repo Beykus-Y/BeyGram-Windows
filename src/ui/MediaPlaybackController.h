@@ -27,6 +27,7 @@ class MediaPlaybackController final : public QObject {
     Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QObject* mediaPlayer READ mediaPlayer CONSTANT)
+    Q_PROPERTY(QObject* videoOutput READ videoOutput WRITE setVideoOutput NOTIFY stateChanged)
 
 public:
     explicit MediaPlaybackController(QObject* parent = nullptr);
@@ -41,6 +42,8 @@ public:
     [[nodiscard]] qreal volume() const;
     [[nodiscard]] QString error() const;
     [[nodiscard]] QObject* mediaPlayer() const;
+    [[nodiscard]] QObject* videoOutput() const;
+    void setVideoOutput(QObject* output);
 
     Q_INVOKABLE bool open(const QUrl& localSource, const QString& title = {});
     Q_INVOKABLE void play();
@@ -57,6 +60,7 @@ signals:
 private:
     QMediaPlayer* m_player = nullptr;
     QAudioOutput* m_audio = nullptr;
+    QObject* m_videoOutput = nullptr;
     QUrl m_source;
     QString m_title;
     QString m_error;

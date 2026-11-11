@@ -178,8 +178,58 @@ int messageThumbnailFileId(const QJsonObject& content, int* width, int* height)
 
 int messageFullFileId(const QJsonObject& content)
 {
-    if (content.value(QStringLiteral("@type")).toString() == QLatin1String("messagePhoto"))
+    const QString type = content.value(QStringLiteral("@type")).toString();
+    if (type == QLatin1String("messagePhoto"))
         return photoLargestFileId(content.value(QStringLiteral("photo")).toObject());
+    if (type == QLatin1String("messageVideo"))
+        return content.value(QStringLiteral("video"))
+            .toObject()
+            .value(QStringLiteral("video"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageAnimation"))
+        return content.value(QStringLiteral("animation"))
+            .toObject()
+            .value(QStringLiteral("animation"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageDocument"))
+        return content.value(QStringLiteral("document"))
+            .toObject()
+            .value(QStringLiteral("document"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageAudio"))
+        return content.value(QStringLiteral("audio"))
+            .toObject()
+            .value(QStringLiteral("audio"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageVoiceNote"))
+        return content.value(QStringLiteral("voice_note"))
+            .toObject()
+            .value(QStringLiteral("voice"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageVideoNote"))
+        return content.value(QStringLiteral("video_note"))
+            .toObject()
+            .value(QStringLiteral("video"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
+    if (type == QLatin1String("messageSticker"))
+        return content.value(QStringLiteral("sticker"))
+            .toObject()
+            .value(QStringLiteral("sticker"))
+            .toObject()
+            .value(QStringLiteral("id"))
+            .toInt();
     return 0;
 }
 

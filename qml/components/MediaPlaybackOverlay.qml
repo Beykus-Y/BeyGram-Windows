@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtMultimedia
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 
@@ -19,12 +20,14 @@ Item {
     }
 
     VideoOutput {
+        id: videoOut
         anchors.fill: parent
         anchors.topMargin: 58
         anchors.bottomMargin: 86
-        source: BeyGramPlayback.mediaPlayer
         fillMode: VideoOutput.PreserveAspectFit
     }
+
+    Component.onCompleted: BeyGramPlayback.videoOutput = videoOut
 
     Rectangle {
         anchors.left: parent.left

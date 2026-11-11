@@ -10,9 +10,10 @@ BgMediaStatus bgMediaStatus()
 #else
     return {false, QStringLiteral("BG Media is not linked in this build"),
             QStringLiteral(
-                "The Windows port keeps a C++ boundary for BG Media, but Phase 0 does not "
-                "bundle it. The Android build uses BG Media through JNI; the desktop build "
-                "will link the native core directly. No music playback is claimed here.")};
+                "The Windows port keeps a C++ boundary for BG Media, but this build does "
+                "not bundle the native core yet. The Android build uses BG Media through "
+                "JNI; the desktop build will link the native core directly. No music "
+                "playback is claimed here.")};
 #endif
 }
 

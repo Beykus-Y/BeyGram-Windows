@@ -446,8 +446,8 @@ void TelegramSession::handleAuthorizationState(const QJsonObject& state)
         m_closeTimer->stop();
         m_loggingOut = false;
         resetAuthDetails();
-        setStage(next, QStringLiteral("The account is authorized; the chat UI arrives in the "
-                                      "next phase"));
+        setStage(next, QStringLiteral("The account is authorized; chats, history and "
+                                      "media are available"));
         break;
     case AuthStage::Closing:
         setStage(next, QStringLiteral("The session is closing"));

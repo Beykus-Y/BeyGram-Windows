@@ -112,12 +112,16 @@ Item {
                 CheckBox {
                     text: "Desktop notifications"
                     checked: BeyGramApp.notificationsEnabled
+                    palette.text: BeyGramTheme.text
+                    palette.windowText: BeyGramTheme.text
                     onToggled: BeyGramApp.notificationsEnabled = checked
                 }
                 CheckBox {
                     text: "Show message preview"
                     checked: BeyGramApp.notificationPreview
                     enabled: BeyGramApp.notificationsEnabled
+                    palette.text: BeyGramTheme.text
+                    palette.windowText: BeyGramTheme.text
                     onToggled: BeyGramApp.notificationPreview = checked
                 }
             }
