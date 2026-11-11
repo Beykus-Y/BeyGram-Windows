@@ -137,6 +137,7 @@ Item {
                                             Math.min(320, bubbleItem.mediaWidth > 0
                                                      ? bubbleItem.mediaWidth : 240))
                 visible: bubbleItem.mediaFileId > 0
+                         && bubbleItem.contentType !== "sticker"
                 radius: 10
                 clip: true
                 color: Qt.alpha(BeyGramTheme.surface2, 0.6)
@@ -179,6 +180,20 @@ Item {
                             bubbleItem.mediaOpenRequested(fullId)
                     }
                 }
+            }
+
+            StickerBubble {
+                Layout.alignment: Qt.AlignHCenter
+                visible: bubbleItem.contentType === "sticker"
+                fileId: 0
+                thumbnailFileId: bubbleItem.mediaFileId
+                ready: bubbleItem.mediaReady
+                revision: bubbleItem.mediaRevision
+                animated: false
+                onClicked: bubbleItem.mediaOpenRequested(
+                               bubbleItem.mediaFullFileId > 0
+                               ? bubbleItem.mediaFullFileId
+                               : bubbleItem.mediaFileId)
             }
 
             RowLayout {
