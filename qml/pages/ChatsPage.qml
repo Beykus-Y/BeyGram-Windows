@@ -359,6 +359,13 @@ Item {
                     }
                 }
 
+                TypingIndicator {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 18
+                    active: BeyGramApp.typingText.length > 0
+                    text: BeyGramApp.typingText
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
                     visible: page.searchOpen
@@ -703,7 +710,11 @@ Item {
                                         event.accepted = true
                                     }
                                 }
-                                onTextChanged: page.scheduleDraft()
+                                onTextChanged: {
+                                    page.scheduleDraft()
+                                    if (text.trim().length > 0)
+                                        BeyGramApp.notifyTyping()
+                                }
                             }
 
                             PrimaryButton {

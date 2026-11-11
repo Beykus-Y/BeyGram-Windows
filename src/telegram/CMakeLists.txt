@@ -14,6 +14,8 @@ add_library(beygram_telegram STATIC
     ChatFolderListModel.cpp
     ChatFolderListModel.h
     ChatFolders.cpp
+    ContactSearch.cpp
+    ContactSearch.h
     ChatFolders.h
     ChatListModel.cpp
     ChatListModel.h
@@ -46,6 +48,8 @@ add_library(beygram_telegram STATIC
     TelegramParseWorker.cpp
     TelegramParseWorker.h
     TelegramUpdateScheduler.cpp
+    TypingStatus.cpp
+    TypingStatus.h
     TelegramUpdateScheduler.h
     UserProfile.cpp
     UserProfile.h
@@ -80,6 +84,9 @@ add_library(beygram_telegram STATIC
     MessageReactions.cpp
     MessageReactions.h
     PinnedMessages.cpp
+    PinnedMessages.h
+    PollInfo.cpp
+    PollInfo.h
     PinnedMessages.h
 )
 

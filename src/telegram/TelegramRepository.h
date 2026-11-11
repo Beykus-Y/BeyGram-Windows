@@ -52,6 +52,7 @@ public:
     void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     void requestPinnedMessage();
     void unpinPinnedMessage();
+    void sendTyping();
     void searchInChat(const QString& query);
     void clearSearch();
     void requestProfile(qint64 chatId);
@@ -80,6 +81,7 @@ signals:
     void notificationRequested(const QString& title, const QString& body);
     void profileLoaded(const UserProfile& profile);
     void pinnedMessageChanged(qint64 messageId, const QString& preview);
+    void typingChanged(qint64 chatId, const QString& label);
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);

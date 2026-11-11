@@ -123,6 +123,7 @@ class AppController final : public QObject {
     Q_PROPERTY(qint64 pinnedMessageId READ pinnedMessageId NOTIFY pinnedChanged)
     Q_PROPERTY(QString pinnedPreview READ pinnedPreview NOTIFY pinnedChanged)
     Q_PROPERTY(bool pinnedVisible READ pinnedVisible NOTIFY pinnedChanged)
+    Q_PROPERTY(QString typingText READ typingText NOTIFY typingChanged)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -214,7 +215,9 @@ public:
     [[nodiscard]] qint64 pinnedMessageId() const;
     [[nodiscard]] QString pinnedPreview() const;
     [[nodiscard]] bool pinnedVisible() const;
+    [[nodiscard]] QString typingText() const;
     Q_INVOKABLE void unpinPinnedMessage();
+    Q_INVOKABLE void notifyTyping();
     void setNotificationsEnabled(bool enabled);
     void setNotificationPreview(bool enabled);
 
@@ -299,6 +302,7 @@ signals:
     void profileChanged();
     void notificationSettingsChanged();
     void pinnedChanged();
+    void typingChanged();
     void initialHistoryLoaded();
 
 private:
@@ -346,6 +350,7 @@ private:
     telegram::UserProfile m_profile;
     qint64 m_pinnedMessageId = 0;
     QString m_pinnedPreview;
+    QString m_typingText;
     bool m_profileVisible = false;
     bool m_profileLoading = false;
     int m_authErrorCode = 0;

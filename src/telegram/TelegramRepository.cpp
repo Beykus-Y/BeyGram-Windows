@@ -7,6 +7,7 @@
 #include "MessageSearch.h"
 #include "NotificationFormatter.h"
 #include "PinnedMessages.h"
+#include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "FolderChats.h"
 #include "TelegramParseWorker.h"
@@ -710,6 +711,14 @@ void TelegramRepository::unpinPinnedMessage()
                 QStringLiteral("Could not unpin the message"));
 }
 
+void TelegramRepository::sendTyping()
+{
+    if (m_currentChatId == 0)
+        return;
+    sendRequest(sendTypingRequest(m_currentChatId), {},
+                QStringLiteral("Could not send the typing action"));
+}
+
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)
 {
     if (m_currentChatId == 0 || messageId == 0)
@@ -812,6 +821,17 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
             rebuildChatList();
         }
         emit stateChanged();
+        return;
+    }
+
+    if (type == QLatin1String("updateChatAction")) {
+        const qint64 chatId = jsonInt64(update.value(QStringLiteral("chat_id")));
+        if (chatId != m_currentChatId)
+            return;
+        const QJsonObject action = update.value(QStringLiteral("action")).toObject();
+        const QString label = chatActionLabel(
+            action.value(QStringLiteral("@type")).toString());
+        emit typingChanged(chatId, label);
         return;
     }
 

@@ -68,8 +68,7 @@ bool TelegramUpdateScheduler::isIgnored(const QString& type)
 {
     // The repository never consumes these, so filtering them here keeps bursty
     // typing/status/file traffic out of the model thread entirely.
-    return type == QLatin1String("updateChatAction")
-        || type == QLatin1String("updateUserStatus")
+    return type == QLatin1String("updateUserStatus")
         || type == QLatin1String("updateChatOnlineMemberCount")
         || type == QLatin1String("updateFile")
         || type == QLatin1String("updateMessageContentOpened");

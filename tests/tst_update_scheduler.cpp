@@ -89,7 +89,6 @@ void UpdateSchedulerTest::dropsIgnoredTraffic()
     TelegramUpdateScheduler scheduler;
     QSignalSpy spy(&scheduler, &TelegramUpdateScheduler::batchReady);
 
-    scheduler.enqueue(update("updateChatAction"));
     scheduler.enqueue(update("updateUserStatus"));
     scheduler.enqueue(update("updateFile"));
     QCOMPARE(scheduler.pendingCount(), 0);

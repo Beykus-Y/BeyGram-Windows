@@ -88,6 +88,13 @@ qt_add_qml_module(beygram
         qml/components/Card.qml
         qml/components/ChoiceChip.qml
         qml/components/AlbumGrid.qml
+        qml/components/ChatNotificationSettings.qml
+        qml/components/LinkPreviewCard.qml
+        qml/components/PollBubble.qml
+        qml/components/ProfileEditDialog.qml
+        qml/components/SelectionToolbar.qml
+        qml/components/StickerPicker.qml
+        qml/components/WallpaperPicker.qml
         qml/components/ForwardDialog.qml
         qml/components/ChatRow.qml
         qml/components/ChatFolderTabs.qml
@@ -96,6 +103,7 @@ qt_add_qml_module(beygram
         qml/components/ReactionBar.qml
         qml/components/ReactionPicker.qml
         qml/components/StickerBubble.qml
+        qml/components/TypingIndicator.qml
         qml/components/MediaViewerOverlay.qml
         qml/components/MediaPlaybackOverlay.qml
         qml/pages/ChatsPage.qml
@@ -106,6 +114,7 @@ qt_add_qml_module(beygram
         qml/components/StatusRow.qml
         qml/pages/OverviewPage.qml
         qml/pages/SettingsPage.qml
+        qml/pages/ArchivePage.qml
         qml/pages/GlobalSearchPage.qml
         qml/pages/EnvironmentPage.qml
         qml/pages/LogsPage.qml

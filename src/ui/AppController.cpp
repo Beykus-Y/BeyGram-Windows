@@ -630,6 +630,13 @@ void AppController::ensureRepository()
                 m_pinnedPreview = preview;
                 emit pinnedChanged();
             });
+    connect(m_repository.get(), &telegram::TelegramRepository::typingChanged, this,
+            [this](qint64 chatId, const QString& label) {
+                if (chatId != currentChatId())
+                    return;
+                m_typingText = label;
+                emit typingChanged();
+            });
     m_repository->start();
 }
 
@@ -890,6 +897,17 @@ bool AppController::pinnedVisible() const
     return m_pinnedMessageId != 0;
 }
 
+QString AppController::typingText() const
+{
+    return m_typingText;
+}
+
+void AppController::notifyTyping()
+{
+    if (m_repository)
+        m_repository->sendTyping();
+}
+
 void AppController::unpinPinnedMessage()
 {
     if (m_repository)
@@ -916,6 +934,10 @@ void AppController::openChat(qint64 chatId)
         m_profileLoading = false;
         emit profileChanged();
     }
+    if (!m_typingText.isEmpty()) {
+        m_typingText.clear();
+        emit typingChanged();
+    }
     if (chatId != m_replyChatId) {
         m_replyToMessageId = 0;
         m_replyPreview.clear();
@@ -937,6 +959,10 @@ void AppController::closeChat()
     m_replyChatId = 0;
     if (m_repository)
         m_repository->closeChat();
+    if (!m_typingText.isEmpty()) {
+        m_typingText.clear();
+        emit typingChanged();
+    }
     emit chatStateChanged();
 }
 

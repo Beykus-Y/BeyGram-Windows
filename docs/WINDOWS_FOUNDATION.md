@@ -43,7 +43,8 @@ This document describes the native Windows client. The Android client under
 - Parsers/builders for reactions, stickers, albums, forward origins and pinned messages (UI wiring is next).
 - A global-search page component ready for the paged `GlobalSearchModel`.
 - Reaction pills and a pinned-message banner in the conversation, plus sticker bubbles.
-- Archive/selection/profile-edit/link-preview/sticker-set modules and a forwarding picker.
+- Typing/upload status labels and a typing indicator for the open chat.
+- Archive, selection, profile-edit, link-preview, sticker-set, poll and contact-search modules/components.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -247,7 +248,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 50 suites:
+`ctest` runs 53 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -274,7 +275,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **50/50 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **53/53 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
