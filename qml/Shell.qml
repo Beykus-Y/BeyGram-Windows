@@ -14,6 +14,7 @@ Item {
     Shortcut { sequence: "Alt+3"; onActivated: shell.currentSection = 2 }
     Shortcut { sequence: "Alt+4"; onActivated: shell.currentSection = 3 }
     Shortcut { sequence: "Alt+5"; onActivated: shell.currentSection = 4 }
+    Shortcut { sequence: "Alt+6"; onActivated: shell.currentSection = 5 }
 
     RowLayout {
         anchors.fill: parent
@@ -161,6 +162,12 @@ Item {
                     selected: shell.currentSection === 4
                     onClicked: shell.currentSection = 4
                 }
+                NavButton {
+                    Layout.fillWidth: true
+                    text: "Search"
+                    selected: shell.currentSection === 5
+                    onClicked: shell.currentSection = 5
+                }
 
                 Item { Layout.fillHeight: true }
 
@@ -201,6 +208,23 @@ Item {
             SettingsPage {}
             EnvironmentPage {}
             LogsPage {}
+            GlobalSearchPage {
+                model: BeyGramApp.globalSearchResults
+                loading: BeyGramApp.globalSearchLoading
+                hasMore: BeyGramApp.globalSearchResults
+                         ? BeyGramApp.globalSearchResults.hasMore : false
+                onSearchRequested: (query) => {
+                    if (query.length > 0)
+                        BeyGramApp.searchGlobal(query)
+                    else
+                        BeyGramApp.clearGlobalSearch()
+                }
+                onLoadMoreRequested: BeyGramApp.loadMoreGlobalSearch()
+                onResultActivated: (chatId, messageId) => {
+                    BeyGramApp.openChat(chatId)
+                    shell.currentSection = 0
+                }
+            }
         }
     }
 }

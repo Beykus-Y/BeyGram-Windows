@@ -29,6 +29,7 @@ Item {
     signal mediaOpenRequested(int fileId)
     signal mediaPlayRequested(int fileId)
     signal reactionRequested(string emoji)
+    signal forwardRequested(int messageId)
 
     function reactionList() {
         if (!reactionsJson)
@@ -317,6 +318,11 @@ Item {
             text: "Reply"
             enabled: bubbleItem.messageId > 0
             onClicked: bubbleItem.replyRequested(bubbleItem.messageId, bubbleItem.text)
+        }
+        MenuItem {
+            text: "Forward"
+            enabled: bubbleItem.messageId > 0
+            onClicked: bubbleItem.forwardRequested(bubbleItem.messageId)
         }
         MenuItem {
             text: "Copy text"

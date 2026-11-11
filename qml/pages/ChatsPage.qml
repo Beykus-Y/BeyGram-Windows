@@ -11,6 +11,7 @@ Item {
     property int editingId: 0
     property int loadedChatId: 0
     property bool searchOpen: false
+    property int forwardMessageId: 0
 
     function openSearch() {
         searchOpen = true
@@ -484,6 +485,11 @@ Item {
                                                   messageId, preview)
                             onReactionRequested: (emoji) => BeyGramApp.sendReaction(
                                                      BeyGramApp.currentChatId, messageId, emoji)
+                            onForwardRequested: (id) => {
+                                page.forwardMessageId = id
+                                forwardDialog.messageCount = 1
+                                forwardDialog.open()
+                            }
                             onDeleteRequested: (messageId) => {
                                 deleteDialog.messageId = messageId
                                 deleteDialog.open()
@@ -891,6 +897,16 @@ Item {
         }
         function onReplyStateChanged() {
             page.scheduleDraft()
+        }
+    }
+
+    ForwardDialog {
+        id: forwardDialog
+        model: BeyGramApp.chatList
+        messageCount: 1
+        onChatSelected: (chatId) => {
+            BeyGramApp.forwardMessage(BeyGramApp.currentChatId,
+                                      page.forwardMessageId, chatId)
         }
     }
 

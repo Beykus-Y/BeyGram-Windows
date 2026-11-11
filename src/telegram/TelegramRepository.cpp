@@ -10,6 +10,7 @@
 #include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "FolderChats.h"
+#include "ForwardMessages.h"
 #include "TelegramParseWorker.h"
 #include "TelegramRequests.h"
 #include "TelegramSession.h"
@@ -455,6 +456,75 @@ void TelegramRepository::clearSearch()
     emit stateChanged();
 }
 
+void TelegramRepository::searchGlobal(const QString& query)
+{
+    const QString body = query.trimmed();
+    if (body.isEmpty()) {
+        m_globalQuery.clear();
+        m_globalOffset.clear();
+        m_globalSearchLoading = false;
+        m_globalSearchModel.clear();
+        emit stateChanged();
+        return;
+    }
+
+    m_globalQuery = body;
+    m_globalOffset.clear();
+    m_globalSearchLoading = true;
+    emit stateChanged();
+    sendRequest(
+        searchMessagesRequest(body, QString(), 50),
+        [this, body](const QJsonObject& response) {
+            if (body != m_globalQuery)
+                return;
+            m_globalSearchLoading = false;
+            if (response.value(QStringLiteral("@type")).toString()
+                == QLatin1String("error")) {
+                m_globalSearchModel.clear();
+                emit errorOccurred(QStringLiteral("Search failed: %1")
+                                       .arg(response.value(QStringLiteral("message")).toString()));
+                emit stateChanged();
+                return;
+            }
+            m_globalOffset = response.value(QStringLiteral("next_offset")).toString();
+            QHash<qint64, QString> titles;
+            for (auto it = m_chats.cbegin(); it != m_chats.cend(); ++it)
+                titles.insert(it.key(), it->title);
+            m_globalSearchModel.setChatTitles(titles);
+            m_globalSearchModel.setHits(searchHitsFromResponse(response),
+                                        !m_globalOffset.isEmpty());
+            emit stateChanged();
+        },
+        QStringLiteral("Could not search messages"));
+}
+
+void TelegramRepository::loadMoreGlobal()
+{
+    if (m_globalQuery.isEmpty() || m_globalOffset.isEmpty() || m_globalSearchLoading)
+        return;
+    m_globalSearchLoading = true;
+    emit stateChanged();
+    const QString query = m_globalQuery;
+    const QString offset = m_globalOffset;
+    sendRequest(
+        searchMessagesRequest(query, offset, 50),
+        [this, query](const QJsonObject& response) {
+            if (query != m_globalQuery)
+                return;
+            m_globalSearchLoading = false;
+            if (response.value(QStringLiteral("@type")).toString()
+                == QLatin1String("error")) {
+                emit stateChanged();
+                return;
+            }
+            m_globalOffset = response.value(QStringLiteral("next_offset")).toString();
+            m_globalSearchModel.appendHits(searchHitsFromResponse(response),
+                                           !m_globalOffset.isEmpty());
+            emit stateChanged();
+        },
+        QStringLiteral("Could not load more search results"));
+}
+
 void TelegramRepository::requestProfile(qint64 chatId)
 {
     if (chatId == 0)
@@ -717,6 +787,24 @@ void TelegramRepository::sendTyping()
         return;
     sendRequest(sendTypingRequest(m_currentChatId), {},
                 QStringLiteral("Could not send the typing action"));
+}
+
+void TelegramRepository::forwardMessages(qint64 toChatId, qint64 fromChatId,
+                                         const QVector<qint64>& messageIds)
+{
+    if (toChatId == 0 || fromChatId == 0 || !canForward(messageIds))
+        return;
+    sendRequest(
+        forwardMessagesRequest(toChatId, fromChatId, messageIds, false),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString()
+                == QLatin1String("error")) {
+                setError(QStringLiteral("Could not forward the message: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not forward the message"));
 }
 
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)

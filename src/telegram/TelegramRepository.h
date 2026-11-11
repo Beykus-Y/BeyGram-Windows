@@ -2,6 +2,7 @@
 
 #include "ChatListModel.h"
 #include "ChatFolderListModel.h"
+#include "GlobalSearchModel.h"
 #include "MessageListModel.h"
 #include "MediaSend.h"
 #include "SearchResultModel.h"
@@ -50,11 +51,15 @@ public:
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();
     void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
+    void forwardMessages(qint64 toChatId, qint64 fromChatId,
+                         const QVector<qint64>& messageIds);
     void requestPinnedMessage();
     void unpinPinnedMessage();
     void sendTyping();
     void searchInChat(const QString& query);
     void clearSearch();
+    void searchGlobal(const QString& query);
+    void loadMoreGlobal();
     void requestProfile(qint64 chatId);
     void selectFolder(qint64 folderId);
 
@@ -69,6 +74,8 @@ public:
     [[nodiscard]] bool currentChatPhotoReady() const { return m_currentChatPhotoReady; }
     [[nodiscard]] int currentChatPhotoRevision() const { return m_currentChatPhotoRevision; }
     [[nodiscard]] SearchResultModel* searchModel() { return &m_searchModel; }
+    [[nodiscard]] GlobalSearchModel* globalSearchModel() { return &m_globalSearchModel; }
+    [[nodiscard]] bool globalSearchLoading() const { return m_globalSearchLoading; }
     [[nodiscard]] ChatFolderListModel* folderModel() { return &m_folderModel; }
     [[nodiscard]] qint64 currentFolderId() const { return m_currentFolderId; }
     [[nodiscard]] bool searchLoading() const { return m_searchLoading; }
@@ -116,6 +123,7 @@ private:
     MessageListModel* m_messageModel = nullptr;
     MediaFileStore* m_mediaStore = nullptr;
     SearchResultModel m_searchModel;
+    GlobalSearchModel m_globalSearchModel;
     ChatFolderListModel m_folderModel;
 
     QHash<qint64, ChatData> m_chats;
@@ -140,6 +148,9 @@ private:
     bool m_chatListRebuildPending = false;
     QString m_error;
     QString m_searchQuery;
+    QString m_globalQuery;
+    QString m_globalOffset;
+    bool m_globalSearchLoading = false;
 
     TelegramUpdateScheduler m_scheduler;
     QThread* m_parseThread = nullptr;

@@ -94,6 +94,8 @@ class AppController final : public QObject {
     Q_PROPERTY(bool searchLoading READ searchLoading NOTIFY chatStateChanged)
     Q_PROPERTY(QAbstractItemModel* chatFolders READ chatFolders NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentFolderId READ currentFolderId NOTIFY chatStateChanged)
+    Q_PROPERTY(QAbstractItemModel* globalSearchResults READ globalSearchResults NOTIFY chatStateChanged)
+    Q_PROPERTY(bool globalSearchLoading READ globalSearchLoading NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatTitle READ currentChatTitle NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatSubtitle READ currentChatSubtitle NOTIFY chatStateChanged)
@@ -186,6 +188,8 @@ public:
     [[nodiscard]] bool searchLoading() const;
     [[nodiscard]] QAbstractItemModel* chatFolders();
     [[nodiscard]] qint64 currentFolderId() const;
+    [[nodiscard]] QAbstractItemModel* globalSearchResults();
+    [[nodiscard]] bool globalSearchLoading() const;
     [[nodiscard]] qint64 currentChatId() const;
     [[nodiscard]] QString currentChatTitle() const;
     [[nodiscard]] QString currentChatSubtitle() const;
@@ -259,6 +263,9 @@ public:
     Q_INVOKABLE void searchInChat(const QString& query);
     Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void selectFolder(qint64 folderId);
+    Q_INVOKABLE void searchGlobal(const QString& query);
+    Q_INVOKABLE void loadMoreGlobalSearch();
+    Q_INVOKABLE void clearGlobalSearch();
     Q_INVOKABLE void sendChatMessage(const QString& text);
     Q_INVOKABLE bool sendChatMedia(const QUrl& file, const QString& caption = {});
     Q_INVOKABLE QString draftText(qint64 chatId) const;
@@ -273,6 +280,7 @@ public:
     Q_INVOKABLE void editChatMessage(qint64 messageId, const QString& text);
     Q_INVOKABLE void deleteChatMessage(qint64 messageId);
     Q_INVOKABLE void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
+    Q_INVOKABLE void forwardMessage(qint64 fromChatId, qint64 messageId, qint64 toChatId);
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE void clearChatError();
     Q_INVOKABLE void requestChatPhoto(int fileId);

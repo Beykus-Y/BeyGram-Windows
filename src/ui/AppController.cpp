@@ -706,6 +706,34 @@ qint64 AppController::currentFolderId() const
     return m_repository ? m_repository->currentFolderId() : 0;
 }
 
+QAbstractItemModel* AppController::globalSearchResults()
+{
+    return m_repository ? m_repository->globalSearchModel() : nullptr;
+}
+
+bool AppController::globalSearchLoading() const
+{
+    return m_repository && m_repository->globalSearchLoading();
+}
+
+void AppController::searchGlobal(const QString& query)
+{
+    if (m_repository)
+        m_repository->searchGlobal(query);
+}
+
+void AppController::loadMoreGlobalSearch()
+{
+    if (m_repository)
+        m_repository->loadMoreGlobal();
+}
+
+void AppController::clearGlobalSearch()
+{
+    if (m_repository)
+        m_repository->searchGlobal(QString());
+}
+
 qint64 AppController::currentChatId() const
 {
     return m_repository ? m_repository->currentChatId() : 0;
@@ -1123,6 +1151,14 @@ void AppController::sendReaction(qint64 chatId, qint64 messageId, const QString&
     m_chatError.clear();
     if (m_repository)
         m_repository->sendReaction(chatId, messageId, emoji);
+    emit chatStateChanged();
+}
+
+void AppController::forwardMessage(qint64 fromChatId, qint64 messageId, qint64 toChatId)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->forwardMessages(toChatId, fromChatId, {messageId});
     emit chatStateChanged();
 }
 

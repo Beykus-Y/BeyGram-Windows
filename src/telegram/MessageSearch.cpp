@@ -96,6 +96,21 @@ QJsonObject searchMessagesRequest(const QString& query, qint64 /*fromMessageId*/
     };
 }
 
+QJsonObject searchMessagesRequest(const QString& query, const QString& offset, int limit)
+{
+    return QJsonObject{
+        {QStringLiteral("@type"), QStringLiteral("searchMessages")},
+        {QStringLiteral("chat_list"), QJsonValue::Null},
+        {QStringLiteral("query"), query},
+        {QStringLiteral("offset"), offset},
+        {QStringLiteral("limit"), clampedLimit(limit)},
+        {QStringLiteral("filter"), QJsonValue::Null},
+        {QStringLiteral("chat_type_filter"), QJsonValue::Null},
+        {QStringLiteral("min_date"), 0},
+        {QStringLiteral("max_date"), 0},
+    };
+}
+
 QVector<SearchHit> searchHitsFromResponse(const QJsonObject& response)
 {
     QVector<SearchHit> hits;

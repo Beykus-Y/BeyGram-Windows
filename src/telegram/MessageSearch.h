@@ -40,6 +40,8 @@ struct SearchHit {
 /// searchResponseHasMore()/the response carries.
 [[nodiscard]] QJsonObject searchMessagesRequest(const QString& query, qint64 fromMessageId,
                                                 int limit);
+[[nodiscard]] QJsonObject searchMessagesRequest(const QString& query, const QString& offset,
+                                                int limit);
 
 /// Converts a FoundChatMessages or FoundMessages response (or any object with
 /// a "messages" array) into search hits. Entries may be full message objects
