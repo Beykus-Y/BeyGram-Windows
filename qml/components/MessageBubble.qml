@@ -11,6 +11,18 @@ Item {
     property string textHtml: ""
     property string replyPreview: ""
     property string reactionsJson: ""
+    property string linkUrl: ""
+    property string linkTitle: ""
+    property string linkDescription: ""
+    property string linkSite: ""
+    property int linkFileId: 0
+    property bool linkVideo: false
+    property string pollQuestion: ""
+    property string pollOptionsJson: ""
+    property int pollTotal: 0
+    property bool pollClosed: false
+    property bool pollQuiz: false
+    property bool pollMultiple: false
     property bool outgoing: false
     property string senderName: ""
     property var date: 0
@@ -30,6 +42,17 @@ Item {
     signal mediaPlayRequested(int fileId)
     signal reactionRequested(string emoji)
     signal forwardRequested(var messageId)
+    signal pollOptionSelected(int index)
+
+    function pollOptions() {
+        if (!pollOptionsJson)
+            return []
+        try {
+            return JSON.parse(pollOptionsJson)
+        } catch (error) {
+            return []
+        }
+    }
 
     function reactionList() {
         if (!reactionsJson)
@@ -262,6 +285,31 @@ Item {
                 textFormat: bubbleItem.textHtml.length > 0 ? Text.RichText
                                                            : Text.PlainText
                 onLinkActivated: (link) => BeyGramApp.openLink(link)
+            }
+
+            LinkPreviewCard {
+                Layout.fillWidth: true
+                visible: bubbleItem.linkUrl.length > 0
+                title: bubbleItem.linkTitle
+                description: bubbleItem.linkDescription
+                siteName: bubbleItem.linkSite
+                url: bubbleItem.linkUrl
+                thumbnailFileId: bubbleItem.linkFileId
+                thumbnailReady: false
+                revision: 0
+                onClicked: BeyGramApp.openLink(bubbleItem.linkUrl)
+            }
+
+            PollBubble {
+                Layout.fillWidth: true
+                visible: bubbleItem.pollQuestion.length > 0
+                question: bubbleItem.pollQuestion
+                options: bubbleItem.pollOptions()
+                totalVoterCount: bubbleItem.pollTotal
+                closed: bubbleItem.pollClosed
+                quiz: bubbleItem.pollQuiz
+                multipleChoice: bubbleItem.pollMultiple
+                onOptionSelected: (index) => bubbleItem.pollOptionSelected(index)
             }
 
             RowLayout {

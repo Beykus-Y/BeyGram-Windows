@@ -53,6 +53,7 @@ public:
     void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     void forwardMessages(qint64 toChatId, qint64 fromChatId,
                          const QVector<qint64>& messageIds);
+    void votePoll(qint64 chatId, qint64 messageId, int optionIndex);
     void requestPinnedMessage();
     void unpinPinnedMessage();
     void sendTyping();

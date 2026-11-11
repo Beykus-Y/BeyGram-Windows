@@ -463,6 +463,18 @@ Item {
                             textHtml: model.textHtml
                             replyPreview: model.replyPreview
                             reactionsJson: model.reactionsJson
+                            linkUrl: model.linkUrl
+                            linkTitle: model.linkTitle
+                            linkDescription: model.linkDescription
+                            linkSite: model.linkSite
+                            linkFileId: model.linkFileId
+                            linkVideo: model.linkVideo
+                            pollQuestion: model.pollQuestion
+                            pollOptionsJson: model.pollOptionsJson
+                            pollTotal: model.pollTotal
+                            pollClosed: model.pollClosed
+                            pollQuiz: model.pollQuiz
+                            pollMultiple: model.pollMultiple
                             outgoing: model.outgoing
                             senderName: model.senderName
                             date: model.date
@@ -490,6 +502,9 @@ Item {
                                 forwardDialog.messageCount = 1
                                 forwardDialog.open()
                             }
+                            onPollOptionSelected: (index) => BeyGramApp.votePoll(
+                                                       BeyGramApp.currentChatId,
+                                                       messageId, index)
                             onDeleteRequested: (messageId) => {
                                 deleteDialog.messageId = messageId
                                 deleteDialog.open()

@@ -1,6 +1,8 @@
 #include "TelegramTypes.h"
 
 #include "ReplyInfo.h"
+#include "LinkPreview.h"
+#include "PollInfo.h"
 #include "TextFormatting.h"
 
 #include <QJsonArray>
@@ -465,6 +467,31 @@ MessageData messageFromJson(const QJsonObject& message)
     if (!reactions.isEmpty()) {
         data.reactionsJson =
             QString::fromUtf8(QJsonDocument(reactions).toJson(QJsonDocument::Compact));
+    }
+    const LinkPreview preview = linkPreviewFromMessage(message);
+    if (preview.hasPreview) {
+        data.linkPreviewUrl = preview.url;
+        data.linkPreviewTitle = preview.title;
+        data.linkPreviewDescription = preview.description;
+        data.linkPreviewSite = preview.siteName;
+        data.linkPreviewFileId = preview.thumbnailFileId;
+        data.linkPreviewVideo = preview.isVideo;
+    }
+    const PollInfo poll = pollFromMessage(message);
+    if (!poll.question.isEmpty() || !poll.options.isEmpty()) {
+        data.pollQuestion = poll.question;
+        data.pollTotalVoterCount = poll.totalVoterCount;
+        data.pollClosed = poll.isClosed;
+        data.pollQuiz = poll.isQuiz;
+        data.pollMultiple = poll.multipleChoice;
+        QJsonArray options;
+        for (const PollOption& option : poll.options) {
+            options.append(QJsonObject{{QStringLiteral("text"), option.text},
+                                       {QStringLiteral("voterCount"), option.voterCount},
+                                       {QStringLiteral("chosen"), option.chosen}});
+        }
+        data.pollOptionsJson =
+            QString::fromUtf8(QJsonDocument(options).toJson(QJsonDocument::Compact));
     }
     data.mediaFileId = messageThumbnailFileId(content, &data.mediaWidth, &data.mediaHeight);
     const ReplyTarget reply = replyTargetFromMessage(message);

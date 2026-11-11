@@ -1162,6 +1162,14 @@ void AppController::forwardMessage(qint64 fromChatId, qint64 messageId, qint64 t
     emit chatStateChanged();
 }
 
+void AppController::votePoll(qint64 chatId, qint64 messageId, int optionIndex)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->votePoll(chatId, messageId, optionIndex);
+    emit chatStateChanged();
+}
+
 void AppController::copyText(const QString& text)
 {
     if (QGuiApplication::instance() != nullptr

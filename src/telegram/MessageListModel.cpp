@@ -42,6 +42,18 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case ReplyToMessageIdRole: return message.replyToMessageId;
     case ReplyPreviewRole: return message.replyPreview;
     case ReactionsRole: return message.reactionsJson;
+    case LinkUrlRole: return message.linkPreviewUrl;
+    case LinkTitleRole: return message.linkPreviewTitle;
+    case LinkDescriptionRole: return message.linkPreviewDescription;
+    case LinkSiteRole: return message.linkPreviewSite;
+    case LinkFileIdRole: return message.linkPreviewFileId;
+    case LinkVideoRole: return message.linkPreviewVideo;
+    case PollQuestionRole: return message.pollQuestion;
+    case PollOptionsRole: return message.pollOptionsJson;
+    case PollTotalRole: return message.pollTotalVoterCount;
+    case PollClosedRole: return message.pollClosed;
+    case PollQuizRole: return message.pollQuiz;
+    case PollMultipleRole: return message.pollMultiple;
     default: return {};
     }
 }
@@ -69,6 +81,18 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {ReplyToMessageIdRole, "replyToMessageId"},
         {ReplyPreviewRole, "replyPreview"},
         {ReactionsRole, "reactionsJson"},
+        {LinkUrlRole, "linkUrl"},
+        {LinkTitleRole, "linkTitle"},
+        {LinkDescriptionRole, "linkDescription"},
+        {LinkSiteRole, "linkSite"},
+        {LinkFileIdRole, "linkFileId"},
+        {LinkVideoRole, "linkVideo"},
+        {PollQuestionRole, "pollQuestion"},
+        {PollOptionsRole, "pollOptionsJson"},
+        {PollTotalRole, "pollTotal"},
+        {PollClosedRole, "pollClosed"},
+        {PollQuizRole, "pollQuiz"},
+        {PollMultipleRole, "pollMultiple"},
     };
 }
 

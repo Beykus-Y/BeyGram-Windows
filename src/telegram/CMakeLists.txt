@@ -13,6 +13,10 @@ add_library(beygram_telegram STATIC
     ChatFilterModel.h
     ChatFolderListModel.cpp
     ChatFolderListModel.h
+    ChatBlocking.cpp
+    ChatBlocking.h
+    ChatNotificationRequests.cpp
+    ChatNotificationRequests.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
@@ -35,12 +39,20 @@ add_library(beygram_telegram STATIC
     GlobalSearchModel.h
     ProfileEdit.cpp
     ProfileEdit.h
+    ReactionUpdates.cpp
+    ReactionUpdates.h
+    ReadMarkerTracker.cpp
+    ReadMarkerTracker.h
     ReplyInfo.cpp
     ReplyInfo.h
+    StickerSend.cpp
+    StickerSend.h
     StickerInfo.cpp
     StickerInfo.h
     StickerSetModel.cpp
     StickerSetModel.h
+    ScheduledMessages.cpp
+    ScheduledMessages.h
     SearchResultModel.cpp
     SearchResultModel.h
     NotificationFormatter.cpp
@@ -48,6 +60,8 @@ add_library(beygram_telegram STATIC
     TelegramParseWorker.cpp
     TelegramParseWorker.h
     TelegramUpdateScheduler.cpp
+    TypingRoster.cpp
+    TypingRoster.h
     TypingStatus.cpp
     TypingStatus.h
     TelegramUpdateScheduler.h
@@ -77,14 +91,20 @@ add_library(beygram_telegram STATIC
     TelegramTypes.h
     MediaFileStore.cpp
     MediaFileStore.h
+    MediaCachePolicy.cpp
+    MediaCachePolicy.h
     MediaSend.cpp
     MediaSend.h
     MessageSelectionModel.cpp
     MessageSelectionModel.h
+    MessageHistoryStore.cpp
+    MessageHistoryStore.h
     MessageReactions.cpp
     MessageReactions.h
     PinnedMessages.cpp
     PinnedMessages.h
+    MessageWindow.cpp
+    MessageWindow.h
     PollInfo.cpp
     PollInfo.h
     PinnedMessages.h

@@ -7,6 +7,7 @@
 #include "MessageSearch.h"
 #include "NotificationFormatter.h"
 #include "PinnedMessages.h"
+#include "PollInfo.h"
 #include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "FolderChats.h"
@@ -805,6 +806,22 @@ void TelegramRepository::forwardMessages(qint64 toChatId, qint64 fromChatId,
             emit stateChanged();
         },
         QStringLiteral("Could not forward the message"));
+}
+
+void TelegramRepository::votePoll(qint64 chatId, qint64 messageId, int optionIndex)
+{
+    if (chatId == 0 || messageId == 0 || optionIndex < 0)
+        return;
+    sendRequest(votePollRequest(chatId, messageId, {optionIndex}),
+                [this](const QJsonObject& response) {
+                    if (response.value(QStringLiteral("@type")).toString()
+                        == QLatin1String("error")) {
+                        setError(QStringLiteral("Could not vote: %1")
+                                     .arg(response.value(QStringLiteral("message")).toString()));
+                    }
+                    emit stateChanged();
+                },
+                QStringLiteral("Could not vote in the poll"));
 }
 
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)

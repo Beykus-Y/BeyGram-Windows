@@ -33,6 +33,18 @@ public:
         ReplyToMessageIdRole,
         ReplyPreviewRole,
         ReactionsRole,
+        LinkUrlRole,
+        LinkTitleRole,
+        LinkDescriptionRole,
+        LinkSiteRole,
+        LinkFileIdRole,
+        LinkVideoRole,
+        PollQuestionRole,
+        PollOptionsRole,
+        PollTotalRole,
+        PollClosedRole,
+        PollQuizRole,
+        PollMultipleRole,
     };
     Q_ENUM(Role)
 

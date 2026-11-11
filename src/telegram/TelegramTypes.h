@@ -38,6 +38,18 @@ struct MessageData {
     QString textHtml;
     QString replyPreview;
     QString reactionsJson;
+    QString linkPreviewUrl;
+    QString linkPreviewTitle;
+    QString linkPreviewDescription;
+    QString linkPreviewSite;
+    int linkPreviewFileId = 0;
+    bool linkPreviewVideo = false;
+    QString pollQuestion;
+    QString pollOptionsJson;
+    int pollTotalVoterCount = 0;
+    bool pollClosed = false;
+    bool pollQuiz = false;
+    bool pollMultiple = false;
     QString senderName;
     QString contentType;
     bool outgoing = false;
