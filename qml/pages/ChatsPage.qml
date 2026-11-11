@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 
@@ -452,6 +453,8 @@ Item {
                             mediaRevision: model.mediaRevision
                             onMediaOpenRequested: (fileId) => BeyGramMediaViewer.open(
                                                       fileId, BeyGramApp.currentChatTitle)
+                            onMediaPlayRequested: (fileId) => BeyGramApp.openMediaPlayback(
+                                                      fileId, BeyGramApp.currentChatTitle)
                             onEditRequested: (messageId, text) => page.beginEdit(messageId, text)
                             onReplyRequested: (messageId, preview) => BeyGramApp.beginReply(
                                                   messageId, preview)
@@ -646,6 +649,12 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
+
+                            SecondaryButton {
+                                text: "Attach"
+                                implicitHeight: 40
+                                onClicked: attachDialog.open()
+                            }
 
                             TextArea {
                                 id: composer
@@ -852,6 +861,24 @@ Item {
         }
         function onReplyStateChanged() {
             page.scheduleDraft()
+        }
+    }
+
+    FileDialog {
+        id: attachDialog
+        title: "Send a file"
+        fileMode: FileDialog.OpenFile
+        nameFilters: [
+            "Media (*.jpg *.jpeg *.png *.webp *.mp4 *.mkv *.mov *.webm)",
+            "Documents (*.pdf *.zip *.txt *.doc *.docx)",
+            "All files (*)"
+        ]
+        onAccepted: {
+            const caption = composer.text.trim()
+            if (BeyGramApp.sendChatMedia(selectedFile, caption)) {
+                composer.text = ""
+                BeyGramApp.clearDraft(BeyGramApp.currentChatId)
+            }
         }
     }
 

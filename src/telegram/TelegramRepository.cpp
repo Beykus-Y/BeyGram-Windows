@@ -540,6 +540,42 @@ void TelegramRepository::sendText(const QString& text, qint64 replyToMessageId)
     emit stateChanged();
 }
 
+void TelegramRepository::sendMedia(OutgoingMediaKind kind, const QString& localPath,
+                                   const QString& caption, qint64 replyToMessageId)
+{
+    if (m_currentChatId == 0)
+        return;
+    if (!isSupportedMediaPath(localPath, kind)) {
+        setError(QStringLiteral("Unsupported or missing media file"));
+        emit stateChanged();
+        return;
+    }
+
+    m_error.clear();
+    sendRequest(
+        sendMediaMessageRequest(m_currentChatId, kind, localPath, caption.trimmed(),
+                                replyToMessageId),
+        [this, chatId = m_currentChatId](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
+                MessageData message = messageFromJson(response);
+                trackMessageMedia(message);
+                if (chatId == m_currentChatId) {
+                    resolveSender(message);
+                    m_messageModel->addOrUpdate(message);
+                    m_messageModel->resolveReplyPreviews();
+                    markCurrentChatRead();
+                }
+            } else if (response.value(QStringLiteral("@type")).toString()
+                       == QLatin1String("error")) {
+                setError(QStringLiteral("Could not send the media: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not send the media"), 120000);
+    emit stateChanged();
+}
+
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)
 {
     if (m_currentChatId == 0 || messageId == 0)

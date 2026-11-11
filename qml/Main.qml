@@ -58,4 +58,5 @@ ApplicationWindow {
     }
 
     MediaViewerOverlay {}
+    MediaPlaybackOverlay {}
 }

@@ -25,7 +25,7 @@ if(WIN32)
     add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Test Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Multimedia Test Widgets)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
@@ -90,6 +90,7 @@ qt_add_qml_module(beygram
         qml/components/ChatRow.qml
         qml/components/MessageBubble.qml
         qml/components/MediaViewerOverlay.qml
+        qml/components/MediaPlaybackOverlay.qml
         qml/pages/ChatsPage.qml
         qml/components/NavButton.qml
         qml/components/Pill.qml

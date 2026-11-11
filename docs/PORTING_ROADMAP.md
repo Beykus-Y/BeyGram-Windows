@@ -89,9 +89,10 @@ Duration: 3–5 weeks.
 ordering, text history, text send/edit/delete, read receipts, proxy support,
 real avatars/thumbnails, rich-text entities, replies, a still-image viewer,
 desktop notifications, a batched update scheduler, background parsing,
-persisted drafts, in-chat search, a profile drawer and persisted appearance
-settings. Folder tabs/archive, global search, albums and notification
-preferences remain open in this phase.
+persisted drafts, in-chat search, a profile drawer, persisted appearance
+settings, file attachments, audio/video playback and desktop window-state
+restore. Folder tabs/archive, global search, albums, forwarding and
+notification preferences remain open in this phase.
 
 Scope:
 

@@ -2,6 +2,7 @@
 
 #include "ChatListModel.h"
 #include "MessageListModel.h"
+#include "MediaSend.h"
 #include "SearchResultModel.h"
 #include "TelegramTypes.h"
 #include "UserProfile.h"
@@ -42,6 +43,8 @@ public:
     void closeChat();
     void loadOlder();
     void sendText(const QString& text, qint64 replyToMessageId = 0);
+    void sendMedia(OutgoingMediaKind kind, const QString& localPath,
+                   const QString& caption, qint64 replyToMessageId = 0);
     void editMessage(qint64 messageId, const QString& text);
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();

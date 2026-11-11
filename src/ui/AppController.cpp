@@ -715,6 +715,36 @@ MediaViewerController* AppController::mediaViewer()
     return &m_mediaViewer;
 }
 
+MediaPlaybackController* AppController::playback()
+{
+    return &m_playback;
+}
+
+void AppController::openMediaPlayback(int fileId, const QString& title)
+{
+    if (fileId <= 0)
+        return;
+
+    m_mediaStore.trackFileId(fileId, 32);
+    const QString path = m_mediaStore.path(fileId);
+    if (!path.isEmpty()) {
+        m_playback.open(QUrl::fromLocalFile(path), title);
+        return;
+    }
+
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = connect(
+        &m_mediaStore, &telegram::MediaFileStore::fileReady, this,
+        [this, fileId, title, connection](int readyId) {
+            if (readyId != fileId)
+                return;
+            QObject::disconnect(*connection);
+            const QString readyPath = m_mediaStore.path(fileId);
+            if (!readyPath.isEmpty())
+                m_playback.open(QUrl::fromLocalFile(readyPath), title);
+        });
+}
+
 bool AppController::saveOpenMediaAs(const QUrl& target)
 {
     return m_mediaViewer.saveAs(target.toLocalFile());
@@ -897,6 +927,40 @@ void AppController::sendChatMessage(const QString& text)
         emit replyStateChanged();
     }
     emit chatStateChanged();
+}
+
+bool AppController::sendChatMedia(const QUrl& file, const QString& caption)
+{
+    m_chatError.clear();
+    const QString path = file.isLocalFile() ? file.toLocalFile() : file.toString();
+    if (path.isEmpty() || !m_repository) {
+        m_chatError = QStringLiteral("Choose a local file to send");
+        emit chatStateChanged();
+        return false;
+    }
+
+    telegram::OutgoingMediaKind kind;
+    if (telegram::isSupportedMediaPath(path, telegram::OutgoingMediaKind::Photo))
+        kind = telegram::OutgoingMediaKind::Photo;
+    else if (telegram::isSupportedMediaPath(path, telegram::OutgoingMediaKind::Video))
+        kind = telegram::OutgoingMediaKind::Video;
+    else if (telegram::isSupportedMediaPath(path, telegram::OutgoingMediaKind::Document))
+        kind = telegram::OutgoingMediaKind::Document;
+    else {
+        m_chatError = QStringLiteral("Unsupported or missing media file");
+        emit chatStateChanged();
+        return false;
+    }
+
+    const qint64 replyTo = m_replyToMessageId;
+    m_repository->sendMedia(kind, path, caption, replyTo);
+    if (replyTo != 0 || !m_replyPreview.isEmpty()) {
+        m_replyToMessageId = 0;
+        m_replyPreview.clear();
+        emit replyStateChanged();
+    }
+    emit chatStateChanged();
+    return true;
 }
 
 void AppController::beginReply(qint64 messageId, const QString& preview)

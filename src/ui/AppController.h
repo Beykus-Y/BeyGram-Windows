@@ -7,9 +7,11 @@
 #include "telegram/CredentialStore.h"
 #include "telegram/DraftStore.h"
 #include "telegram/MediaFileStore.h"
+#include "telegram/MediaSend.h"
 #include "telegram/MessageListModel.h"
 #include "telegram/UserProfile.h"
 #include "ui/MediaViewerController.h"
+#include "ui/MediaPlaybackController.h"
 #include "telegram/TelegramConfig.h"
 
 #include <QAbstractItemModel>
@@ -236,6 +238,7 @@ public:
     Q_INVOKABLE void searchInChat(const QString& query);
     Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void sendChatMessage(const QString& text);
+    Q_INVOKABLE bool sendChatMedia(const QUrl& file, const QString& caption = {});
     Q_INVOKABLE QString draftText(qint64 chatId) const;
     Q_INVOKABLE qint64 draftReplyToMessageId(qint64 chatId) const;
     Q_INVOKABLE void saveDraft(qint64 chatId, const QString& text,
@@ -255,7 +258,9 @@ public:
     /// C++-only access for the QML image provider. Not exposed to QML.
     [[nodiscard]] telegram::MediaFileStore* mediaStore();
     [[nodiscard]] MediaViewerController* mediaViewer();
+    [[nodiscard]] MediaPlaybackController* playback();
     Q_INVOKABLE bool saveOpenMediaAs(const QUrl& target);
+    Q_INVOKABLE void openMediaPlayback(int fileId, const QString& title);
 
     // Credential provisioning (developer API id/hash).
     Q_INVOKABLE bool saveCredentials(const QString& apiId, const QString& apiHash);
@@ -297,6 +302,7 @@ private:
     telegram::ChatFilterModel m_chatFilterModel;
     telegram::MediaFileStore m_mediaStore;
     MediaViewerController m_mediaViewer;
+    MediaPlaybackController m_playback;
     telegram::DraftStore m_drafts;
     QTimer* m_busyTimer = nullptr;
     QSystemTrayIcon* m_tray = nullptr;

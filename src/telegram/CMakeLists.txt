@@ -7,6 +7,8 @@ add_library(beygram_telegram STATIC
     AuthState.h
     ChatFilterModel.cpp
     ChatFilterModel.h
+    ChatFolderListModel.cpp
+    ChatFolderListModel.h
     ChatFolders.cpp
     ChatFolders.h
     ChatListModel.cpp
@@ -15,6 +17,8 @@ add_library(beygram_telegram STATIC
     CredentialStore.h
     DraftStore.cpp
     DraftStore.h
+    ForwardMessages.cpp
+    ForwardMessages.h
     ReplyInfo.cpp
     ReplyInfo.h
     SearchResultModel.cpp
@@ -51,6 +55,8 @@ add_library(beygram_telegram STATIC
     TelegramTypes.h
     MediaFileStore.cpp
     MediaFileStore.h
+    MediaSend.cpp
+    MediaSend.h
 )
 
 target_include_directories(beygram_telegram PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")

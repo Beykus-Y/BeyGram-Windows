@@ -35,6 +35,9 @@ This document describes the native Windows client. The Android client under
 - Per-chat drafts that survive restarts and restore into the composer.
 - In-chat message search with TDLib `searchChatMessages` results.
 - A profile drawer for the current user, group or channel.
+- Attach photo/video/document files with an optional caption.
+- Audio/video playback from downloaded TDLib files.
+- Desktop window geometry and maximized state are restored between runs.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -62,11 +65,12 @@ This document describes the native Windows client. The Android client under
 
 ## What does not work yet
 
-- Video/audio playback, stickers, reactions, albums, folder tabs, global search,
-  notification preferences, message forwarding and calls are not in this slice.
-  Media messages show downloaded thumbnails and still images in a viewer;
-  unsupported content still uses honest placeholders. The chat-folder parser and
-  global-search request layer exist, but their UI is not wired yet.
+- Stickers, reactions, albums, folder tabs, global search, notification
+  preferences, message forwarding and calls are not in this slice. Media
+  messages show thumbnails, still images, audio/video playback and file
+  attachments; unsupported content still uses honest placeholders. The
+  chat-folder model and global-search request layer exist, but their UI is not
+  wired yet.
 - No music, BG Beat/BG Mix, VPN or updater.
 - Wrong-code and wrong-2FA behaviour is implemented in the session and mapped
   from real TDLib errors, but automating those cases needs a dedicated test
@@ -237,7 +241,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 32 suites:
+`ctest` runs 37 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -254,6 +258,8 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - circular avatar masking and non-round thumbnail behavior;
 - draft persistence, folder parsing, message search, profile parsing and
   appearance settings;
+- media attachment requests, playback state, forwarding builders, folder model
+  roles and window-state persistence;
 - incoming-message notification filtering and formatting;
 - update-scheduler batching, coalescing, urgent delivery and ignored traffic;
 - send/edit/history/read/delete TDLib request builders;
@@ -262,7 +268,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **32/32 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **37/37 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
@@ -310,6 +316,6 @@ reference.
 ## Next phase
 
 The parity branch continues with folder tabs and archive, global search,
-attachments/albums, video/audio playback and notification preferences. See
+albums, forwarding and notification preferences. See
 [PORTING_ROADMAP.md](PORTING_ROADMAP.md) and
 [PORTING_AUDIT.md](PORTING_AUDIT.md).

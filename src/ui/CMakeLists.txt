@@ -7,10 +7,14 @@ add_library(beygram_ui STATIC
     MediaViewerController.h
     MediaImageProvider.cpp
     MediaImageProvider.h
+    MediaPlaybackController.cpp
+    MediaPlaybackController.h
     QrCodeImageProvider.cpp
     QrCodeImageProvider.h
     ThemeController.cpp
     ThemeController.h
+    WindowStateStore.cpp
+    WindowStateStore.h
     ../thirdparty/qrcodegen/qrcodegen.cpp
 )
 
@@ -30,6 +34,7 @@ target_link_libraries(beygram_ui
         Qt6::Core
         Qt6::Gui
         Qt6::Quick
+        Qt6::Multimedia
         Qt6::Widgets
         beygram_warnings
 )
