@@ -29,7 +29,7 @@ Item {
 
     signal searchRequested(string query)
     signal loadMoreRequested()
-    signal resultActivated(int chatId, int messageId)
+    signal resultActivated(var chatId, var messageId)
 
     function focusInput() {
         field.forceActiveFocus()
