@@ -1065,6 +1065,14 @@ void AppController::deleteChatMessage(qint64 messageId)
     emit chatStateChanged();
 }
 
+void AppController::sendReaction(qint64 chatId, qint64 messageId, const QString& emoji)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->sendReaction(chatId, messageId, emoji);
+    emit chatStateChanged();
+}
+
 void AppController::copyText(const QString& text)
 {
     if (QGuiApplication::instance() != nullptr

@@ -41,6 +41,7 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case MediaRevisionRole: return message.mediaRevision;
     case ReplyToMessageIdRole: return message.replyToMessageId;
     case ReplyPreviewRole: return message.replyPreview;
+    case ReactionsRole: return message.reactionsJson;
     default: return {};
     }
 }
@@ -67,6 +68,7 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {MediaRevisionRole, "mediaRevision"},
         {ReplyToMessageIdRole, "replyToMessageId"},
         {ReplyPreviewRole, "replyPreview"},
+        {ReactionsRole, "reactionsJson"},
     };
 }
 

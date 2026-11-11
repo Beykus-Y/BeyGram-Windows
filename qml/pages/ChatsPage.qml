@@ -445,6 +445,7 @@ Item {
                             text: model.text
                             textHtml: model.textHtml
                             replyPreview: model.replyPreview
+                            reactionsJson: model.reactionsJson
                             outgoing: model.outgoing
                             senderName: model.senderName
                             date: model.date
@@ -465,6 +466,8 @@ Item {
                             onEditRequested: (messageId, text) => page.beginEdit(messageId, text)
                             onReplyRequested: (messageId, preview) => BeyGramApp.beginReply(
                                                   messageId, preview)
+                            onReactionRequested: (emoji) => BeyGramApp.sendReaction(
+                                                     BeyGramApp.currentChatId, messageId, emoji)
                             onDeleteRequested: (messageId) => {
                                 deleteDialog.messageId = messageId
                                 deleteDialog.open()

@@ -4,6 +4,7 @@
 #include "TextFormatting.h"
 
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QStringList>
 
 #include <limits>
@@ -454,6 +455,17 @@ MessageData messageFromJson(const QJsonObject& message)
         ? content.value(QStringLiteral("text")).toObject()
         : content.value(QStringLiteral("caption")).toObject();
     data.textHtml = formatTdlibText(formatted).html;
+    QJsonObject reactions = message.value(QStringLiteral("reactions")).toObject();
+    if (reactions.isEmpty()) {
+        reactions = message.value(QStringLiteral("interaction_info"))
+                        .toObject()
+                        .value(QStringLiteral("reactions"))
+                        .toObject();
+    }
+    if (!reactions.isEmpty()) {
+        data.reactionsJson =
+            QString::fromUtf8(QJsonDocument(reactions).toJson(QJsonDocument::Compact));
+    }
     data.mediaFileId = messageThumbnailFileId(content, &data.mediaWidth, &data.mediaHeight);
     const ReplyTarget reply = replyTargetFromMessage(message);
     if (reply.isValid()) {
