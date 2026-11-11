@@ -1,5 +1,7 @@
 add_library(beygram_telegram STATIC
     AlbumGrouper.cpp
+    ArchiveChats.cpp
+    ArchiveChats.h
     AlbumGrouper.h
     AccountRegistry.cpp
     AccountRegistry.h
@@ -26,11 +28,17 @@ add_library(beygram_telegram STATIC
     ForwardMessages.cpp
     ForwardMessages.h
     GlobalSearchModel.cpp
+    LinkPreview.cpp
+    LinkPreview.h
     GlobalSearchModel.h
+    ProfileEdit.cpp
+    ProfileEdit.h
     ReplyInfo.cpp
     ReplyInfo.h
     StickerInfo.cpp
     StickerInfo.h
+    StickerSetModel.cpp
+    StickerSetModel.h
     SearchResultModel.cpp
     SearchResultModel.h
     NotificationFormatter.cpp
@@ -67,6 +75,8 @@ add_library(beygram_telegram STATIC
     MediaFileStore.h
     MediaSend.cpp
     MediaSend.h
+    MessageSelectionModel.cpp
+    MessageSelectionModel.h
     MessageReactions.cpp
     MessageReactions.h
     PinnedMessages.cpp

@@ -624,6 +624,12 @@ void AppController::ensureRepository()
                 m_profileVisible = true;
                 emit profileChanged();
             });
+    connect(m_repository.get(), &telegram::TelegramRepository::pinnedMessageChanged, this,
+            [this](qint64 messageId, const QString& preview) {
+                m_pinnedMessageId = messageId;
+                m_pinnedPreview = preview;
+                emit pinnedChanged();
+            });
     m_repository->start();
 }
 
@@ -867,6 +873,27 @@ bool AppController::notificationsEnabled() const
 bool AppController::notificationPreview() const
 {
     return m_notificationSettings.settings().showPreview;
+}
+
+qint64 AppController::pinnedMessageId() const
+{
+    return m_pinnedMessageId;
+}
+
+QString AppController::pinnedPreview() const
+{
+    return m_pinnedPreview;
+}
+
+bool AppController::pinnedVisible() const
+{
+    return m_pinnedMessageId != 0;
+}
+
+void AppController::unpinPinnedMessage()
+{
+    if (m_repository)
+        m_repository->unpinPinnedMessage();
 }
 
 void AppController::setNotificationsEnabled(bool enabled)

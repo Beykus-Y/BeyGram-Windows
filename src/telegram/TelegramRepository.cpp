@@ -6,6 +6,7 @@
 #include "MessageReactions.h"
 #include "MessageSearch.h"
 #include "NotificationFormatter.h"
+#include "PinnedMessages.h"
 #include "ChatFolders.h"
 #include "FolderChats.h"
 #include "TelegramParseWorker.h"
@@ -299,10 +300,13 @@ void TelegramRepository::openChat(qint64 chatId)
     m_historyLoading = true;
     m_error.clear();
     clearSearch();
+    m_pinnedMessageId = 0;
+    emit pinnedMessageChanged(0, QString());
     emit currentChatChanged();
     emit stateChanged();
 
     requestHistory(chatId, 0, false);
+    requestPinnedMessage();
 }
 
 void TelegramRepository::closeChat()
@@ -658,6 +662,52 @@ void TelegramRepository::sendReaction(qint64 chatId, qint64 messageId,
                     emit stateChanged();
                 },
                 QStringLiteral("Could not update the reaction"));
+}
+
+void TelegramRepository::requestPinnedMessage()
+{
+    if (m_currentChatId == 0)
+        return;
+    const qint64 chatId = m_currentChatId;
+    sendRequest(
+        getChatPinnedMessageRequest(chatId),
+        [this, chatId](const QJsonObject& response) {
+            if (chatId != m_currentChatId)
+                return;
+            if (response.value(QStringLiteral("@type")).toString()
+                == QLatin1String("message")) {
+                const MessageData message = messageFromJson(response);
+                m_pinnedMessageId = message.id;
+                QString preview = message.text;
+                if (preview.isEmpty())
+                    preview = QStringLiteral("[%1]").arg(message.contentType);
+                emit pinnedMessageChanged(message.id, preview);
+            } else {
+                m_pinnedMessageId = 0;
+                emit pinnedMessageChanged(0, QString());
+            }
+        },
+        QStringLiteral("Could not load the pinned message"));
+}
+
+void TelegramRepository::unpinPinnedMessage()
+{
+    if (m_currentChatId == 0 || m_pinnedMessageId == 0)
+        return;
+    const qint64 chatId = m_currentChatId;
+    const qint64 messageId = m_pinnedMessageId;
+    m_pinnedMessageId = 0;
+    emit pinnedMessageChanged(0, QString());
+    sendRequest(unpinChatMessageRequest(chatId, messageId),
+                [this](const QJsonObject& response) {
+                    if (response.value(QStringLiteral("@type")).toString()
+                        == QLatin1String("error")) {
+                        setError(QStringLiteral("Could not unpin the message: %1")
+                                     .arg(response.value(QStringLiteral("message")).toString()));
+                    }
+                    emit stateChanged();
+                },
+                QStringLiteral("Could not unpin the message"));
 }
 
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)

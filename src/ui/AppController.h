@@ -120,6 +120,9 @@ class AppController final : public QObject {
     Q_PROPERTY(int profileMemberCount READ profileMemberCount NOTIFY profileChanged)
     Q_PROPERTY(bool notificationsEnabled READ notificationsEnabled WRITE setNotificationsEnabled NOTIFY notificationSettingsChanged)
     Q_PROPERTY(bool notificationPreview READ notificationPreview WRITE setNotificationPreview NOTIFY notificationSettingsChanged)
+    Q_PROPERTY(qint64 pinnedMessageId READ pinnedMessageId NOTIFY pinnedChanged)
+    Q_PROPERTY(QString pinnedPreview READ pinnedPreview NOTIFY pinnedChanged)
+    Q_PROPERTY(bool pinnedVisible READ pinnedVisible NOTIFY pinnedChanged)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -208,6 +211,10 @@ public:
     [[nodiscard]] int profileMemberCount() const;
     [[nodiscard]] bool notificationsEnabled() const;
     [[nodiscard]] bool notificationPreview() const;
+    [[nodiscard]] qint64 pinnedMessageId() const;
+    [[nodiscard]] QString pinnedPreview() const;
+    [[nodiscard]] bool pinnedVisible() const;
+    Q_INVOKABLE void unpinPinnedMessage();
     void setNotificationsEnabled(bool enabled);
     void setNotificationPreview(bool enabled);
 
@@ -291,6 +298,7 @@ signals:
     void replyStateChanged();
     void profileChanged();
     void notificationSettingsChanged();
+    void pinnedChanged();
     void initialHistoryLoaded();
 
 private:
@@ -336,6 +344,8 @@ private:
     qint64 m_replyChatId = 0;
     QString m_replyPreview;
     telegram::UserProfile m_profile;
+    qint64 m_pinnedMessageId = 0;
+    QString m_pinnedPreview;
     bool m_profileVisible = false;
     bool m_profileLoading = false;
     int m_authErrorCode = 0;

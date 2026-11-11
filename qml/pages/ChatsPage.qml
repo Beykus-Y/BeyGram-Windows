@@ -408,6 +408,15 @@ Item {
                     }
                 }
 
+                PinnedMessageBanner {
+                    Layout.fillWidth: true
+                    visible: BeyGramApp.pinnedVisible
+                    title: "Pinned message"
+                    preview: BeyGramApp.pinnedPreview
+                    onActivated: {}
+                    onUnpinRequested: BeyGramApp.unpinPinnedMessage()
+                }
+
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true

@@ -87,11 +87,14 @@ qt_add_qml_module(beygram
         qml/components/Avatar.qml
         qml/components/Card.qml
         qml/components/ChoiceChip.qml
+        qml/components/AlbumGrid.qml
+        qml/components/ForwardDialog.qml
         qml/components/ChatRow.qml
         qml/components/ChatFolderTabs.qml
         qml/components/MessageBubble.qml
         qml/components/PinnedMessageBanner.qml
         qml/components/ReactionBar.qml
+        qml/components/ReactionPicker.qml
         qml/components/StickerBubble.qml
         qml/components/MediaViewerOverlay.qml
         qml/components/MediaPlaybackOverlay.qml

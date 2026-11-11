@@ -50,6 +50,8 @@ public:
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();
     void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
+    void requestPinnedMessage();
+    void unpinPinnedMessage();
     void searchInChat(const QString& query);
     void clearSearch();
     void requestProfile(qint64 chatId);
@@ -77,6 +79,7 @@ signals:
     void initialHistoryLoaded();
     void notificationRequested(const QString& title, const QString& body);
     void profileLoaded(const UserProfile& profile);
+    void pinnedMessageChanged(qint64 messageId, const QString& preview);
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
@@ -145,6 +148,7 @@ private:
     QHash<quint64, bool> m_parseChatContext;
     QHash<qint64, QSet<qint64>> m_folderChatIds;
     qint64 m_currentFolderId = 0;
+    qint64 m_pinnedMessageId = 0;
 };
 
 } // namespace beygram::telegram
