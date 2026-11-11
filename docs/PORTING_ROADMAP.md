@@ -84,13 +84,15 @@ Duration: 3–5 weeks.
 
 ## Phase 2 — Chat list, history and the conversation MVP (P0)
 
-**Status:** chat MVP implemented in `feature/windows-chats` and stacked on the
-authorization branch: main chat list with pin/unread/mute/search, TDLib-update
+**Status:** chat MVP merged into `DEV` and extended on
+`feature/windows-parity`: main chat list with pin/unread/mute/search, TDLib-update
 ordering, text history, text send/edit/delete, read receipts, proxy support,
 real avatars/thumbnails, rich-text entities, replies, a still-image viewer,
-desktop notifications, a batched update scheduler and background parsing.
-Drafts, folders/archive UI, in-chat search, albums and notification preferences
-remain open in this phase.
+desktop notifications, a batched update scheduler, background parsing,
+persisted drafts, in-chat search, a profile drawer, persisted appearance
+settings, file attachments, audio/video playback and desktop window-state
+restore, folder tabs, notification settings and global-search groundwork.
+Archive, global-search wiring, album rendering and forwarding UI remain open in this phase.
 
 Scope:
 

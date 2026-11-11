@@ -1,14 +1,22 @@
 add_library(beygram_ui STATIC
     AppController.cpp
     AppController.h
+    AppearanceStore.cpp
+    AppearanceStore.h
     MediaViewerController.cpp
     MediaViewerController.h
     MediaImageProvider.cpp
     MediaImageProvider.h
+    MediaPlaybackController.cpp
+    MediaPlaybackController.h
+    NotificationSettingsStore.cpp
+    NotificationSettingsStore.h
     QrCodeImageProvider.cpp
     QrCodeImageProvider.h
     ThemeController.cpp
     ThemeController.h
+    WindowStateStore.cpp
+    WindowStateStore.h
     ../thirdparty/qrcodegen/qrcodegen.cpp
 )
 
@@ -28,6 +36,7 @@ target_link_libraries(beygram_ui
         Qt6::Core
         Qt6::Gui
         Qt6::Quick
+        Qt6::Multimedia
         Qt6::Widgets
         beygram_warnings
 )

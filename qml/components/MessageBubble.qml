@@ -26,6 +26,7 @@ Item {
     signal editRequested(int messageId, string text)
     signal deleteRequested(int messageId)
     signal mediaOpenRequested(int fileId)
+    signal mediaPlayRequested(int fileId)
     signal replyRequested(int messageId, string preview)
 
     implicitHeight: bubble.height + 8
@@ -40,6 +41,9 @@ Item {
     function displayText() {
         if (mediaFileId > 0 && (text === "[Photo]" || text === "[Video]"
                                 || text === "[Document]" || text === "[Sticker]"))
+            return ""
+        if (contentType === "voice" || contentType === "audio"
+            || contentType === "video_note")
             return ""
         return text
     }
@@ -161,10 +165,42 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     enabled: bubbleItem.mediaReady
-                    onClicked: bubbleItem.mediaOpenRequested(
-                                   bubbleItem.mediaFullFileId > 0
-                                   ? bubbleItem.mediaFullFileId
-                                   : bubbleItem.mediaFileId)
+                    onClicked: {
+                        const fullId = bubbleItem.mediaFullFileId > 0
+                                       ? bubbleItem.mediaFullFileId
+                                       : bubbleItem.mediaFileId
+                        if (bubbleItem.contentType === "video"
+                            || bubbleItem.contentType === "voice"
+                            || bubbleItem.contentType === "audio"
+                            || bubbleItem.contentType === "video_note"
+                            || bubbleItem.contentType === "animation")
+                            bubbleItem.mediaPlayRequested(fullId)
+                        else
+                            bubbleItem.mediaOpenRequested(fullId)
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                visible: bubbleItem.contentType === "voice"
+                         || bubbleItem.contentType === "audio"
+                         || bubbleItem.contentType === "video_note"
+
+                PrimaryButton {
+                    text: "Play"
+                    implicitHeight: 30
+                    enabled: bubbleItem.mediaFullFileId > 0
+                    onClicked: bubbleItem.mediaPlayRequested(bubbleItem.mediaFullFileId)
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: bubbleItem.contentType === "voice" ? "Voice message"
+                          : bubbleItem.contentType === "video_note" ? "Video message"
+                          : "Audio"
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 11
                 }
             }
 

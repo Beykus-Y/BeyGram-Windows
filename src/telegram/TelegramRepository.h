@@ -1,8 +1,12 @@
 #pragma once
 
 #include "ChatListModel.h"
+#include "ChatFolderListModel.h"
 #include "MessageListModel.h"
+#include "MediaSend.h"
+#include "SearchResultModel.h"
 #include "TelegramTypes.h"
+#include "UserProfile.h"
 #include "TelegramUpdateScheduler.h"
 
 #include <QHash>
@@ -40,9 +44,15 @@ public:
     void closeChat();
     void loadOlder();
     void sendText(const QString& text, qint64 replyToMessageId = 0);
+    void sendMedia(OutgoingMediaKind kind, const QString& localPath,
+                   const QString& caption, qint64 replyToMessageId = 0);
     void editMessage(qint64 messageId, const QString& text);
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();
+    void searchInChat(const QString& query);
+    void clearSearch();
+    void requestProfile(qint64 chatId);
+    void selectFolder(qint64 folderId);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -54,6 +64,10 @@ public:
     [[nodiscard]] int currentChatPhotoFileId() const { return m_currentChatPhotoFileId; }
     [[nodiscard]] bool currentChatPhotoReady() const { return m_currentChatPhotoReady; }
     [[nodiscard]] int currentChatPhotoRevision() const { return m_currentChatPhotoRevision; }
+    [[nodiscard]] SearchResultModel* searchModel() { return &m_searchModel; }
+    [[nodiscard]] ChatFolderListModel* folderModel() { return &m_folderModel; }
+    [[nodiscard]] qint64 currentFolderId() const { return m_currentFolderId; }
+    [[nodiscard]] bool searchLoading() const { return m_searchLoading; }
 
 signals:
     void currentChatChanged();
@@ -61,6 +75,7 @@ signals:
     void errorOccurred(const QString& message);
     void initialHistoryLoaded();
     void notificationRequested(const QString& title, const QString& body);
+    void profileLoaded(const UserProfile& profile);
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
@@ -80,7 +95,7 @@ private:
     void applyHistory(quint64 jobId, qint64 chatId, bool older,
                       const QVector<MessageData>& parsed);
     void applyParsedChat(quint64 jobId, qint64 chatId, const ChatData& chat);
-    void enqueueChatParse(qint64 chatId, const QJsonObject& chat);
+    void enqueueChatParse(qint64 chatId, const QJsonObject& chat, bool inMainList = true);
     void updateChatFromMessage(qint64 chatId, const QJsonObject& message);
     void trackMessageMedia(MessageData& message);
     void resolveSender(MessageData& message);
@@ -94,6 +109,8 @@ private:
     ChatListModel* m_chatModel = nullptr;
     MessageListModel* m_messageModel = nullptr;
     MediaFileStore* m_mediaStore = nullptr;
+    SearchResultModel m_searchModel;
+    ChatFolderListModel m_folderModel;
 
     QHash<qint64, ChatData> m_chats;
     QSet<qint64> m_requestedChats;
@@ -110,11 +127,13 @@ private:
     bool m_currentChatPhotoReady = false;
     int m_currentChatPhotoRevision = 0;
     bool m_historyLoading = false;
+    bool m_searchLoading = false;
     bool m_hasMoreHistory = true;
     bool m_loadingChats = false;
     bool m_started = false;
     bool m_chatListRebuildPending = false;
     QString m_error;
+    QString m_searchQuery;
 
     TelegramUpdateScheduler m_scheduler;
     QThread* m_parseThread = nullptr;
@@ -122,6 +141,9 @@ private:
     QTimer* m_chatListRebuildTimer = nullptr;
     quint64 m_nextParseJob = 0;
     quint64 m_historyJob = 0;
+    QHash<quint64, bool> m_parseChatContext;
+    QHash<qint64, QSet<qint64>> m_folderChatIds;
+    qint64 m_currentFolderId = 0;
 };
 
 } // namespace beygram::telegram

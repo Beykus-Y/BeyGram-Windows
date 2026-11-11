@@ -1,13 +1,18 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "ui/AppController.h"
+#include "ui/AppearanceStore.h"
 #include "ui/MediaImageProvider.h"
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
+#include "ui/WindowStateStore.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QQuickWindow>
+#include <QWindow>
 #include <QtQml>
 
 namespace {
@@ -46,12 +51,29 @@ int main(int argc, char* argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     beygram::ui::ThemeController theme;
+    beygram::ui::AppearanceStore appearance(
+        QDir(beygram::AppPaths::dataDirectory()).filePath(QStringLiteral("appearance.json")));
+    appearance.load();
+    beygram::ui::WindowStateStore windowState(
+        QDir(beygram::AppPaths::configDirectory())
+            .filePath(QStringLiteral("window/window-state.json")));
+    windowState.load();
+    theme.setPresetName(appearance.settings().themePreset);
+    theme.setModeName(appearance.settings().themeMode);
+    QObject::connect(&theme, &beygram::ui::ThemeController::themeChanged, &appearance,
+                     [&theme, &appearance] {
+                         appearance.setThemePreset(theme.presetName());
+                         appearance.setThemeMode(theme.modeName());
+                     });
+
     beygram::ui::AppController controller;
 
     qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramTheme", &theme);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramApp", &controller);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramMediaViewer",
                                  controller.mediaViewer());
+    qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramPlayback",
+                                 controller.playback());
 
     QQmlApplicationEngine engine;
 
@@ -75,6 +97,21 @@ int main(int argc, char* argv[])
         controller.shutdown();
         beygram::logging::shutdown();
         return 1;
+    }
+
+    if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst())) {
+        const beygram::ui::WindowState saved = windowState.state();
+        if (saved.maximized) {
+            window->showMaximized();
+        } else {
+            window->setGeometry(saved.x, saved.y, saved.width, saved.height);
+        }
+        QObject::connect(&application, &QCoreApplication::aboutToQuit,
+                         [window, &windowState] {
+                             windowState.save({window->x(), window->y(),
+                                               window->width(), window->height(),
+                                               window->visibility() == QWindow::Maximized});
+                         });
     }
 
     const int exitCode = application.exec();
