@@ -5,7 +5,7 @@ import BeyGram.App 1.0
 
 Item {
     id: row
-    property int chatId: 0
+    property var chatId: 0
     property string title: ""
     property string preview: ""
     property int unreadCount: 0

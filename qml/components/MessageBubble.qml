@@ -1,4 +1,4 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -6,7 +6,7 @@ import BeyGram.App 1.0
 
 Item {
     id: bubbleItem
-    property int messageId: 0
+    property var messageId: 0
     property string text: ""
     property string textHtml: ""
     property string replyPreview: ""
@@ -24,12 +24,12 @@ Item {
     property int mediaHeight: 0
     property bool mediaReady: false
     property int mediaRevision: 0
-    signal editRequested(int messageId, string text)
-    signal deleteRequested(int messageId)
+    signal editRequested(var messageId, string text)
+    signal deleteRequested(var messageId)
     signal mediaOpenRequested(int fileId)
     signal mediaPlayRequested(int fileId)
     signal reactionRequested(string emoji)
-    signal forwardRequested(int messageId)
+    signal forwardRequested(var messageId)
 
     function reactionList() {
         if (!reactionsJson)
@@ -57,7 +57,7 @@ Item {
             return []
         }
     }
-    signal replyRequested(int messageId, string preview)
+    signal replyRequested(var messageId, string preview)
 
     implicitHeight: bubble.height + 8
     width: ListView.view ? ListView.view.width : parent.width
@@ -313,6 +313,22 @@ Item {
 
     Menu {
         id: menu
+        width: 190
+        padding: 4
+        palette.window: BeyGramTheme.surface
+        palette.windowText: BeyGramTheme.text
+        palette.text: BeyGramTheme.text
+        palette.buttonText: BeyGramTheme.text
+        palette.highlight: BeyGramTheme.accentSoft
+        palette.highlightedText: BeyGramTheme.accentInk
+
+        background: Rectangle {
+            implicitWidth: 190
+            color: BeyGramTheme.surface
+            border.width: 1
+            border.color: BeyGramTheme.line
+            radius: 8
+        }
 
         MenuItem {
             text: "Reply"

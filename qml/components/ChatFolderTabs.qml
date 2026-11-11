@@ -14,9 +14,9 @@ Item {
     id: root
 
     property var model: null
-    property int currentFolderId: 0
+    property var currentFolderId: 0
 
-    signal folderSelected(int folderId)
+    signal folderSelected(var folderId)
 
     implicitHeight: 38
 

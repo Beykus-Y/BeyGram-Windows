@@ -1,4 +1,4 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
@@ -8,10 +8,10 @@ import BeyGram.App 1.0
 Item {
     id: page
 
-    property int editingId: 0
-    property int loadedChatId: 0
+    property var editingId: 0
+    property var loadedChatId: 0
     property bool searchOpen: false
-    property int forwardMessageId: 0
+    property var forwardMessageId: 0
 
     function openSearch() {
         searchOpen = true
@@ -90,7 +90,7 @@ Item {
 
     Timer {
         id: draftTimer
-        property int chatId: 0
+        property var chatId: 0
         interval: 450
         repeat: false
         onTriggered: {
@@ -193,7 +193,7 @@ Item {
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         visible: chatSearchField.text.length > 0
-                        text: "Г—"
+                        text: "×"
                         color: BeyGramTheme.muted
                         font.pixelSize: 16
                         MouseArea {
@@ -609,13 +609,13 @@ Item {
                             wrapMode: Text.WordWrap
                         }
                         Button {
-                            text: "Г—"
+                            text: "×"
                             flat: true
                             implicitWidth: 26
                             implicitHeight: 26
                             onClicked: BeyGramApp.clearChatError()
                             contentItem: Text {
-                                text: "Г—"
+                                text: "×"
                                 color: BeyGramTheme.danger
                                 font.pixelSize: 16
                                 horizontalAlignment: Text.AlignHCenter
@@ -806,7 +806,7 @@ Item {
                         visible: BeyGramApp.profileIsGroup || BeyGramApp.profileIsChannel
                         text: (BeyGramApp.profileIsChannel ? "Channel" : "Group")
                               + (BeyGramApp.profileMemberCount > 0
-                                 ? " В· " + BeyGramApp.profileMemberCount + " members" : "")
+                                 ? " · " + BeyGramApp.profileMemberCount + " members" : "")
                         color: BeyGramTheme.muted
                         font.pixelSize: 12
                     }
@@ -930,7 +930,7 @@ Item {
 
     Dialog {
         id: deleteDialog
-        property int messageId: 0
+        property var messageId: 0
         title: "Delete message?"
         modal: true
         anchors.centerIn: parent
