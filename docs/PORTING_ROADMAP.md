@@ -92,7 +92,7 @@ desktop notifications, a batched update scheduler, background parsing,
 persisted drafts, in-chat search, a profile drawer, persisted appearance
 settings, file attachments, audio/video playback and desktop window-state
 restore, folder tabs, notification settings and global-search groundwork.
-Archive, global search UI, albums and forwarding UI remain open in this phase.
+Archive, global-search wiring, album rendering and forwarding UI remain open in this phase.
 
 Scope:
 

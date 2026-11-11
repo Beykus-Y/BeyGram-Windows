@@ -40,6 +40,8 @@ This document describes the native Windows client. The Android client under
 - Desktop window geometry and maximized state are restored between runs.
 - Chat folder tabs backed by TDLib `updateChatFolders`, with per-folder chat loading.
 - Notification settings (enable, preview) in the Settings page.
+- Parsers/builders for reactions, stickers, albums, forward origins and pinned messages (UI wiring is next).
+- A global-search page component ready for the paged `GlobalSearchModel`.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -243,7 +245,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 40 suites:
+`ctest` runs 45 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -270,7 +272,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **40/40 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **45/45 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

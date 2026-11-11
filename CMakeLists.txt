@@ -100,6 +100,7 @@ qt_add_qml_module(beygram
         qml/components/StatusRow.qml
         qml/pages/OverviewPage.qml
         qml/pages/SettingsPage.qml
+        qml/pages/GlobalSearchPage.qml
         qml/pages/EnvironmentPage.qml
         qml/pages/LogsPage.qml
 )
