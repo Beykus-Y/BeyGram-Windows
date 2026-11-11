@@ -9,6 +9,8 @@ add_library(beygram_ui STATIC
     MediaImageProvider.h
     MediaPlaybackController.cpp
     MediaPlaybackController.h
+    NotificationSettingsStore.cpp
+    NotificationSettingsStore.h
     QrCodeImageProvider.cpp
     QrCodeImageProvider.h
     ThemeController.cpp

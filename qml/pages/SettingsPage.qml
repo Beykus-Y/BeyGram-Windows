@@ -104,6 +104,29 @@ Item {
                 spacing: 12
 
                 Text {
+                    text: "Notifications"
+                    color: BeyGramTheme.text
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                }
+                CheckBox {
+                    text: "Desktop notifications"
+                    checked: BeyGramApp.notificationsEnabled
+                    onToggled: BeyGramApp.notificationsEnabled = checked
+                }
+                CheckBox {
+                    text: "Show message preview"
+                    checked: BeyGramApp.notificationPreview
+                    enabled: BeyGramApp.notificationsEnabled
+                    onToggled: BeyGramApp.notificationPreview = checked
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Text {
                     text: "Desktop"
                     color: BeyGramTheme.text
                     font.pixelSize: 15

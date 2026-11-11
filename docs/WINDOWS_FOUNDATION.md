@@ -38,6 +38,8 @@ This document describes the native Windows client. The Android client under
 - Attach photo/video/document files with an optional caption.
 - Audio/video playback from downloaded TDLib files.
 - Desktop window geometry and maximized state are restored between runs.
+- Chat folder tabs backed by TDLib `updateChatFolders`, with per-folder chat loading.
+- Notification settings (enable, preview) in the Settings page.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
@@ -65,8 +67,8 @@ This document describes the native Windows client. The Android client under
 
 ## What does not work yet
 
-- Stickers, reactions, albums, folder tabs, global search, notification
-  preferences, message forwarding and calls are not in this slice. Media
+- Stickers, reactions, albums, global search UI, message forwarding UI and
+  calls are not in this slice. Media
   messages show thumbnails, still images, audio/video playback and file
   attachments; unsupported content still uses honest placeholders. The
   chat-folder model and global-search request layer exist, but their UI is not
@@ -241,7 +243,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 37 suites:
+`ctest` runs 40 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -268,7 +270,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **37/37 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **40/40 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
@@ -315,7 +317,7 @@ reference.
 
 ## Next phase
 
-The parity branch continues with folder tabs and archive, global search,
-albums, forwarding and notification preferences. See
+The parity branch continues with archive, global search UI, albums, forwarding
+and calls. See
 [PORTING_ROADMAP.md](PORTING_ROADMAP.md) and
 [PORTING_AUDIT.md](PORTING_AUDIT.md).

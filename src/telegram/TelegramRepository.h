@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ChatListModel.h"
+#include "ChatFolderListModel.h"
 #include "MessageListModel.h"
 #include "MediaSend.h"
 #include "SearchResultModel.h"
@@ -51,6 +52,7 @@ public:
     void searchInChat(const QString& query);
     void clearSearch();
     void requestProfile(qint64 chatId);
+    void selectFolder(qint64 folderId);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -63,6 +65,8 @@ public:
     [[nodiscard]] bool currentChatPhotoReady() const { return m_currentChatPhotoReady; }
     [[nodiscard]] int currentChatPhotoRevision() const { return m_currentChatPhotoRevision; }
     [[nodiscard]] SearchResultModel* searchModel() { return &m_searchModel; }
+    [[nodiscard]] ChatFolderListModel* folderModel() { return &m_folderModel; }
+    [[nodiscard]] qint64 currentFolderId() const { return m_currentFolderId; }
     [[nodiscard]] bool searchLoading() const { return m_searchLoading; }
 
 signals:
@@ -91,7 +95,7 @@ private:
     void applyHistory(quint64 jobId, qint64 chatId, bool older,
                       const QVector<MessageData>& parsed);
     void applyParsedChat(quint64 jobId, qint64 chatId, const ChatData& chat);
-    void enqueueChatParse(qint64 chatId, const QJsonObject& chat);
+    void enqueueChatParse(qint64 chatId, const QJsonObject& chat, bool inMainList = true);
     void updateChatFromMessage(qint64 chatId, const QJsonObject& message);
     void trackMessageMedia(MessageData& message);
     void resolveSender(MessageData& message);
@@ -106,6 +110,7 @@ private:
     MessageListModel* m_messageModel = nullptr;
     MediaFileStore* m_mediaStore = nullptr;
     SearchResultModel m_searchModel;
+    ChatFolderListModel m_folderModel;
 
     QHash<qint64, ChatData> m_chats;
     QSet<qint64> m_requestedChats;
@@ -136,6 +141,9 @@ private:
     QTimer* m_chatListRebuildTimer = nullptr;
     quint64 m_nextParseJob = 0;
     quint64 m_historyJob = 0;
+    QHash<quint64, bool> m_parseChatContext;
+    QHash<qint64, QSet<qint64>> m_folderChatIds;
+    qint64 m_currentFolderId = 0;
 };
 
 } // namespace beygram::telegram

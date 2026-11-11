@@ -158,6 +158,13 @@ Item {
                     }
                 }
 
+                ChatFolderTabs {
+                    Layout.fillWidth: true
+                    model: BeyGramApp.chatFolders
+                    currentFolderId: BeyGramApp.currentFolderId
+                    onFolderSelected: (folderId) => BeyGramApp.selectFolder(folderId)
+                }
+
                 TextField {
                     id: searchField
                     Layout.fillWidth: true

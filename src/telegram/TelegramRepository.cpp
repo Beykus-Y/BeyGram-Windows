@@ -5,6 +5,8 @@
 #include "MediaFileStore.h"
 #include "MessageSearch.h"
 #include "NotificationFormatter.h"
+#include "ChatFolders.h"
+#include "FolderChats.h"
 #include "TelegramParseWorker.h"
 #include "TelegramRequests.h"
 #include "TelegramSession.h"
@@ -215,9 +217,17 @@ void TelegramRepository::rebuildChatListNow()
 {
     QVector<ChatData> chats;
     chats.reserve(m_chats.size());
+    const QSet<qint64> folderIds = m_currentFolderId != 0
+        ? m_folderChatIds.value(m_currentFolderId)
+        : QSet<qint64>{};
     for (const ChatData& chat : m_chats) {
-        if (chat.inMainList && chat.order != 0)
-            chats.append(chat);
+        if (m_currentFolderId != 0) {
+            if (!folderIds.contains(chat.id))
+                continue;
+        } else if (!chat.inMainList || chat.order == 0) {
+            continue;
+        }
+        chats.append(chat);
     }
 
     std::sort(chats.begin(), chats.end(), [](const ChatData& left, const ChatData& right) {
@@ -231,22 +241,25 @@ void TelegramRepository::rebuildChatListNow()
     m_chatModel->setChats(std::move(chats));
 }
 
-void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat)
+void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat,
+                                          bool inMainList)
 {
-    emit parseChatRequested(++m_nextParseJob, chatId, chat);
+    const quint64 jobId = ++m_nextParseJob;
+    m_parseChatContext.insert(jobId, inMainList);
+    emit parseChatRequested(jobId, chatId, chat);
 }
 
 void TelegramRepository::applyParsedChat(quint64 jobId, qint64 chatId, const ChatData& chat)
 {
-    Q_UNUSED(jobId)
+    const bool inMainList = m_parseChatContext.take(jobId);
     m_requestedChats.remove(chatId);
     if (chat.id == 0)
         return;
     ChatData data = chat;
-    data.inMainList = true;
+    const auto existing = m_chats.constFind(chatId != 0 ? chatId : data.id);
+    data.inMainList = existing != m_chats.cend() ? existing->inMainList : inMainList;
     if (m_mediaStore)
         data.photoReady = m_mediaStore->isReady(data.photoFileId);
-    const auto existing = m_chats.constFind(chatId != 0 ? chatId : data.id);
     if (existing != m_chats.cend() && existing->photoFileId == data.photoFileId) {
         // Keep the revision that already made the avatar visible. Resetting it
         // here used to swap the image URL and made avatars flicker on refresh.
@@ -509,6 +522,59 @@ void TelegramRepository::requestProfile(qint64 chatId)
         QStringLiteral("Could not load the profile"));
 }
 
+void TelegramRepository::selectFolder(qint64 folderId)
+{
+    if (folderId == m_currentFolderId)
+        return;
+    m_currentFolderId = folderId;
+    if (folderId == 0) {
+        rebuildChatList();
+        emit stateChanged();
+        return;
+    }
+
+    sendRequest(
+        getChatsForFolderRequest(folderId, 100),
+        [this, folderId](const QJsonObject& response) {
+            if (folderId != m_currentFolderId)
+                return;
+            if (!responseIsChats(response)) {
+                m_folderChatIds.remove(folderId);
+                rebuildChatList();
+                emit stateChanged();
+                return;
+            }
+
+            const QVector<qint64> ids = chatIdsFromResponse(response);
+            QSet<qint64> folderSet;
+            for (qint64 id : ids)
+                folderSet.insert(id);
+            m_folderChatIds.insert(folderId, folderSet);
+
+            for (qint64 chatId : ids) {
+                if (m_chats.contains(chatId) || m_requestedChats.contains(chatId))
+                    continue;
+                m_requestedChats.insert(chatId);
+                sendRequest(
+                    QJsonObject{{QStringLiteral("@type"), QStringLiteral("getChat")},
+                                {QStringLiteral("chat_id"), chatId}},
+                    [this, chatId](const QJsonObject& chatResponse) {
+                        if (chatResponse.value(QStringLiteral("@type")).toString()
+                            == QLatin1String("chat")) {
+                            enqueueChatParse(chatId, chatResponse, false);
+                        } else {
+                            m_requestedChats.remove(chatId);
+                        }
+                    },
+                    QStringLiteral("Could not read a folder chat"));
+            }
+
+            rebuildChatList();
+            emit stateChanged();
+        },
+        QStringLiteral("Could not load the chat folder"));
+}
+
 void TelegramRepository::sendText(const QString& text, qint64 replyToMessageId)
 {
     if (m_currentChatId == 0)
@@ -663,6 +729,22 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
     if (type.startsWith(QLatin1String("updateChat")) || type == QLatin1String("updateNewChat")
         || type == QLatin1String("updateNewMessage")) {
         qCDebug(lcRepo) << "Update" << type;
+    }
+
+    if (type == QLatin1String("updateChatFolders")) {
+        const ChatFoldersState folders = chatFoldersFromUpdate(update);
+        m_folderModel.setState(folders);
+        bool stillExists = m_currentFolderId == 0;
+        for (const ChatFolderInfo& folder : folders.folders) {
+            if (folder.id == m_currentFolderId)
+                stillExists = true;
+        }
+        if (!stillExists) {
+            m_currentFolderId = 0;
+            rebuildChatList();
+        }
+        emit stateChanged();
+        return;
     }
 
     if (type == QLatin1String("updateNewChat")) {

@@ -12,6 +12,7 @@
 #include "telegram/UserProfile.h"
 #include "ui/MediaViewerController.h"
 #include "ui/MediaPlaybackController.h"
+#include "ui/NotificationSettingsStore.h"
 #include "telegram/TelegramConfig.h"
 
 #include <QAbstractItemModel>
@@ -91,6 +92,8 @@ class AppController final : public QObject {
     Q_PROPERTY(QAbstractItemModel* messages READ messages CONSTANT)
     Q_PROPERTY(QAbstractItemModel* searchResults READ searchResults NOTIFY chatStateChanged)
     Q_PROPERTY(bool searchLoading READ searchLoading NOTIFY chatStateChanged)
+    Q_PROPERTY(QAbstractItemModel* chatFolders READ chatFolders NOTIFY chatStateChanged)
+    Q_PROPERTY(qint64 currentFolderId READ currentFolderId NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatTitle READ currentChatTitle NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatSubtitle READ currentChatSubtitle NOTIFY chatStateChanged)
@@ -115,6 +118,8 @@ class AppController final : public QObject {
     Q_PROPERTY(bool profileIsGroup READ profileIsGroup NOTIFY profileChanged)
     Q_PROPERTY(bool profileIsChannel READ profileIsChannel NOTIFY profileChanged)
     Q_PROPERTY(int profileMemberCount READ profileMemberCount NOTIFY profileChanged)
+    Q_PROPERTY(bool notificationsEnabled READ notificationsEnabled WRITE setNotificationsEnabled NOTIFY notificationSettingsChanged)
+    Q_PROPERTY(bool notificationPreview READ notificationPreview WRITE setNotificationPreview NOTIFY notificationSettingsChanged)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -175,6 +180,8 @@ public:
     [[nodiscard]] QAbstractItemModel* messages();
     [[nodiscard]] QAbstractItemModel* searchResults();
     [[nodiscard]] bool searchLoading() const;
+    [[nodiscard]] QAbstractItemModel* chatFolders();
+    [[nodiscard]] qint64 currentFolderId() const;
     [[nodiscard]] qint64 currentChatId() const;
     [[nodiscard]] QString currentChatTitle() const;
     [[nodiscard]] QString currentChatSubtitle() const;
@@ -199,6 +206,10 @@ public:
     [[nodiscard]] bool profileIsGroup() const;
     [[nodiscard]] bool profileIsChannel() const;
     [[nodiscard]] int profileMemberCount() const;
+    [[nodiscard]] bool notificationsEnabled() const;
+    [[nodiscard]] bool notificationPreview() const;
+    void setNotificationsEnabled(bool enabled);
+    void setNotificationPreview(bool enabled);
 
     [[nodiscard]] QString bgMediaTitle() const;
     [[nodiscard]] QString bgMediaDetail() const;
@@ -237,6 +248,7 @@ public:
     Q_INVOKABLE void loadOlderMessages();
     Q_INVOKABLE void searchInChat(const QString& query);
     Q_INVOKABLE void clearSearch();
+    Q_INVOKABLE void selectFolder(qint64 folderId);
     Q_INVOKABLE void sendChatMessage(const QString& text);
     Q_INVOKABLE bool sendChatMedia(const QUrl& file, const QString& caption = {});
     Q_INVOKABLE QString draftText(qint64 chatId) const;
@@ -277,6 +289,7 @@ signals:
     void chatFilterChanged();
     void replyStateChanged();
     void profileChanged();
+    void notificationSettingsChanged();
     void initialHistoryLoaded();
 
 private:
@@ -303,6 +316,7 @@ private:
     telegram::MediaFileStore m_mediaStore;
     MediaViewerController m_mediaViewer;
     MediaPlaybackController m_playback;
+    NotificationSettingsStore m_notificationSettings;
     telegram::DraftStore m_drafts;
     QTimer* m_busyTimer = nullptr;
     QSystemTrayIcon* m_tray = nullptr;

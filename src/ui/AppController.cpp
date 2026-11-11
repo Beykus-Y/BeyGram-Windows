@@ -96,10 +96,14 @@ AppController::AppController(QObject* parent)
       m_credentials(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))),
       m_registry(AppPaths::dataDirectory()),
       m_mediaViewer(&m_mediaStore),
+      m_notificationSettings(
+          QDir(AppPaths::dataDirectory())
+              .filePath(QStringLiteral("state/notification-settings.json"))),
       m_drafts(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("state/drafts.json")))
 {
     buildConfig();
     m_drafts.load();
+    m_notificationSettings.load();
 
     m_chatFilterModel.setSourceModel(&m_chatListModel);
 
@@ -625,8 +629,11 @@ void AppController::ensureRepository()
 
 void AppController::showNotification(const QString& title, const QString& body)
 {
-    if (title.isEmpty() || body.isEmpty() || !QSystemTrayIcon::isSystemTrayAvailable())
+    const NotificationSettings settings = m_notificationSettings.settings();
+    if (!settings.enabled || title.isEmpty() || body.isEmpty()
+        || !QSystemTrayIcon::isSystemTrayAvailable()) {
         return;
+    }
     if (!m_tray) {
         m_tray = new QSystemTrayIcon(this);
         m_tray->setIcon(QApplication::style()->standardIcon(
@@ -634,7 +641,8 @@ void AppController::showNotification(const QString& title, const QString& body)
         m_tray->setToolTip(QStringLiteral("BeyGram Windows"));
         m_tray->show();
     }
-    m_tray->showMessage(title, body, QSystemTrayIcon::Information, 6000);
+    m_tray->showMessage(title, settings.showPreview ? body : QStringLiteral("New message"),
+                        QSystemTrayIcon::Information, 6000);
 }
 
 void AppController::resetRepository()
@@ -673,6 +681,16 @@ QAbstractItemModel* AppController::searchResults()
 bool AppController::searchLoading() const
 {
     return m_repository && m_repository->searchLoading();
+}
+
+QAbstractItemModel* AppController::chatFolders()
+{
+    return m_repository ? m_repository->folderModel() : nullptr;
+}
+
+qint64 AppController::currentFolderId() const
+{
+    return m_repository ? m_repository->currentFolderId() : 0;
 }
 
 qint64 AppController::currentChatId() const
@@ -841,6 +859,28 @@ int AppController::profileMemberCount() const
     return m_profile.memberCount;
 }
 
+bool AppController::notificationsEnabled() const
+{
+    return m_notificationSettings.settings().enabled;
+}
+
+bool AppController::notificationPreview() const
+{
+    return m_notificationSettings.settings().showPreview;
+}
+
+void AppController::setNotificationsEnabled(bool enabled)
+{
+    m_notificationSettings.setEnabled(enabled);
+    emit notificationSettingsChanged();
+}
+
+void AppController::setNotificationPreview(bool enabled)
+{
+    m_notificationSettings.setShowPreview(enabled);
+    emit notificationSettingsChanged();
+}
+
 void AppController::openChat(qint64 chatId)
 {
     m_chatError.clear();
@@ -889,6 +929,13 @@ void AppController::clearSearch()
 {
     if (m_repository)
         m_repository->clearSearch();
+}
+
+void AppController::selectFolder(qint64 folderId)
+{
+    if (m_repository)
+        m_repository->selectFolder(folderId);
+    emit chatStateChanged();
 }
 
 QString AppController::draftText(qint64 chatId) const

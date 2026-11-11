@@ -91,8 +91,8 @@ real avatars/thumbnails, rich-text entities, replies, a still-image viewer,
 desktop notifications, a batched update scheduler, background parsing,
 persisted drafts, in-chat search, a profile drawer, persisted appearance
 settings, file attachments, audio/video playback and desktop window-state
-restore. Folder tabs/archive, global search, albums, forwarding and
-notification preferences remain open in this phase.
+restore, folder tabs, notification settings and global-search groundwork.
+Archive, global search UI, albums and forwarding UI remain open in this phase.
 
 Scope:
 

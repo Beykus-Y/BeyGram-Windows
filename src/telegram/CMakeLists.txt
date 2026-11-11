@@ -17,8 +17,12 @@ add_library(beygram_telegram STATIC
     CredentialStore.h
     DraftStore.cpp
     DraftStore.h
+    FolderChats.cpp
+    FolderChats.h
     ForwardMessages.cpp
     ForwardMessages.h
+    GlobalSearchModel.cpp
+    GlobalSearchModel.h
     ReplyInfo.cpp
     ReplyInfo.h
     SearchResultModel.cpp
