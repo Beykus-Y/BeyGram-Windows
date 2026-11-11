@@ -37,6 +37,7 @@ struct MessageData {
     QString text;
     QString textHtml;
     QString replyPreview;
+    QString reactionsJson;
     QString senderName;
     QString contentType;
     bool outgoing = false;

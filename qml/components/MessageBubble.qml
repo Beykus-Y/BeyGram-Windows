@@ -10,6 +10,7 @@ Item {
     property string text: ""
     property string textHtml: ""
     property string replyPreview: ""
+    property string reactionsJson: ""
     property bool outgoing: false
     property string senderName: ""
     property var date: 0
@@ -27,6 +28,34 @@ Item {
     signal deleteRequested(int messageId)
     signal mediaOpenRequested(int fileId)
     signal mediaPlayRequested(int fileId)
+    signal reactionRequested(string emoji)
+
+    function reactionList() {
+        if (!reactionsJson)
+            return []
+        try {
+            const root = JSON.parse(reactionsJson)
+            const items = root.reactions || []
+            return items.map(function(item) {
+                const type = item.type || {}
+                const kind = type["@type"] || ""
+                const count = Number(item.total_count !== undefined
+                                     ? item.total_count
+                                     : (item.count || 0))
+                return {
+                    type: kind === "reactionTypeEmoji" ? "emoji"
+                          : kind === "reactionTypeCustomEmoji" ? "custom_emoji"
+                          : kind === "reactionTypePaid" ? "paid" : "",
+                    emoji: type.emoji || "",
+                    customEmojiId: Number(type.custom_emoji_id || 0),
+                    count: count,
+                    chosen: item.is_chosen === true
+                }
+            }).filter(function(item) { return item.count > 0 })
+        } catch (error) {
+            return []
+        }
+    }
     signal replyRequested(int messageId, string preview)
 
     implicitHeight: bubble.height + 8
@@ -137,6 +166,7 @@ Item {
                                             Math.min(320, bubbleItem.mediaWidth > 0
                                                      ? bubbleItem.mediaWidth : 240))
                 visible: bubbleItem.mediaFileId > 0
+                         && bubbleItem.contentType !== "sticker"
                 radius: 10
                 clip: true
                 color: Qt.alpha(BeyGramTheme.surface2, 0.6)
@@ -179,6 +209,20 @@ Item {
                             bubbleItem.mediaOpenRequested(fullId)
                     }
                 }
+            }
+
+            StickerBubble {
+                Layout.alignment: Qt.AlignHCenter
+                visible: bubbleItem.contentType === "sticker"
+                fileId: 0
+                thumbnailFileId: bubbleItem.mediaFileId
+                ready: bubbleItem.mediaReady
+                revision: bubbleItem.mediaRevision
+                animated: false
+                onClicked: bubbleItem.mediaOpenRequested(
+                               bubbleItem.mediaFullFileId > 0
+                               ? bubbleItem.mediaFullFileId
+                               : bubbleItem.mediaFileId)
             }
 
             RowLayout {
@@ -248,6 +292,14 @@ Item {
                     color: BeyGramTheme.muted
                     font.pixelSize: 11
                 }
+            }
+
+            ReactionBar {
+                Layout.fillWidth: true
+                visible: bubbleItem.reactionList().length > 0
+                reactions: bubbleItem.reactionList()
+                canReact: false
+                onReactionToggled: (emoji) => bubbleItem.reactionRequested(emoji)
             }
         }
 

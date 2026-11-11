@@ -49,6 +49,7 @@ public:
     void editMessage(qint64 messageId, const QString& text);
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();
+    void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     void searchInChat(const QString& query);
     void clearSearch();
     void requestProfile(qint64 chatId);

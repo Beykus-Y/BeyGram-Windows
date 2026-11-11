@@ -90,6 +90,9 @@ qt_add_qml_module(beygram
         qml/components/ChatRow.qml
         qml/components/ChatFolderTabs.qml
         qml/components/MessageBubble.qml
+        qml/components/PinnedMessageBanner.qml
+        qml/components/ReactionBar.qml
+        qml/components/StickerBubble.qml
         qml/components/MediaViewerOverlay.qml
         qml/components/MediaPlaybackOverlay.qml
         qml/pages/ChatsPage.qml

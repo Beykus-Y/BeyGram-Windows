@@ -3,6 +3,7 @@
 #include "core/Logging.h"
 #include "core/Redaction.h"
 #include "MediaFileStore.h"
+#include "MessageReactions.h"
 #include "MessageSearch.h"
 #include "NotificationFormatter.h"
 #include "ChatFolders.h"
@@ -640,6 +641,23 @@ void TelegramRepository::sendMedia(OutgoingMediaKind kind, const QString& localP
         },
         QStringLiteral("Could not send the media"), 120000);
     emit stateChanged();
+}
+
+void TelegramRepository::sendReaction(qint64 chatId, qint64 messageId,
+                                      const QString& emoji)
+{
+    if (chatId == 0 || messageId == 0 || emoji.isEmpty())
+        return;
+    sendRequest(sendReactionRequest(chatId, messageId, emoji),
+                [this](const QJsonObject& response) {
+                    if (response.value(QStringLiteral("@type")).toString()
+                        == QLatin1String("error")) {
+                        setError(QStringLiteral("Could not update the reaction: %1")
+                                     .arg(response.value(QStringLiteral("message")).toString()));
+                    }
+                    emit stateChanged();
+                },
+                QStringLiteral("Could not update the reaction"));
 }
 
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)

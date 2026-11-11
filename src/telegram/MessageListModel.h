@@ -32,6 +32,7 @@ public:
         MediaRevisionRole,
         ReplyToMessageIdRole,
         ReplyPreviewRole,
+        ReactionsRole,
     };
     Q_ENUM(Role)
 

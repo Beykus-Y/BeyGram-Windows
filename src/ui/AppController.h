@@ -262,6 +262,7 @@ public:
     Q_INVOKABLE void closeProfile();
     Q_INVOKABLE void editChatMessage(qint64 messageId, const QString& text);
     Q_INVOKABLE void deleteChatMessage(qint64 messageId);
+    Q_INVOKABLE void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE void clearChatError();
     Q_INVOKABLE void requestChatPhoto(int fileId);
