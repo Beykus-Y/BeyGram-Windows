@@ -5,8 +5,10 @@
 #include "telegram/ChatFilterModel.h"
 #include "telegram/ChatListModel.h"
 #include "telegram/CredentialStore.h"
+#include "telegram/DraftStore.h"
 #include "telegram/MediaFileStore.h"
 #include "telegram/MessageListModel.h"
+#include "telegram/UserProfile.h"
 #include "ui/MediaViewerController.h"
 #include "telegram/TelegramConfig.h"
 
@@ -85,6 +87,8 @@ class AppController final : public QObject {
 
     Q_PROPERTY(QAbstractItemModel* chatList READ chatList CONSTANT)
     Q_PROPERTY(QAbstractItemModel* messages READ messages CONSTANT)
+    Q_PROPERTY(QAbstractItemModel* searchResults READ searchResults NOTIFY chatStateChanged)
+    Q_PROPERTY(bool searchLoading READ searchLoading NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatTitle READ currentChatTitle NOTIFY chatStateChanged)
     Q_PROPERTY(QString currentChatSubtitle READ currentChatSubtitle NOTIFY chatStateChanged)
@@ -98,6 +102,17 @@ class AppController final : public QObject {
     Q_PROPERTY(QString chatFilter READ chatFilter WRITE setChatFilter NOTIFY chatFilterChanged)
     Q_PROPERTY(qint64 replyToMessageId READ replyToMessageId NOTIFY replyStateChanged)
     Q_PROPERTY(QString replyPreview READ replyPreview NOTIFY replyStateChanged)
+
+    Q_PROPERTY(bool profileVisible READ profileVisible NOTIFY profileChanged)
+    Q_PROPERTY(bool profileLoading READ profileLoading NOTIFY profileChanged)
+    Q_PROPERTY(QString profileName READ profileName NOTIFY profileChanged)
+    Q_PROPERTY(QString profileUsername READ profileUsername NOTIFY profileChanged)
+    Q_PROPERTY(QString profileBio READ profileBio NOTIFY profileChanged)
+    Q_PROPERTY(QString profilePhone READ profilePhone NOTIFY profileChanged)
+    Q_PROPERTY(int profilePhotoFileId READ profilePhotoFileId NOTIFY profileChanged)
+    Q_PROPERTY(bool profileIsGroup READ profileIsGroup NOTIFY profileChanged)
+    Q_PROPERTY(bool profileIsChannel READ profileIsChannel NOTIFY profileChanged)
+    Q_PROPERTY(int profileMemberCount READ profileMemberCount NOTIFY profileChanged)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -156,6 +171,8 @@ public:
 
     [[nodiscard]] QAbstractItemModel* chatList();
     [[nodiscard]] QAbstractItemModel* messages();
+    [[nodiscard]] QAbstractItemModel* searchResults();
+    [[nodiscard]] bool searchLoading() const;
     [[nodiscard]] qint64 currentChatId() const;
     [[nodiscard]] QString currentChatTitle() const;
     [[nodiscard]] QString currentChatSubtitle() const;
@@ -170,6 +187,16 @@ public:
     void setChatFilter(const QString& filter);
     [[nodiscard]] qint64 replyToMessageId() const;
     [[nodiscard]] QString replyPreview() const;
+    [[nodiscard]] bool profileVisible() const;
+    [[nodiscard]] bool profileLoading() const;
+    [[nodiscard]] QString profileName() const;
+    [[nodiscard]] QString profileUsername() const;
+    [[nodiscard]] QString profileBio() const;
+    [[nodiscard]] QString profilePhone() const;
+    [[nodiscard]] int profilePhotoFileId() const;
+    [[nodiscard]] bool profileIsGroup() const;
+    [[nodiscard]] bool profileIsChannel() const;
+    [[nodiscard]] int profileMemberCount() const;
 
     [[nodiscard]] QString bgMediaTitle() const;
     [[nodiscard]] QString bgMediaDetail() const;
@@ -206,9 +233,18 @@ public:
     Q_INVOKABLE void openChat(qint64 chatId);
     Q_INVOKABLE void closeChat();
     Q_INVOKABLE void loadOlderMessages();
+    Q_INVOKABLE void searchInChat(const QString& query);
+    Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void sendChatMessage(const QString& text);
+    Q_INVOKABLE QString draftText(qint64 chatId) const;
+    Q_INVOKABLE qint64 draftReplyToMessageId(qint64 chatId) const;
+    Q_INVOKABLE void saveDraft(qint64 chatId, const QString& text,
+                               qint64 replyToMessageId = 0);
+    Q_INVOKABLE void clearDraft(qint64 chatId);
     Q_INVOKABLE void beginReply(qint64 messageId, const QString& preview);
     Q_INVOKABLE void cancelReply();
+    Q_INVOKABLE void requestProfile(qint64 chatId);
+    Q_INVOKABLE void closeProfile();
     Q_INVOKABLE void editChatMessage(qint64 messageId, const QString& text);
     Q_INVOKABLE void deleteChatMessage(qint64 messageId);
     Q_INVOKABLE void copyText(const QString& text);
@@ -235,6 +271,7 @@ signals:
     void chatStateChanged();
     void chatFilterChanged();
     void replyStateChanged();
+    void profileChanged();
     void initialHistoryLoaded();
 
 private:
@@ -260,6 +297,7 @@ private:
     telegram::ChatFilterModel m_chatFilterModel;
     telegram::MediaFileStore m_mediaStore;
     MediaViewerController m_mediaViewer;
+    telegram::DraftStore m_drafts;
     QTimer* m_busyTimer = nullptr;
     QSystemTrayIcon* m_tray = nullptr;
 
@@ -276,6 +314,9 @@ private:
     qint64 m_replyToMessageId = 0;
     qint64 m_replyChatId = 0;
     QString m_replyPreview;
+    telegram::UserProfile m_profile;
+    bool m_profileVisible = false;
+    bool m_profileLoading = false;
     int m_authErrorCode = 0;
     bool m_tdlibAvailable = false;
     bool m_credentialsConfigured = false;

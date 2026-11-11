@@ -1,6 +1,8 @@
 add_library(beygram_ui STATIC
     AppController.cpp
     AppController.h
+    AppearanceStore.cpp
+    AppearanceStore.h
     MediaViewerController.cpp
     MediaViewerController.h
     MediaImageProvider.cpp

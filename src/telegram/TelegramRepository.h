@@ -2,7 +2,9 @@
 
 #include "ChatListModel.h"
 #include "MessageListModel.h"
+#include "SearchResultModel.h"
 #include "TelegramTypes.h"
+#include "UserProfile.h"
 #include "TelegramUpdateScheduler.h"
 
 #include <QHash>
@@ -43,6 +45,9 @@ public:
     void editMessage(qint64 messageId, const QString& text);
     void deleteMessage(qint64 messageId);
     void markCurrentChatRead();
+    void searchInChat(const QString& query);
+    void clearSearch();
+    void requestProfile(qint64 chatId);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -54,6 +59,8 @@ public:
     [[nodiscard]] int currentChatPhotoFileId() const { return m_currentChatPhotoFileId; }
     [[nodiscard]] bool currentChatPhotoReady() const { return m_currentChatPhotoReady; }
     [[nodiscard]] int currentChatPhotoRevision() const { return m_currentChatPhotoRevision; }
+    [[nodiscard]] SearchResultModel* searchModel() { return &m_searchModel; }
+    [[nodiscard]] bool searchLoading() const { return m_searchLoading; }
 
 signals:
     void currentChatChanged();
@@ -61,6 +68,7 @@ signals:
     void errorOccurred(const QString& message);
     void initialHistoryLoaded();
     void notificationRequested(const QString& title, const QString& body);
+    void profileLoaded(const UserProfile& profile);
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
@@ -94,6 +102,7 @@ private:
     ChatListModel* m_chatModel = nullptr;
     MessageListModel* m_messageModel = nullptr;
     MediaFileStore* m_mediaStore = nullptr;
+    SearchResultModel m_searchModel;
 
     QHash<qint64, ChatData> m_chats;
     QSet<qint64> m_requestedChats;
@@ -110,11 +119,13 @@ private:
     bool m_currentChatPhotoReady = false;
     int m_currentChatPhotoRevision = 0;
     bool m_historyLoading = false;
+    bool m_searchLoading = false;
     bool m_hasMoreHistory = true;
     bool m_loadingChats = false;
     bool m_started = false;
     bool m_chatListRebuildPending = false;
     QString m_error;
+    QString m_searchQuery;
 
     TelegramUpdateScheduler m_scheduler;
     QThread* m_parseThread = nullptr;

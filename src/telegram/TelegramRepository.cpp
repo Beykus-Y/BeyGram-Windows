@@ -3,6 +3,7 @@
 #include "core/Logging.h"
 #include "core/Redaction.h"
 #include "MediaFileStore.h"
+#include "MessageSearch.h"
 #include "NotificationFormatter.h"
 #include "TelegramParseWorker.h"
 #include "TelegramRequests.h"
@@ -283,6 +284,7 @@ void TelegramRepository::openChat(qint64 chatId)
     m_hasMoreHistory = true;
     m_historyLoading = true;
     m_error.clear();
+    clearSearch();
     emit currentChatChanged();
     emit stateChanged();
 
@@ -304,6 +306,7 @@ void TelegramRepository::closeChat()
     m_oldestMessageId = 0;
     m_lastReadMessageId = 0;
     m_hasMoreHistory = true;
+    clearSearch();
     emit currentChatChanged();
     emit stateChanged();
 }
@@ -388,6 +391,122 @@ void TelegramRepository::applyHistory(quint64 jobId, qint64 chatId, bool older,
         emit initialHistoryLoaded();
     }
     emit stateChanged();
+}
+
+void TelegramRepository::searchInChat(const QString& query)
+{
+    if (m_currentChatId == 0) {
+        clearSearch();
+        return;
+    }
+    const QString body = query.trimmed();
+    if (body.isEmpty()) {
+        clearSearch();
+        return;
+    }
+
+    m_searchQuery = body;
+    m_searchLoading = true;
+    emit stateChanged();
+    const qint64 chatId = m_currentChatId;
+    sendRequest(
+        searchChatMessagesRequest(chatId, body, 0, 50),
+        [this, chatId, body](const QJsonObject& response) {
+            if (chatId != m_currentChatId || body != m_searchQuery)
+                return;
+            m_searchLoading = false;
+            if (response.value(QStringLiteral("@type")).toString()
+                == QLatin1String("error")) {
+                m_searchModel.clear();
+                emit errorOccurred(QStringLiteral("Search failed: %1")
+                                       .arg(response.value(QStringLiteral("message")).toString()));
+            } else {
+                m_searchModel.setHits(searchHitsFromResponse(response));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not search messages"));
+}
+
+void TelegramRepository::clearSearch()
+{
+    m_searchQuery.clear();
+    m_searchLoading = false;
+    m_searchModel.clear();
+    emit stateChanged();
+}
+
+void TelegramRepository::requestProfile(qint64 chatId)
+{
+    if (chatId == 0)
+        return;
+
+    sendRequest(
+        getChatRequest(chatId),
+        [this, chatId](const QJsonObject& chatResponse) {
+            if (chatResponse.value(QStringLiteral("@type")).toString()
+                != QLatin1String("chat")) {
+                return;
+            }
+
+            const QJsonObject chatType =
+                chatResponse.value(QStringLiteral("type")).toObject();
+            const QString type = chatType.value(QStringLiteral("@type")).toString();
+
+            if (type == QLatin1String("chatTypePrivate")
+                || type == QLatin1String("chatTypeSecret")) {
+                const qint64 userId = jsonInt64(chatType.value(QStringLiteral("user_id")));
+                if (userId == 0) {
+                    emit profileLoaded(profileFromChat(chatResponse));
+                    return;
+                }
+                sendRequest(
+                    getUserRequest(userId),
+                    [this, chatId, userId, chatResponse](const QJsonObject& userResponse) {
+                        if (userResponse.value(QStringLiteral("@type")).toString()
+                            != QLatin1String("user")) {
+                            return;
+                        }
+                        sendRequest(
+                            getUserFullInfoRequest(userId),
+                            [this, chatId, userResponse](const QJsonObject& fullResponse) {
+                                const QJsonObject full =
+                                    fullResponse.value(QStringLiteral("@type")).toString()
+                                            == QLatin1String("userFullInfo")
+                                        ? fullResponse
+                                        : QJsonObject{};
+                                UserProfile profile = profileFromUser(userResponse, full);
+                                profile.chatId = chatId;
+                                emit profileLoaded(profile);
+                            },
+                            QStringLiteral("Could not load profile details"));
+                    },
+                    QStringLiteral("Could not load the user profile"));
+                return;
+            }
+
+            if (type == QLatin1String("chatTypeSupergroup")) {
+                const qint64 supergroupId =
+                    jsonInt64(chatType.value(QStringLiteral("supergroup_id")));
+                if (supergroupId != 0) {
+                    sendRequest(
+                        getSupergroupFullInfoRequest(supergroupId),
+                        [this, chatResponse](const QJsonObject& fullResponse) {
+                            const QJsonObject full =
+                                fullResponse.value(QStringLiteral("@type")).toString()
+                                        == QLatin1String("supergroupFullInfo")
+                                    ? fullResponse
+                                    : QJsonObject{};
+                            emit profileLoaded(profileFromChat(chatResponse, full));
+                        },
+                        QStringLiteral("Could not load group details"));
+                    return;
+                }
+            }
+
+            emit profileLoaded(profileFromChat(chatResponse));
+        },
+        QStringLiteral("Could not load the profile"));
 }
 
 void TelegramRepository::sendText(const QString& text, qint64 replyToMessageId)

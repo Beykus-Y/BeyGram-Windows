@@ -1,11 +1,13 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
 #include "ui/AppController.h"
+#include "ui/AppearanceStore.h"
 #include "ui/MediaImageProvider.h"
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QtQml>
@@ -46,6 +48,17 @@ int main(int argc, char* argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     beygram::ui::ThemeController theme;
+    beygram::ui::AppearanceStore appearance(
+        QDir(beygram::AppPaths::dataDirectory()).filePath(QStringLiteral("appearance.json")));
+    appearance.load();
+    theme.setPresetName(appearance.settings().themePreset);
+    theme.setModeName(appearance.settings().themeMode);
+    QObject::connect(&theme, &beygram::ui::ThemeController::themeChanged, &appearance,
+                     [&theme, &appearance] {
+                         appearance.setThemePreset(theme.presetName());
+                         appearance.setThemeMode(theme.modeName());
+                     });
+
     beygram::ui::AppController controller;
 
     qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramTheme", &theme);

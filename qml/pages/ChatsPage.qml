@@ -8,14 +8,61 @@ Item {
     id: page
 
     property int editingId: 0
+    property int loadedChatId: 0
+    property bool searchOpen: false
+
+    function openSearch() {
+        searchOpen = true
+        searchField.forceActiveFocus()
+    }
+
+    function closeSearch() {
+        searchOpen = false
+        searchField.text = ""
+        searchTimer.stop()
+        BeyGramApp.clearSearch()
+    }
+
+    function flushDraft() {
+        draftTimer.stop()
+        const id = draftTimer.chatId
+        if (id > 0 && editingId === 0) {
+            if (composer.text.trim().length > 0)
+                BeyGramApp.saveDraft(id, composer.text, BeyGramApp.replyToMessageId)
+            else
+                BeyGramApp.clearDraft(id)
+        }
+    }
+
+    function scheduleDraft() {
+        if (editingId > 0 || BeyGramApp.currentChatId === 0)
+            return
+        draftTimer.chatId = BeyGramApp.currentChatId
+        draftTimer.restart()
+    }
+
+    function loadDraft() {
+        const id = BeyGramApp.currentChatId
+        loadedChatId = id
+        editingId = 0
+        if (id === 0) {
+            composer.text = ""
+            return
+        }
+        draftTimer.chatId = id
+        composer.text = BeyGramApp.draftText(id)
+    }
 
     function resetComposer() {
+        flushDraft()
         editingId = 0
         composer.text = ""
         BeyGramApp.cancelReply()
+        loadedChatId = 0
     }
 
     function beginEdit(messageId, text) {
+        flushDraft()
         editingId = messageId
         BeyGramApp.cancelReply()
         composer.text = text
@@ -27,13 +74,43 @@ Item {
         const text = composer.text.trim()
         if (text.length === 0)
             return
-        if (editingId > 0)
+        if (editingId > 0) {
             BeyGramApp.editChatMessage(editingId, text)
-        else
+        } else {
+            draftTimer.stop()
+            BeyGramApp.clearDraft(BeyGramApp.currentChatId)
             BeyGramApp.sendChatMessage(text)
+        }
         composer.text = ""
         editingId = 0
         composer.forceActiveFocus()
+    }
+
+    Timer {
+        id: draftTimer
+        property int chatId: 0
+        interval: 450
+        repeat: false
+        onTriggered: {
+            if (page.editingId === 0 && chatId === BeyGramApp.currentChatId
+                && composer.text.trim().length > 0) {
+                BeyGramApp.saveDraft(chatId, composer.text,
+                                     BeyGramApp.replyToMessageId)
+            }
+        }
+    }
+
+    Timer {
+        id: searchTimer
+        interval: 320
+        repeat: false
+        onTriggered: {
+            const query = searchField.text.trim()
+            if (query.length > 0)
+                BeyGramApp.searchInChat(query)
+            else
+                BeyGramApp.clearSearch()
+        }
     }
 
     RowLayout {
@@ -254,10 +331,71 @@ Item {
                             }
                         }
 
+                        SecondaryButton {
+                            text: "Profile"
+                            implicitHeight: 30
+                            onClicked: BeyGramApp.requestProfile(BeyGramApp.currentChatId)
+                        }
+
+                        SecondaryButton {
+                            text: page.searchOpen ? "Close search" : "Search"
+                            implicitHeight: 30
+                            onClicked: page.searchOpen ? page.closeSearch() : page.openSearch()
+                        }
+
                         Pill {
                             visible: BeyGramApp.connectionTitle !== "Connected"
                             text: BeyGramApp.connectionTitle.toUpperCase()
                             tone: "warn"
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: page.searchOpen
+                    implicitHeight: 48
+                    color: BeyGramTheme.surface
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: BeyGramTheme.line
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 12
+                        spacing: 8
+
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            leftPadding: 12
+                            rightPadding: 12
+                            placeholderText: "Search in this chat"
+                            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
+                            color: BeyGramTheme.text
+                            selectionColor: BeyGramTheme.accent
+                            selectedTextColor: BeyGramTheme.onAccent
+                            font.pixelSize: 13
+                            background: Rectangle {
+                                radius: 17
+                                color: BeyGramTheme.surface2
+                                border.width: searchField.activeFocus ? 1 : 0
+                                border.color: BeyGramTheme.accent
+                            }
+                            onTextEdited: searchTimer.restart()
+                        }
+                        BusyIndicator {
+                            running: BeyGramApp.searchLoading
+                            visible: running
+                            implicitWidth: 22
+                            implicitHeight: 22
                         }
                     }
                 }
@@ -326,6 +464,73 @@ Item {
                         onCountChanged: {
                             if (!BeyGramApp.historyLoading)
                                 Qt.callLater(positionViewAtEnd)
+                        }
+                    }
+
+                    Rectangle {
+                        id: searchPanel
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: Math.min(320, parent.height * 0.55)
+                        visible: page.searchOpen && searchField.text.trim().length > 0
+                        z: 20
+                        color: BeyGramTheme.surface
+                        border.width: 1
+                        border.color: BeyGramTheme.line
+
+                        ListView {
+                            id: searchList
+                            anchors.fill: parent
+                            clip: true
+                            model: BeyGramApp.searchResults
+                            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                            delegate: Rectangle {
+                                width: searchList.width
+                                height: 56
+                                color: hover.containsMouse ? BeyGramTheme.surface2 : "transparent"
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 16
+                                    spacing: 3
+                                    Text {
+                                        width: parent.width
+                                        text: model.text.length > 0 ? model.text : "[media]"
+                                        color: BeyGramTheme.text
+                                        font.pixelSize: 13
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        text: model.date > 0
+                                              ? Qt.formatDateTime(new Date(model.date * 1000),
+                                                                  "dd.MM.yyyy hh:mm")
+                                              : ""
+                                        color: BeyGramTheme.muted
+                                        font.pixelSize: 11
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: hover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.closeSearch()
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: searchList.count === 0 && !BeyGramApp.searchLoading
+                            text: "No matches"
+                            color: BeyGramTheme.muted
+                            font.pixelSize: 12
                         }
                     }
 
@@ -470,6 +675,7 @@ Item {
                                         event.accepted = true
                                     }
                                 }
+                                onTextChanged: page.scheduleDraft()
                             }
 
                             PrimaryButton {
@@ -480,6 +686,110 @@ Item {
                         }
 
                     }
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: 320
+                visible: BeyGramApp.profileVisible
+                z: 40
+                color: BeyGramTheme.surface
+                border.width: 1
+                border.color: BeyGramTheme.line
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 12
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Profile"
+                            color: BeyGramTheme.text
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                        }
+                        SecondaryButton {
+                            text: "Close"
+                            implicitHeight: 28
+                            onClicked: BeyGramApp.closeProfile()
+                        }
+                    }
+
+                    Avatar {
+                        Layout.alignment: Qt.AlignHCenter
+                        size: 84
+                        fileId: BeyGramApp.currentChatPhotoFileId
+                        ready: BeyGramApp.currentChatPhotoReady
+                        revision: BeyGramApp.currentChatPhotoRevision
+                        initials: BeyGramApp.currentChatTitle.length > 0
+                                  ? BeyGramApp.currentChatTitle.charAt(0).toUpperCase()
+                                  : "?"
+                        tint: BeyGramTheme.accentSoft
+                        ink: BeyGramTheme.accentInk
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        text: BeyGramApp.profileName.length > 0
+                              ? BeyGramApp.profileName
+                              : BeyGramApp.currentChatTitle
+                        color: BeyGramTheme.text
+                        font.pixelSize: 17
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        visible: text.length > 0
+                        text: BeyGramApp.profileUsername.length > 0
+                              ? "@" + BeyGramApp.profileUsername : ""
+                        color: BeyGramTheme.accentInk
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        visible: BeyGramApp.profileIsGroup || BeyGramApp.profileIsChannel
+                        text: (BeyGramApp.profileIsChannel ? "Channel" : "Group")
+                              + (BeyGramApp.profileMemberCount > 0
+                                 ? " · " + BeyGramApp.profileMemberCount + " members" : "")
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: BeyGramTheme.line }
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: BeyGramApp.profileBio.length > 0
+                        text: BeyGramApp.profileBio
+                        color: BeyGramTheme.text
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.35
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: BeyGramApp.profilePhone.length > 0
+                        text: BeyGramApp.profilePhone
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 12
+                    }
+                    BusyIndicator {
+                        Layout.alignment: Qt.AlignHCenter
+                        running: BeyGramApp.profileLoading
+                        visible: running
+                    }
+                    Item { Layout.fillHeight: true }
                 }
             }
 
@@ -531,8 +841,17 @@ Item {
             Qt.callLater(messageListView.positionViewAtEnd)
         }
         function onChatStateChanged() {
-            if (BeyGramApp.currentChatId === 0)
+            if (page.searchOpen && BeyGramApp.currentChatId !== page.loadedChatId)
+                page.closeSearch()
+            if (BeyGramApp.currentChatId === 0) {
                 page.resetComposer()
+                page.loadedChatId = 0
+            } else if (BeyGramApp.currentChatId !== page.loadedChatId) {
+                page.loadDraft()
+            }
+        }
+        function onReplyStateChanged() {
+            page.scheduleDraft()
         }
     }
 

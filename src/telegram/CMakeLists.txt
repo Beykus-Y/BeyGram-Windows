@@ -7,22 +7,32 @@ add_library(beygram_telegram STATIC
     AuthState.h
     ChatFilterModel.cpp
     ChatFilterModel.h
+    ChatFolders.cpp
+    ChatFolders.h
     ChatListModel.cpp
     ChatListModel.h
     CredentialStore.cpp
     CredentialStore.h
+    DraftStore.cpp
+    DraftStore.h
     ReplyInfo.cpp
     ReplyInfo.h
+    SearchResultModel.cpp
+    SearchResultModel.h
     NotificationFormatter.cpp
     NotificationFormatter.h
     TelegramParseWorker.cpp
     TelegramParseWorker.h
     TelegramUpdateScheduler.cpp
     TelegramUpdateScheduler.h
+    UserProfile.cpp
+    UserProfile.h
     TextFormatting.cpp
     TextFormatting.h
     MessageListModel.cpp
     MessageListModel.h
+    MessageSearch.cpp
+    MessageSearch.h
     SessionLock.cpp
     SessionLock.h
     TdJsonTransport.cpp

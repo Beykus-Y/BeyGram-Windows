@@ -95,9 +95,11 @@ AppController::AppController(QObject* parent)
     : QObject(parent),
       m_credentials(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("secrets"))),
       m_registry(AppPaths::dataDirectory()),
-      m_mediaViewer(&m_mediaStore)
+      m_mediaViewer(&m_mediaStore),
+      m_drafts(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("state/drafts.json")))
 {
     buildConfig();
+    m_drafts.load();
 
     m_chatFilterModel.setSourceModel(&m_chatListModel);
 
@@ -611,6 +613,13 @@ void AppController::ensureRepository()
             [this] { emit initialHistoryLoaded(); });
     connect(m_repository.get(), &telegram::TelegramRepository::notificationRequested, this,
             &AppController::showNotification);
+    connect(m_repository.get(), &telegram::TelegramRepository::profileLoaded, this,
+            [this](const telegram::UserProfile& profile) {
+                m_profile = profile;
+                m_profileLoading = false;
+                m_profileVisible = true;
+                emit profileChanged();
+            });
     m_repository->start();
 }
 
@@ -639,6 +648,10 @@ void AppController::resetRepository()
     m_replyChatId = 0;
     m_replyPreview.clear();
     emit replyStateChanged();
+    m_profile = {};
+    m_profileVisible = false;
+    m_profileLoading = false;
+    emit profileChanged();
     emit chatStateChanged();
 }
 
@@ -650,6 +663,16 @@ QAbstractItemModel* AppController::chatList()
 QAbstractItemModel* AppController::messages()
 {
     return &m_messageModel;
+}
+
+QAbstractItemModel* AppController::searchResults()
+{
+    return m_repository ? m_repository->searchModel() : nullptr;
+}
+
+bool AppController::searchLoading() const
+{
+    return m_repository && m_repository->searchLoading();
 }
 
 qint64 AppController::currentChatId() const
@@ -738,9 +761,64 @@ QString AppController::replyPreview() const
     return m_replyPreview;
 }
 
+bool AppController::profileVisible() const
+{
+    return m_profileVisible;
+}
+
+bool AppController::profileLoading() const
+{
+    return m_profileLoading;
+}
+
+QString AppController::profileName() const
+{
+    return m_profile.displayName;
+}
+
+QString AppController::profileUsername() const
+{
+    return m_profile.username;
+}
+
+QString AppController::profileBio() const
+{
+    return m_profile.bio;
+}
+
+QString AppController::profilePhone() const
+{
+    return m_profile.phoneNumber;
+}
+
+int AppController::profilePhotoFileId() const
+{
+    return m_profile.photoFileId;
+}
+
+bool AppController::profileIsGroup() const
+{
+    return m_profile.isGroup;
+}
+
+bool AppController::profileIsChannel() const
+{
+    return m_profile.isChannel;
+}
+
+int AppController::profileMemberCount() const
+{
+    return m_profile.memberCount;
+}
+
 void AppController::openChat(qint64 chatId)
 {
     m_chatError.clear();
+    if (m_profileVisible) {
+        m_profileVisible = false;
+        m_profileLoading = false;
+        emit profileChanged();
+    }
     if (chatId != m_replyChatId) {
         m_replyToMessageId = 0;
         m_replyPreview.clear();
@@ -769,6 +847,42 @@ void AppController::loadOlderMessages()
 {
     if (m_repository)
         m_repository->loadOlder();
+}
+
+void AppController::searchInChat(const QString& query)
+{
+    if (m_repository)
+        m_repository->searchInChat(query);
+}
+
+void AppController::clearSearch()
+{
+    if (m_repository)
+        m_repository->clearSearch();
+}
+
+QString AppController::draftText(qint64 chatId) const
+{
+    return m_drafts.draft(chatId).text;
+}
+
+qint64 AppController::draftReplyToMessageId(qint64 chatId) const
+{
+    return m_drafts.draft(chatId).replyToMessageId;
+}
+
+void AppController::saveDraft(qint64 chatId, const QString& text, qint64 replyToMessageId)
+{
+    if (chatId == 0)
+        return;
+    m_drafts.setDraft(chatId, text, replyToMessageId);
+}
+
+void AppController::clearDraft(qint64 chatId)
+{
+    if (chatId == 0)
+        return;
+    m_drafts.clearDraft(chatId);
 }
 
 void AppController::sendChatMessage(const QString& text)
@@ -802,6 +916,26 @@ void AppController::cancelReply()
     m_replyToMessageId = 0;
     m_replyPreview.clear();
     emit replyStateChanged();
+}
+
+void AppController::requestProfile(qint64 chatId)
+{
+    if (chatId == 0)
+        return;
+    m_profileLoading = true;
+    m_profileVisible = true;
+    emit profileChanged();
+    if (m_repository)
+        m_repository->requestProfile(chatId);
+}
+
+void AppController::closeProfile()
+{
+    if (!m_profileVisible)
+        return;
+    m_profileVisible = false;
+    m_profileLoading = false;
+    emit profileChanged();
 }
 
 void AppController::editChatMessage(qint64 messageId, const QString& text)

@@ -13,6 +13,7 @@ Item {
     Shortcut { sequence: "Alt+2"; onActivated: shell.currentSection = 1 }
     Shortcut { sequence: "Alt+3"; onActivated: shell.currentSection = 2 }
     Shortcut { sequence: "Alt+4"; onActivated: shell.currentSection = 3 }
+    Shortcut { sequence: "Alt+5"; onActivated: shell.currentSection = 4 }
 
     RowLayout {
         anchors.fill: parent
@@ -144,15 +145,21 @@ Item {
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Network"
+                    text: "Settings"
                     selected: shell.currentSection === 2
                     onClicked: shell.currentSection = 2
                 }
                 NavButton {
                     Layout.fillWidth: true
-                    text: "Logs"
+                    text: "Network"
                     selected: shell.currentSection === 3
                     onClicked: shell.currentSection = 3
+                }
+                NavButton {
+                    Layout.fillWidth: true
+                    text: "Logs"
+                    selected: shell.currentSection === 4
+                    onClicked: shell.currentSection = 4
                 }
 
                 Item { Layout.fillHeight: true }
@@ -191,6 +198,7 @@ Item {
 
             ChatsPage {}
             OverviewPage {}
+            SettingsPage {}
             EnvironmentPage {}
             LogsPage {}
         }

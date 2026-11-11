@@ -86,6 +86,7 @@ qt_add_qml_module(beygram
         qml/components/AuthField.qml
         qml/components/Avatar.qml
         qml/components/Card.qml
+        qml/components/ChoiceChip.qml
         qml/components/ChatRow.qml
         qml/components/MessageBubble.qml
         qml/components/MediaViewerOverlay.qml
@@ -96,6 +97,7 @@ qt_add_qml_module(beygram
         qml/components/SecondaryButton.qml
         qml/components/StatusRow.qml
         qml/pages/OverviewPage.qml
+        qml/pages/SettingsPage.qml
         qml/pages/EnvironmentPage.qml
         qml/pages/LogsPage.qml
 )
