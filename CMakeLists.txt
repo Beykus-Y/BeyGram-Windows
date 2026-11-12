@@ -89,6 +89,7 @@ qt_add_qml_module(beygram
         qml/components/ChoiceChip.qml
         qml/components/AlbumGrid.qml
         qml/components/ChatNotificationSettings.qml
+        qml/components/NotificationSettings.qml
         qml/components/LinkPreviewCard.qml
         qml/components/PollBubble.qml
         qml/components/PollComposerDialog.qml
