@@ -11,13 +11,17 @@
 // with its action id because that is the stable name the facade exposes;
 // searching by the human-readable description is done inside the facade, which
 // is why the search field can find "Reply to message" by typing "reply".
+//
+// Layout comes from the design system: a DsSection header, a DsSearchField, one
+// DsCard holding DsListRow entries and DsDialog for the reset.
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-Rectangle {
+Item {
     id: root
 
     /// The ShortcutsFacade driving this panel. May be null while the page is
@@ -32,10 +36,6 @@ Rectangle {
 
     implicitWidth: 440
     implicitHeight: 460
-    radius: 14
-    color: BeyGramTheme.surface
-    border.width: 1
-    border.color: BeyGramTheme.line
 
     /// The sequence shown for a visible row, or "" when the index has no row.
     function sequenceAt(rowIndex) {
@@ -55,56 +55,28 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 10
+        spacing: Design.space4
 
-        RowLayout {
+        DsSection {
             Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                Layout.fillWidth: true
-                text: "Keyboard shortcuts"
-                color: BeyGramTheme.text
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-
-            // The dot is the only hint that the table no longer matches what
-            // shipped; the Reset button carries the same state through enabled.
-            Rectangle {
-                Layout.alignment: Qt.AlignVCenter
-                visible: root.modified
-                width: 6
-                height: 6
-                radius: 3
-                color: BeyGramTheme.accent
-            }
+            title: qsTr("Keyboard shortcuts")
+            description: qsTr("Select a shortcut field and press the new combination. A duplicate is refused.")
         }
 
-        TextField {
+        DsSearchField {
             id: searchField
+
             Layout.fillWidth: true
-            Layout.preferredHeight: 34
-            implicitHeight: 34
-            leftPadding: 13
-            rightPadding: 13
-            placeholderText: "Search shortcuts"
-            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-            color: BeyGramTheme.text
-            font.pixelSize: 12
-            selectByMouse: true
-            selectionColor: BeyGramTheme.accent
-            selectedTextColor: BeyGramTheme.onAccent
-            Accessible.name: "Search shortcuts"
+            placeholderText: qsTr("Search shortcuts")
             // The facade stores the query as typed, so the binding never fights
             // the user mid-word.
             text: root.query
+
             onTextEdited: {
                 if (root.facade)
                     root.facade.query = searchField.text
             }
+
             Keys.onEscapePressed: (event) => {
                 if (searchField.text.length > 0) {
                     searchField.text = ""
@@ -113,168 +85,164 @@ Rectangle {
                 }
                 event.accepted = true
             }
-
-            background: Rectangle {
-                radius: 17
-                color: BeyGramTheme.surface2
-                border.width: 1
-                border.color: searchField.activeFocus ? BeyGramTheme.accent
-                                                      : Qt.alpha(BeyGramTheme.line, 0.9)
-                Behavior on border.color { ColorAnimation { duration: 120 } }
-            }
         }
 
-        Item {
+        DsCard {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            Flickable {
-                id: scroller
+            Item {
                 anchors.fill: parent
-                clip: true
-                contentWidth: width
-                contentHeight: rowColumn.height
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                anchors.margins: Design.space4
 
-                Column {
-                    id: rowColumn
-                    width: scroller.width
-                    spacing: 0
+                Flickable {
+                    id: scroller
 
-                    Repeater {
-                        model: root.actions
+                    anchors.fill: parent
+                    clip: true
+                    contentWidth: width
+                    contentHeight: rowColumn.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                        delegate: Rectangle {
-                            id: row
+                    ColumnLayout {
+                        id: rowColumn
 
-                            // `index` and `modelData` come from the Repeater's
-                            // delegate context; copying them into properties
-                            // lets the children below name them through `row`.
-                            readonly property int rowIndex: index
-                            readonly property string actionText: modelData === undefined
-                                                                || modelData === null
-                                                                ? "" : String(modelData)
+                        width: scroller.width
+                        spacing: 0
 
-                            width: rowColumn.width
-                            height: 46
-                            color: "transparent"
+                        Repeater {
+                            model: root.actions
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 2
-                                anchors.rightMargin: 2
-                                spacing: 10
+                            delegate: ColumnLayout {
+                                id: row
 
-                                Text {
+                                // `index` and `modelData` come from the
+                                // Repeater's delegate context; copying them into
+                                // properties lets the children below name them
+                                // through `row`.
+                                required property int index
+                                required property string modelData
+
+                                readonly property string actionText: row.modelData === undefined
+                                                                      || row.modelData === null
+                                                                      ? "" : String(row.modelData)
+
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                DsListRow {
                                     Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignVCenter
-                                    text: row.actionText
-                                    color: BeyGramTheme.text
-                                    font.pixelSize: 12
-                                    elide: Text.ElideRight
-                                }
+                                    title: row.actionText
+                                    hoverEnabled: false
 
-                                TextField {
-                                    id: sequenceField
-                                    Layout.preferredWidth: 150
-                                    Layout.alignment: Qt.AlignVCenter
-                                    implicitHeight: 30
-                                    leftPadding: 10
-                                    rightPadding: 10
-                                    horizontalAlignment: TextInput.AlignHCenter
-                                    placeholderText: "Unbound"
-                                    placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.7)
-                                    color: BeyGramTheme.text
-                                    font.pixelSize: 11
-                                    selectByMouse: true
-                                    selectionColor: BeyGramTheme.accent
-                                    selectedTextColor: BeyGramTheme.onAccent
-                                    Accessible.name: "Shortcut for " + row.actionText
+                                    trailing: DsTextField {
+                                        id: sequenceField
 
-                                    // Re-applied whenever the row is not being
-                                    // edited, so a reset or an external reload
-                                    // reaches a field the user has typed in.
-                                    Binding {
-                                        target: sequenceField
-                                        property: "text"
-                                        value: root.sequenceAt(row.rowIndex)
-                                        when: !sequenceField.activeFocus
-                                    }
+                                        width: 160
+                                        horizontalAlignment: TextInput.AlignHCenter
+                                        placeholderText: qsTr("Unbound")
+                                        Accessible.name: qsTr("Shortcut for ") + row.actionText
 
-                                    onEditingFinished: {
-                                        root.commitSequence(row.rowIndex, sequenceField.text)
-                                        // Show what the facade stored: trimmed,
-                                        // or the old binding when it refused.
-                                        sequenceField.text = root.sequenceAt(row.rowIndex)
-                                    }
+                                        // Re-applied whenever the row is not
+                                        // being edited, so a reset or an
+                                        // external reload reaches a field the
+                                        // user has typed in.
+                                        Binding {
+                                            target: sequenceField
+                                            property: "text"
+                                            value: root.sequenceAt(row.index)
+                                            when: !sequenceField.activeFocus
+                                            restoreMode: Binding.RestoreNone
+                                        }
 
-                                    Keys.onEscapePressed: (event) => {
-                                        sequenceField.text = root.sequenceAt(row.rowIndex)
-                                        event.accepted = true
-                                    }
+                                        onEditingFinished: {
+                                            root.commitSequence(row.index, sequenceField.text)
+                                            // Show what the facade stored:
+                                            // trimmed, or the old binding when
+                                            // it refused.
+                                            sequenceField.text = root.sequenceAt(row.index)
+                                        }
 
-                                    background: Rectangle {
-                                        radius: 9
-                                        color: BeyGramTheme.surface2
-                                        border.width: 1
-                                        border.color: sequenceField.activeFocus
-                                                      ? BeyGramTheme.accent
-                                                      : Qt.alpha(BeyGramTheme.line, 0.9)
-                                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                                        Keys.onEscapePressed: (event) => {
+                                            sequenceField.text = root.sequenceAt(row.index)
+                                            event.accepted = true
+                                        }
                                     }
                                 }
-                            }
 
-                            // Hairline between rows, like a settings list.
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 1
-                                color: Qt.alpha(BeyGramTheme.line, 0.6)
+                                // Hairline between rows, like a settings list.
+                                DsDivider {
+                                    Layout.fillWidth: true
+                                    inset: Design.space3
+                                    visible: row.index < root.rowCount - 1
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Text {
-                anchors.centerIn: parent
-                width: Math.max(0, Math.min(260, parent.width - 40))
-                visible: root.rowCount === 0
-                text: root.query.length > 0 ? "No shortcuts match your search"
-                                            : "No shortcuts to show"
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
+                Text {
+                    anchors.centerIn: parent
+                    width: Math.max(0, Math.min(260, parent.width - Design.space10))
+                    visible: root.rowCount === 0
+                    text: root.query.length > 0
+                          ? qsTr("No shortcuts match your search")
+                          : qsTr("No shortcuts to show")
+                    color: BeyGramTheme.muted
+                    font.pixelSize: Design.fontSmall
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
             }
         }
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Design.space2
+
+            DsBadge {
+                visible: root.modified
+                text: qsTr("Modified")
+                tone: "accent"
+                dot: true
+            }
 
             Text {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
-                text: root.modified ? "Changes are not saved yet"
-                                    : "Shortcuts match the defaults"
+                text: root.modified
+                      ? qsTr("Changes are not saved yet")
+                      : qsTr("Shortcuts match the defaults")
                 color: BeyGramTheme.muted
-                font.pixelSize: 11
+                font.pixelSize: Design.fontSmall
                 elide: Text.ElideRight
             }
 
-            SecondaryButton {
-                text: "Reset"
+            DsButton {
+                text: qsTr("Reset")
+                tone: "danger"
+                size: "sm"
                 enabled: root.modified
-                Accessible.name: "Reset shortcuts to defaults"
-                onClicked: {
-                    if (root.facade)
-                        root.facade.resetToDefaults()
-                }
+                accessibleName: qsTr("Reset shortcuts to defaults")
+                onClicked: resetDialog.open()
             }
+        }
+    }
+
+    // The reset discards every custom binding, so it is confirmed first.
+    DsDialog {
+        id: resetDialog
+
+        title: qsTr("Reset shortcuts?")
+        description: qsTr("Every shortcut goes back to the combination that shipped with BeyGram.")
+        primaryText: qsTr("Reset")
+        secondaryText: qsTr("Cancel")
+        tone: "danger"
+
+        onAccepted: {
+            if (root.facade)
+                root.facade.resetToDefaults()
         }
     }
 }

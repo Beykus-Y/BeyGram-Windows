@@ -10,12 +10,15 @@
 // person should have to read, so the list shows a prettified label
 // ("userPrivacySettingShowStatus" -> "Show status") and keeps the raw name out
 // of the way. The value column always shows the confirmed audience; the draft
-// being edited appears in the chip row below it.
+// being edited appears in the segmented control below it.
+//
+// Layout comes from the design system: a DsSection per group, a DsCard for the
+// list, DsListRow for each setting and DsSegmented for the audience.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: root
@@ -29,13 +32,18 @@ Item {
 
     readonly property bool hasFacade: root.facade ? true : false
 
-    /// The four audiences the facade accepts, in the order the buttons show them.
+    /// The four audiences the facade accepts, in the order the control shows them.
     readonly property var choices: [
-        { value: "everyone", label: "Everyone" },
-        { value: "contacts", label: "Contacts" },
-        { value: "closeFriends", label: "Close friends" },
-        { value: "nobody", label: "Nobody" }
+        { value: "everyone", label: qsTr("Everyone") },
+        { value: "contacts", label: qsTr("Contacts") },
+        { value: "closeFriends", label: qsTr("Close friends") },
+        { value: "nobody", label: qsTr("Nobody") }
     ]
+
+    /// The labels alone, which is the shape DsSegmented takes as its model.
+    readonly property var choiceLabels: root.choices.map(function (choice) {
+        return choice.label
+    })
 
     readonly property var names: root.hasFacade ? root.facade.settingNames : []
 
@@ -71,147 +79,142 @@ Item {
         return root.hasFacade && root.facade.editingIndex === index
     }
 
+    /// Position of the draft audience in `choices`, for the segmented control.
+    function editingChoiceIndex() {
+        if (!root.hasFacade)
+            return 0
+        var value = root.facade.editingValue
+        for (var i = 0; i < root.choices.length; ++i) {
+            if (root.choices[i].value === value)
+                return i
+        }
+        return 0
+    }
+
     ColumnLayout {
         id: column
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        spacing: 12
+        spacing: Design.space4
 
-        Text {
+        DsSection {
             Layout.fillWidth: true
-            text: "Privacy"
-            color: BeyGramTheme.text
-            font.pixelSize: 18
-            font.weight: Font.DemiBold
-        }
+            title: qsTr("Privacy")
+            description: qsTr("Choose who can see your information and who can contact you. Changes are sent to Telegram one setting at a time.")
 
-        Text {
-            Layout.fillWidth: true
-            text: "Choose who can see your information and who can contact you. Changes are sent to Telegram one setting at a time."
-            color: BeyGramTheme.muted
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
-            lineHeight: 1.3
-        }
-
-        Card {
-            Layout.fillWidth: true
-            spacing: 10
-
-            Text {
+            content: DsCard {
                 Layout.fillWidth: true
-                visible: root.names.length === 0
-                text: "No privacy settings loaded yet."
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
 
-            Repeater {
-                model: root.names.length
-
-                delegate: ColumnLayout {
-                    id: settingRow
-
-                    required property int index
-
+                content: ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 0
 
-                    Rectangle {
+                    DsListRow {
                         Layout.fillWidth: true
-                        visible: settingRow.index > 0
-                        height: 1
-                        color: BeyGramTheme.line
+                        visible: root.names.length === 0
+                        title: qsTr("No privacy settings loaded yet.")
+                        muted: true
+                        hoverEnabled: false
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
+                    Repeater {
+                        model: root.names.length
 
-                        ColumnLayout {
+                        delegate: ColumnLayout {
+                            id: settingRow
+
+                            required property int index
+
                             Layout.fillWidth: true
-                            spacing: 2
+                            spacing: Design.space2
 
-                            Text {
+                            DsListRow {
                                 Layout.fillWidth: true
-                                text: root.settingLabel(root.names[settingRow.index])
-                                color: BeyGramTheme.text
-                                font.pixelSize: 13
-                                elide: Text.ElideRight
-                            }
+                                title: root.settingLabel(root.names[settingRow.index])
+                                subtitle: root.valueLabel(root.currentValue(settingRow.index))
 
-                            Text {
-                                Layout.fillWidth: true
-                                text: root.valueLabel(root.currentValue(settingRow.index))
-                                color: BeyGramTheme.muted
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        SecondaryButton {
-                            visible: !root.isEditing(settingRow.index)
-                            text: "Change"
-                            Accessible.name: "Change " + root.settingLabel(root.names[settingRow.index])
-                            onClicked: {
-                                if (root.hasFacade)
-                                    root.facade.beginEdit(settingRow.index)
-                            }
-                        }
-                    }
-
-                    // Inline editor: the four audiences plus Save / Cancel. Save
-                    // stays disabled until the facade reports a real change, so
-                    // the panel cannot send a value the user already has.
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        visible: root.isEditing(settingRow.index)
-
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Repeater {
-                                model: root.choices
-
-                                delegate: ChoiceChip {
-                                    required property var modelData
-
-                                    text: modelData.label
-                                    selected: root.hasFacade
-                                              && root.facade.editingValue === modelData.value
+                                trailing: DsButton {
+                                    visible: !root.isEditing(settingRow.index)
+                                    text: qsTr("Change")
+                                    tone: "secondary"
+                                    size: "sm"
+                                    accessibleName: qsTr("Change %1").arg(root.settingLabel(root.names[settingRow.index]))
                                     onClicked: {
                                         if (root.hasFacade)
-                                            root.facade.setEditingValue(modelData.value)
+                                            root.facade.beginEdit(settingRow.index)
                                     }
                                 }
                             }
-                        }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
+                            // Inline editor: the four audiences plus Save / Cancel.
+                            // Save stays disabled until the facade reports a real
+                            // change, so the panel cannot send a value the user
+                            // already has.
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: Design.space3
+                                Layout.rightMargin: Design.space3
+                                Layout.bottomMargin: Design.space3
+                                spacing: Design.space2
+                                visible: root.isEditing(settingRow.index)
 
-                            Item { Layout.fillWidth: true }
+                                DsSegmented {
+                                    id: audienceSegment
 
-                            SecondaryButton {
-                                text: "Cancel"
-                                onClicked: {
-                                    if (root.hasFacade)
-                                        root.facade.cancelEdit()
+                                    Layout.fillWidth: true
+                                    model: root.choiceLabels
+
+                                    onActivated: function (index) {
+                                        if (root.hasFacade)
+                                            root.facade.setEditingValue(root.choices[index].value)
+                                    }
+                                }
+
+                                // The control writes currentIndex itself on a
+                                // click, so a Binding element (which survives
+                                // that write) keeps it in step with the facade.
+                                Binding {
+                                    target: audienceSegment
+                                    property: "currentIndex"
+                                    value: root.editingChoiceIndex()
+                                    restoreMode: Binding.RestoreNone
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Design.space2
+
+                                    Item { Layout.fillWidth: true }
+
+                                    DsButton {
+                                        text: qsTr("Cancel")
+                                        tone: "secondary"
+                                        size: "sm"
+                                        onClicked: {
+                                            if (root.hasFacade)
+                                                root.facade.cancelEdit()
+                                        }
+                                    }
+
+                                    DsButton {
+                                        text: qsTr("Save")
+                                        tone: "primary"
+                                        size: "sm"
+                                        enabled: root.hasFacade && root.facade.canSave
+                                        onClicked: {
+                                            if (root.hasFacade)
+                                                root.facade.markSaved()
+                                        }
+                                    }
                                 }
                             }
 
-                            PrimaryButton {
-                                text: "Save"
-                                enabled: root.hasFacade && root.facade.canSave
-                                onClicked: {
-                                    if (root.hasFacade)
-                                        root.facade.markSaved()
-                                }
+                            DsDivider {
+                                Layout.fillWidth: true
+                                Layout.topMargin: Design.space1
+                                inset: Design.space3
+                                visible: settingRow.index < root.names.length - 1
                             }
                         }
                     }

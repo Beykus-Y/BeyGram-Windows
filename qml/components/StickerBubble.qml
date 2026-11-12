@@ -1,11 +1,14 @@
 import QtQuick
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 /// Static sticker thumbnail for a message bubble.
 ///
 /// Animated playback is not implemented yet; only the static full-size image
 /// or its thumbnail is shown. The `animated` flag only drives a small badge and
-/// does not start any animation.
+/// does not start any animation. The component keeps its original API
+/// (fileId / thumbnailFileId / ready / revision / animated / emojiSize and the
+/// clicked signal); only the surface and typography now come from the DS.
 Item {
     id: root
 
@@ -29,19 +32,23 @@ Item {
     implicitWidth: Math.min(160, Math.max(48, emojiSize))
     implicitHeight: implicitWidth
 
+    Accessible.role: Accessible.Button
+    Accessible.name: "Sticker"
+    Accessible.onPressAction: root.clicked()
+
     Rectangle {
         id: placeholder
         anchors.fill: parent
-        radius: 8
+        radius: Design.radiusMd
         color: Qt.alpha(BeyGramTheme.surface2, 0.55)
         visible: image.status !== Image.Ready
 
         Text {
             anchors.centerIn: parent
-            width: parent.width - 12
+            width: Math.max(0, parent.width - Design.space3)
             text: "[Sticker]"
             color: BeyGramTheme.muted
-            font.pixelSize: 11
+            font.pixelSize: Design.fontCaption
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }
@@ -58,24 +65,13 @@ Item {
         visible: status === Image.Ready
     }
 
-    Rectangle {
+    DsBadge {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 3
-        width: badge.implicitWidth + 8
-        height: badge.implicitHeight + 2
-        radius: height / 2
-        color: Qt.alpha(BeyGramTheme.bg, 0.72)
+        anchors.margins: Design.space1
+        text: "ANIM"
+        tone: "muted"
         visible: root.animated
-
-        Text {
-            id: badge
-            anchors.centerIn: parent
-            text: "ANIM"
-            color: BeyGramTheme.text
-            font.pixelSize: 8
-            font.weight: Font.DemiBold
-        }
     }
 
     MouseArea {

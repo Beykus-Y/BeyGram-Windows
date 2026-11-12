@@ -10,11 +10,15 @@
 // facade.saveChat(), which emits chatSettingsRequested only when something
 // actually changed, so the Save button can stay enabled without sending
 // duplicates.
+//
+// Layout comes from the design system: a DsSection per group, a DsCard for each
+// group, DsListRow with a DsSwitch for the toggles, DsTextField for the quiet
+// hours and DsChip for the sound picker.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 ColumnLayout {
     id: root
@@ -33,7 +37,7 @@ ColumnLayout {
     readonly property var soundLabels: [qsTr("Silent")].concat(root.ready ? root.facade.soundTitles : [])
     readonly property int soundRow: root.ready ? Number(root.facade.soundIndex) + 1 : 0
 
-    spacing: 16
+    spacing: Design.space4
 
     function minutesToText(minutes) {
         const value = Math.max(0, Math.min(1439, Math.round(Number(minutes))))
@@ -131,283 +135,309 @@ ColumnLayout {
     }
 
     // Global switches.
-    Card {
+    DsSection {
         Layout.fillWidth: true
-        spacing: 10
+        title: qsTr("Notifications")
+        description: qsTr("What happens when a message arrives while the window is in the background.")
 
-        Text {
+        content: DsCard {
             Layout.fillWidth: true
-            text: qsTr("Notifications")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
 
-        CheckBox {
-            id: enabledBox
-            Layout.fillWidth: true
-            text: qsTr("Desktop notifications")
-            enabled: root.ready
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.enabled = checked
-        }
+            content: ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
 
-        CheckBox {
-            id: soundBox
-            Layout.fillWidth: true
-            text: qsTr("Play notification sound")
-            enabled: root.notificationsOn
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.sound = checked
-        }
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Desktop notifications")
+                    subtitle: qsTr("Show an alert for every new message.")
 
-        CheckBox {
-            id: previewBox
-            Layout.fillWidth: true
-            text: qsTr("Show message preview")
-            enabled: root.notificationsOn
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.preview = checked
-        }
+                    trailing: DsSwitch {
+                        id: enabledBox
 
-        CheckBox {
-            id: dndBox
-            Layout.fillWidth: true
-            text: qsTr("Do not disturb")
-            enabled: root.notificationsOn
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.dnd = checked
-        }
+                        enabled: root.ready
+                        Accessible.name: qsTr("Desktop notifications")
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Do not disturb keeps everything silent until you turn it off.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
+                        onToggled: if (root.ready) root.facade.enabled = enabledBox.checked
+                    }
+                }
+
+                DsDivider {
+                    Layout.fillWidth: true
+                    inset: Design.space3
+                }
+
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Play notification sound")
+                    subtitle: qsTr("A short sound for each alert.")
+
+                    trailing: DsSwitch {
+                        id: soundBox
+
+                        enabled: root.notificationsOn
+                        Accessible.name: qsTr("Play notification sound")
+
+                        onToggled: if (root.ready) root.facade.sound = soundBox.checked
+                    }
+                }
+
+                DsDivider {
+                    Layout.fillWidth: true
+                    inset: Design.space3
+                }
+
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Show message preview")
+                    subtitle: qsTr("Include the message text in the alert.")
+
+                    trailing: DsSwitch {
+                        id: previewBox
+
+                        enabled: root.notificationsOn
+                        Accessible.name: qsTr("Show message preview")
+
+                        onToggled: if (root.ready) root.facade.preview = previewBox.checked
+                    }
+                }
+
+                DsDivider {
+                    Layout.fillWidth: true
+                    inset: Design.space3
+                }
+
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Do not disturb")
+                    subtitle: qsTr("Keeps everything silent until you turn it off.")
+
+                    trailing: DsSwitch {
+                        id: dndBox
+
+                        enabled: root.notificationsOn
+                        Accessible.name: qsTr("Do not disturb")
+
+                        onToggled: if (root.ready) root.facade.dnd = dndBox.checked
+                    }
+                }
+            }
         }
     }
 
     // Quiet hours.
-    Card {
+    DsSection {
         Layout.fillWidth: true
-        spacing: 10
+        title: qsTr("Quiet hours")
+        description: qsTr("Notifications stay silent between these times. Equal times turn the window off.")
 
-        Text {
+        content: DsCard {
             Layout.fillWidth: true
-            text: qsTr("Quiet hours")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Notifications stay silent between these times. Equal times turn the window off.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-            lineHeight: 1.3
-        }
+            content: ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Design.space3
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Design.space2
 
-            TextField {
-                id: quietStartField
-                Layout.preferredWidth: 88
-                maximumLength: 5
-                horizontalAlignment: TextInput.AlignHCenter
-                placeholderText: "22:00"
-                enabled: root.notificationsOn
-                font.pixelSize: 13
-                palette.text: BeyGramTheme.text
-                palette.windowText: BeyGramTheme.text
-                palette.base: BeyGramTheme.surface2
-                palette.highlight: BeyGramTheme.accentSoft
-                palette.highlightedText: BeyGramTheme.accentInk
-                Accessible.name: qsTr("Quiet hours start")
-                onTextEdited: root.quietInvalid = false
+                    DsTextField {
+                        id: quietStartField
+
+                        Layout.preferredWidth: 110
+                        label: qsTr("From")
+                        maximumLength: 5
+                        horizontalAlignment: TextInput.AlignHCenter
+                        placeholderText: "22:00"
+                        enabled: root.notificationsOn
+                        opacity: enabled ? 1.0 : Design.opacityDisabled
+                        Accessible.name: qsTr("Quiet hours start")
+
+                        onTextEdited: root.quietInvalid = false
+                    }
+
+                    DsTextField {
+                        id: quietEndField
+
+                        Layout.preferredWidth: 110
+                        label: qsTr("To")
+                        maximumLength: 5
+                        horizontalAlignment: TextInput.AlignHCenter
+                        placeholderText: "08:00"
+                        enabled: root.notificationsOn
+                        opacity: enabled ? 1.0 : Design.opacityDisabled
+                        Accessible.name: qsTr("Quiet hours end")
+
+                        onTextEdited: root.quietInvalid = false
+                    }
+
+                    DsButton {
+                        Layout.alignment: Qt.AlignBottom
+                        text: qsTr("Apply")
+                        tone: "primary"
+                        size: "sm"
+                        enabled: root.notificationsOn
+                        onClicked: root.applyQuietHours()
+                    }
+
+                    DsButton {
+                        Layout.alignment: Qt.AlignBottom
+                        text: qsTr("Off")
+                        tone: "secondary"
+                        size: "sm"
+                        enabled: root.notificationsOn
+                        onClicked: root.clearQuietHours()
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.quietInvalid
+                          ? qsTr("Use a 24-hour time like 22:00.")
+                          : qsTr("Quiet hours: %1").arg(root.ready ? root.facade.quietText : qsTr("Off"))
+                    color: root.quietInvalid ? BeyGramTheme.danger : BeyGramTheme.muted
+                    font.pixelSize: Design.fontSmall
+                    wrapMode: Text.WordWrap
+                    Accessible.name: text
+                }
             }
-
-            Text {
-                text: "\u2013"
-                color: BeyGramTheme.muted
-                font.pixelSize: 13
-            }
-
-            TextField {
-                id: quietEndField
-                Layout.preferredWidth: 88
-                maximumLength: 5
-                horizontalAlignment: TextInput.AlignHCenter
-                placeholderText: "08:00"
-                enabled: root.notificationsOn
-                font.pixelSize: 13
-                palette.text: BeyGramTheme.text
-                palette.windowText: BeyGramTheme.text
-                palette.base: BeyGramTheme.surface2
-                palette.highlight: BeyGramTheme.accentSoft
-                palette.highlightedText: BeyGramTheme.accentInk
-                Accessible.name: qsTr("Quiet hours end")
-                onTextEdited: root.quietInvalid = false
-            }
-
-            SecondaryButton {
-                text: qsTr("Apply")
-                enabled: root.notificationsOn
-                onClicked: root.applyQuietHours()
-            }
-
-            SecondaryButton {
-                text: qsTr("Off")
-                enabled: root.notificationsOn
-                onClicked: root.clearQuietHours()
-            }
-
-            Item { Layout.fillWidth: true }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: root.quietInvalid
-                  ? qsTr("Use a 24-hour time like 22:00.")
-                  : qsTr("Quiet hours: %1").arg(root.ready ? root.facade.quietText : qsTr("Off"))
-            color: root.quietInvalid ? BeyGramTheme.danger : BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-            Accessible.name: text
         }
     }
 
     // Sound picker: "Silent" plus every sound the facade offers.
-    Card {
+    DsSection {
         Layout.fillWidth: true
-        spacing: 10
+        title: qsTr("Notification sound")
+        description: qsTr("The sound plays for chats that are not muted.")
 
-        Text {
+        content: DsCard {
             Layout.fillWidth: true
-            text: qsTr("Notification sound")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("The sound plays for chats that are not muted.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-        }
+            content: ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Design.space2
 
-        Flow {
-            Layout.fillWidth: true
-            spacing: 8
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Design.space2
 
-            Repeater {
-                model: root.soundLabels
+                    Repeater {
+                        model: root.soundLabels
 
-                delegate: ChoiceChip {
-                    required property int index
-                    required property string modelData
+                        delegate: DsChip {
+                            required property int index
+                            required property string modelData
 
-                    text: modelData
-                    selected: root.soundRow === index
-                    enabled: root.ready
-                    Accessible.name: modelData
-                    onClicked: if (root.ready) root.facade.selectSound(index - 1)
+                            text: modelData
+                            selected: root.soundRow === index
+                            enabled: root.ready
+                            onClicked: if (root.ready) root.facade.selectSound(index - 1)
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: root.soundLabels.length <= 1
+                    text: qsTr("No sounds are offered yet.")
+                    color: BeyGramTheme.muted
+                    font.pixelSize: Design.fontSmall
+                    wrapMode: Text.WordWrap
                 }
             }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            visible: root.soundLabels.length <= 1
-            text: qsTr("No sounds are offered yet.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
         }
     }
 
     // Per-chat overrides for the chat the parent loaded through
     // facade.loadChat().
-    Card {
+    DsSection {
         Layout.fillWidth: true
-        spacing: 10
+        title: qsTr("This chat")
+        description: qsTr("Overrides for the chat this screen loaded. They are sent when you save.")
 
-        Text {
+        content: DsCard {
             Layout.fillWidth: true
-            text: qsTr("This chat")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Overrides for the chat this screen loaded. They are sent when you save.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-            lineHeight: 1.3
-        }
+            content: ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
 
-        CheckBox {
-            id: chatMuteBox
-            Layout.fillWidth: true
-            text: qsTr("Mute notifications")
-            enabled: root.ready
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.setChatMuted(checked)
-        }
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Mute notifications")
+                    subtitle: qsTr("No alerts for this chat.")
 
-        CheckBox {
-            id: chatSoundBox
-            Layout.fillWidth: true
-            text: qsTr("Play notification sound")
-            enabled: root.ready && !Boolean(root.facade.chatMuted)
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.setChatSound(checked)
-        }
+                    trailing: DsSwitch {
+                        id: chatMuteBox
 
-        CheckBox {
-            id: chatPreviewBox
-            Layout.fillWidth: true
-            text: qsTr("Show message preview")
-            enabled: root.ready && !Boolean(root.facade.chatMuted)
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: if (root.ready) root.facade.setChatPreview(checked)
-        }
+                        enabled: root.ready
+                        Accessible.name: qsTr("Mute notifications")
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
+                        onToggled: if (root.ready) root.facade.setChatMuted(chatMuteBox.checked)
+                    }
+                }
 
-            Item { Layout.fillWidth: true }
+                DsDivider {
+                    Layout.fillWidth: true
+                    inset: Design.space3
+                }
 
-            // Always enabled while a facade is present: saveChat() itself is a
-            // no-op when the chat is clean, so this cannot send duplicates.
-            PrimaryButton {
-                text: qsTr("Save")
-                enabled: root.ready
-                onClicked: if (root.ready) root.facade.saveChat()
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Play notification sound")
+                    subtitle: qsTr("Overrides the global sound for this chat.")
+
+                    trailing: DsSwitch {
+                        id: chatSoundBox
+
+                        enabled: root.ready && !Boolean(root.facade.chatMuted)
+                        Accessible.name: qsTr("Play notification sound for this chat")
+
+                        onToggled: if (root.ready) root.facade.setChatSound(chatSoundBox.checked)
+                    }
+                }
+
+                DsDivider {
+                    Layout.fillWidth: true
+                    inset: Design.space3
+                }
+
+                DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Show message preview")
+                    subtitle: qsTr("Overrides the global preview for this chat.")
+
+                    trailing: DsSwitch {
+                        id: chatPreviewBox
+
+                        enabled: root.ready && !Boolean(root.facade.chatMuted)
+                        Accessible.name: qsTr("Show message preview for this chat")
+
+                        onToggled: if (root.ready) root.facade.setChatPreview(chatPreviewBox.checked)
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.margins: Design.space3
+                    spacing: Design.space2
+
+                    Item { Layout.fillWidth: true }
+
+                    // Always enabled while a facade is present: saveChat()
+                    // itself is a no-op when the chat is clean, so this cannot
+                    // send duplicates.
+                    DsButton {
+                        text: qsTr("Save")
+                        tone: "primary"
+                        size: "sm"
+                        enabled: root.ready
+                        onClicked: if (root.ready) root.facade.saveChat()
+                    }
+                }
             }
         }
     }

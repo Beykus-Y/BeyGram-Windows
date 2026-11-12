@@ -58,7 +58,7 @@ This document describes the native Windows client. The Android client under
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
 - Warm/Graphite palettes and FollowSystem/Light/Dark/AMOLED brightness.
-- Own design system in `qml/ds/`: shared tokens (`design.js`, `DsTheme`), documented in `docs/design/DESIGN_SYSTEM.md`, and 29 components (buttons, fields, cards, rows, dialogs, sheets, menus, tabs, chips, switches, sliders, bubbles, composer, avatars, badges, toasts and more) with a live gallery at Alt+8.
+- Own design system in `qml/ds/`: shared tokens (`design.js`, `DsTheme`), documented in `docs/design/DESIGN_SYSTEM.md`, and 29 components (buttons, fields, cards, rows, dialogs, sheets, menus, tabs, chips, switches, sliders, bubbles, composer, avatars, badges, toasts and more) with a live gallery at Alt+8. Every page, dialog and core component now uses the DS: two-pane chat layout, icon navigation rail, DS sections/rows, DS dialogs and empty states.
 - Qt Test suites and Windows CI.
 
 ## Threading and scheduling

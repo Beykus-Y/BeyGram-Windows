@@ -1,9 +1,16 @@
-import QtQuick
-import BeyGram.Theme 1.0
+// TypingIndicator — small muted "typing" line: optional label plus three
+// pulsing accent dots.
+//
+// Purely presentational: it never invents presence. Callers drive `active`
+// from real typing updates and may supply a label through `text`. When `active`
+// is false the dots disappear, so the parent can keep the item in a layout
+// without a placeholder gap.
 
-/// Small muted "typing" line: optional label text plus three pulsing dots.
-/// Purely presentational — it never invents presence. Callers drive `active`
-/// from real typing updates and may supply a label through `text`.
+import QtQuick
+import QtQuick.Layouts
+import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
+
 Item {
     id: root
 
@@ -11,57 +18,82 @@ Item {
     property bool active: false
 
     readonly property bool _hasText: text !== ""
-    readonly property int _dotSize: 4
-    readonly property int _dotGap: 3
-    readonly property int _labelGap: 5
+    readonly property int _dotSize: 5
+    readonly property int _dotGap: 4
+    readonly property int _labelGap: Design.space2
 
-    implicitWidth: _hasText
-        ? label.implicitWidth + (active ? _labelGap + dots.implicitWidth : 0)
-        : (active ? dots.implicitWidth : 0)
-    implicitHeight: _hasText ? label.implicitHeight : (active ? 14 : 0)
+    implicitWidth: content.implicitWidth
+    implicitHeight: content.implicitHeight
 
-    Text {
-        id: label
+    RowLayout {
+        id: content
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        visible: root._hasText
-        text: root.text
-        color: BeyGramTheme.muted
-        font.pixelSize: 11
-        font.weight: Font.Normal
-        elide: Text.ElideRight
-    }
+        spacing: root._hasText && root.active ? root._labelGap : 0
 
-    Row {
-        id: dots
-        anchors.left: label.right
-        anchors.leftMargin: root._hasText ? root._labelGap : 0
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.active
-        spacing: root._dotGap
+        Text {
+            id: label
+            Layout.alignment: Qt.AlignVCenter
+            visible: root._hasText
+            text: root.text
+            color: BeyGramTheme.muted
+            font.pixelSize: Design.fontSmall
+            font.weight: Font.Normal
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            wrapMode: Text.NoWrap
 
-        Repeater {
-            model: 3
-            delegate: Rectangle {
-                required property int index
+            Accessible.role: Accessible.StaticText
+            Accessible.name: root.text
+        }
 
-                width: root._dotSize
-                height: root._dotSize
-                radius: width / 2
-                color: BeyGramTheme.muted
-                opacity: 0.3
+        // All three dots share one height, so the Row needs no alignment of its
+        // own; the outer layout centres the group against the label.
+        Row {
+            id: dots
+            Layout.alignment: Qt.AlignVCenter
+            visible: root.active
+            spacing: root._dotGap
 
-                SequentialAnimation on opacity {
-                    running: root.active
-                    loops: Animation.Infinite
+            Repeater {
+                model: 3
 
-                    PauseAnimation { duration: index * 150 }
-                    NumberAnimation { to: 1.0; duration: 150; easing.type: Easing.InOutQuad }
-                    PauseAnimation { duration: 150 }
-                    NumberAnimation { to: 0.3; duration: 150; easing.type: Easing.InOutQuad }
-                    PauseAnimation { duration: 450 - index * 150 }
+                delegate: Rectangle {
+                    id: dot
 
-                    onStopped: parent.opacity = 0.3
+                    required property int index
+
+                    width: root._dotSize
+                    height: root._dotSize
+                    radius: width / 2
+                    color: BeyGramTheme.accent
+                    opacity: 0.35
+                    antialiasing: true
+
+                    SequentialAnimation {
+                        running: root.active
+                        loops: Animation.Infinite
+
+                        PauseAnimation { duration: dot.index * 140 }
+                        NumberAnimation {
+                            target: dot
+                            property: "opacity"
+                            to: 1.0
+                            duration: 180
+                            easing.type: Easing.InOutQuad
+                        }
+                        PauseAnimation { duration: 120 }
+                        NumberAnimation {
+                            target: dot
+                            property: "opacity"
+                            to: 0.35
+                            duration: 180
+                            easing.type: Easing.InOutQuad
+                        }
+                        PauseAnimation { duration: 420 - dot.index * 140 }
+
+                        onStopped: dot.opacity = 0.35
+                    }
                 }
             }
         }

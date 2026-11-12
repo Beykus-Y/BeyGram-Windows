@@ -9,11 +9,20 @@
 //
 // This page only debounces input and renders results: no C++ singletons other
 // than theme tokens, no network access, no logging.
+//
+// Layout: DsHeader, a large DsSearchField, optional DsTabs for the result
+// categories, DsListRow results (DsAvatar leading, DsBadge for the kind), an
+// empty state or spinner, and a "Load more" button pinned under the list.
+//
+// Category tabs need row-level access, which QML only has for a ListModel or
+// a JS array of objects; a plain QAbstractItemModel exposes no role to QML, so
+// it stays one unfiltered list and the tabs are hidden.
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: page
@@ -26,6 +35,11 @@ Item {
     // "no query" empty state apart from a finished search with no matches.
     property string appliedQuery: ""
     readonly property string query: field.text
+
+    // 0 = All, 1 = Chats, 2 = Messages, 3 = Files. Reset by every new search.
+    property int category: 0
+
+    readonly property var categoryLabels: ["All", "Chats", "Messages", "Files"]
 
     signal searchRequested(string query)
     signal loadMoreRequested()
@@ -45,6 +59,8 @@ Item {
         if (value === page.appliedQuery)
             return
         page.appliedQuery = value
+        page.category = 0
+        categoryTabs.currentIndex = 0
         page.searchRequested(value)
     }
 
@@ -62,6 +78,161 @@ Item {
         return Qt.formatDateTime(date, "dd.MM.yyyy hh:mm")
     }
 
+    // --- Model access --------------------------------------------------------
+    // ListModel and JS arrays can be read row by row from QML; a QAbstractItemModel
+    // cannot, so only those two can back the category tabs.
+    function rowAt(index) {
+        if (!page.model || index < 0)
+            return null
+        if (typeof page.model.get === "function")
+            return page.model.get(index) || null
+        if (typeof page.model.length === "number")
+            return page.model[index] || null
+        return null
+    }
+
+    readonly property int modelCount: {
+        if (!page.model)
+            return 0
+        if (typeof page.model.count === "number")
+            return page.model.count
+        if (typeof page.model.length === "number")
+            return page.model.length
+        return 0
+    }
+
+    readonly property bool kindAvailable: {
+        const total = page.modelCount // re-probe when the first page arrives
+        if (total === 0)
+            return false
+        const row = page.rowAt(0)
+        return row !== null && row.kind !== undefined && row.kind !== null
+    }
+
+    function kindOf(value) {
+        const key = String(value === undefined || value === null ? "" : value)
+                        .toLowerCase()
+        if (key.indexOf("chat") === 0 || key === "user" || key === "group"
+                || key === "channel" || key === "contact")
+            return "chats"
+        if (key.indexOf("file") === 0 || key === "media" || key === "document"
+                || key === "photo" || key === "video" || key === "audio"
+                || key === "voice" || key === "sticker")
+            return "files"
+        return "messages"
+    }
+
+    function kindMatches(value, categoryIndex) {
+        if (categoryIndex <= 0)
+            return true
+        const wanted = categoryIndex === 1 ? "chats"
+                     : (categoryIndex === 2 ? "messages" : "files")
+        return kindOf(value) === wanted
+    }
+
+    function kindLabel(value) {
+        const key = kindOf(value)
+        return key === "chats" ? "Chat" : (key === "files" ? "File" : "Message")
+    }
+
+    function kindTone(value) {
+        return kindOf(value) === "messages" ? "muted" : "accent"
+    }
+
+    // The model itself when no filtering applies, so a C++ model keeps its live
+    // updates and paging; a plain JS array of the matching rows otherwise.
+    readonly property var viewModel: {
+        const total = page.modelCount // dependency: re-run when a page arrives
+        if (!page.kindAvailable || page.category <= 0)
+            return page.model
+        const rows = []
+        for (let i = 0; i < total; ++i) {
+            const row = page.rowAt(i)
+            if (row !== null && page.kindMatches(row.kind, page.category))
+                rows.push(row)
+        }
+        return rows
+    }
+
+    // --- Text ----------------------------------------------------------------
+
+    readonly property string highlightInk: BeyGramTheme.accentInk.toString()
+
+    function plainText(value) {
+        return String(value === undefined || value === null ? "" : value)
+                .replace(/\s+/g, " ").trim()
+    }
+
+    function escapeHtml(value) {
+        return value.replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+    }
+
+    // DsListRow draws `subtitle` with Text.AutoText, so the snippet is always a
+    // <font> wrapper: the message body stays literal and every occurrence of the
+    // applied query is wrapped in an accentInk <font>.
+    function highlighted(value) {
+        const source = page.plainText(value)
+        if (source.length === 0)
+            return ""
+
+        const needle = page.appliedQuery.trim()
+        const haystack = source.toLowerCase()
+        const target = needle.toLowerCase()
+
+        let out = ""
+        let from = 0
+        if (target.length > 0) {
+            while (true) {
+                const at = haystack.indexOf(target, from)
+                if (at < 0)
+                    break
+                out += page.escapeHtml(source.slice(from, at))
+                out += '<font color="' + page.highlightInk + '">'
+                       + page.escapeHtml(source.slice(at, at + needle.length))
+                       + "</font>"
+                from = at + needle.length
+            }
+        }
+        out += page.escapeHtml(source.slice(from))
+        return "<font>" + out + "</font>"
+    }
+
+    function rowTitle(chatTitle, senderName) {
+        const chat = page.plainText(chatTitle)
+        const sender = page.plainText(senderName)
+        if (chat.length > 0 && sender.length > 0 && chat !== sender)
+            return chat + " · " + sender
+        if (chat.length > 0)
+            return chat
+        return sender.length > 0 ? sender : "Message"
+    }
+
+    function initialsFor(value) {
+        const text = page.plainText(value)
+        if (text.length === 0)
+            return "?"
+        // Array.from keeps a surrogate pair (an emoji title) intact.
+        return Array.from(text)[0].toUpperCase()
+    }
+
+    function accentFor(value) {
+        const id = Number(value)
+        if (!isFinite(id))
+            return 0
+        return Math.abs(Math.floor(id)) % 6
+    }
+
+    readonly property string resultSummary: {
+        if (page.loading && resultsList.count === 0)
+            return "Searching…"
+        if (resultsList.count === 0)
+            return "Messages across all chats"
+        return resultsList.count === 1 ? "1 result" : resultsList.count + " results"
+    }
+
     Timer {
         id: debounce
         interval: 320
@@ -69,239 +240,177 @@ Item {
         onTriggered: page.submitQuery()
     }
 
+    Component.onCompleted: {
+        if (page.visible)
+            Qt.callLater(page.focusInput)
+    }
+
+    onVisibleChanged: {
+        if (page.visible)
+            Qt.callLater(page.focusInput)
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 32
-        spacing: 14
+        spacing: 0
 
-        ColumnLayout {
+        DsHeader {
             Layout.fillWidth: true
-            spacing: 4
-
-            Text {
-                text: "Search"
-                color: BeyGramTheme.text
-                font.pixelSize: 26
-                font.weight: Font.DemiBold
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: "Search messages across all chats"
-                color: BeyGramTheme.muted
-                font.pixelSize: 13
-                elide: Text.ElideRight
-            }
-        }
-
-        TextField {
-            id: field
-            Layout.fillWidth: true
-            Layout.preferredHeight: 44
-            implicitHeight: 44
-            leftPadding: 18
-            rightPadding: 18
-            placeholderText: "Search messages"
-            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-            color: BeyGramTheme.text
-            font.pixelSize: 14
-            selectByMouse: true
-            selectionColor: BeyGramTheme.accent
-            selectedTextColor: BeyGramTheme.onAccent
-            onTextEdited: {
-                if (field.text.trim().length === 0) {
-                    debounce.stop()
-                    page.emitQuery("")
-                } else {
-                    debounce.restart()
-                }
-            }
-            onAccepted: page.submitQuery()
-
-            background: Rectangle {
-                radius: 22
-                color: BeyGramTheme.surface2
-                border.width: 1
-                border.color: field.activeFocus ? BeyGramTheme.accent : BeyGramTheme.line
-                Behavior on border.color { ColorAnimation { duration: 120 } }
-            }
+            title: "Search"
+            subtitle: page.resultSummary
         }
 
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            ListView {
-                id: resultsList
+            ColumnLayout {
                 anchors.fill: parent
-                clip: true
-                spacing: 2
-                model: page.model
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                // Centred column with a readable measure on wide windows.
+                anchors.leftMargin: Math.max(Design.space6, (parent.width - 960) / 2)
+                anchors.rightMargin: Math.max(Design.space6, (parent.width - 960) / 2)
+                anchors.topMargin: Design.space4
+                anchors.bottomMargin: Design.space4
+                spacing: Design.space4
 
-                delegate: Item {
-                    id: row
-                    // Roles are qint64 in GlobalSearchModel; keep them as var so
-                    // a large chat id does not fail the delegate binding.
-                    required property var chatId
-                    required property var messageId
-                    required property var date
-                    required property string chatTitle
-                    required property string senderName
-                    required property string text
+                DsSearchField {
+                    id: field
 
-                    readonly property string metaText: {
-                        const title = row.chatTitle || ""
-                        const sender = row.senderName || ""
-                        if (title.length > 0 && sender.length > 0)
-                            return title + " · " + sender
-                        return title.length > 0 ? title : sender
-                    }
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Design.controlHeightLarge
+                    implicitHeight: Design.controlHeightLarge
+                    leftPadding: Design.space8 + Design.space3
+                    rightPadding: field.text.length > 0 ? 46 : Design.space5
+                    placeholderText: "Search messages"
+                    font.pixelSize: Design.fontBodyLarge
 
-                    width: resultsList.width
-                    height: 64
-
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 8
-                        radius: 10
-                        color: hoverArea.containsMouse ? BeyGramTheme.surface2 : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 18
-                        anchors.rightMargin: 18
-                        anchors.topMargin: 10
-                        anchors.bottomMargin: 10
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: 3
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 10
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: row.metaText
-                                    color: BeyGramTheme.muted
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    text: page.dateLabel(row.date)
-                                    color: BeyGramTheme.muted
-                                    font.pixelSize: 11
-                                }
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: row.text
-                                color: BeyGramTheme.text
-                                font.pixelSize: 13
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
-                                wrapMode: Text.NoWrap
-                            }
+                    onTextEdited: {
+                        if (field.text.trim().length === 0) {
+                            debounce.stop()
+                            page.emitQuery("")
+                        } else {
+                            debounce.restart()
                         }
                     }
-
-                    MouseArea {
-                        id: hoverArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: page.resultActivated(row.chatId, row.messageId)
+                    onAccepted: page.submitQuery()
+                    onCleared: {
+                        debounce.stop()
+                        page.emitQuery("")
                     }
                 }
 
-                footer: Item {
-                    width: resultsList.width
-                    height: (page.hasMore || (page.loading && resultsList.count > 0)) ? 56 : 0
+                DsTabs {
+                    id: categoryTabs
 
-                    RowLayout {
+                    Layout.fillWidth: true
+                    visible: page.kindAvailable
+                    model: page.categoryLabels
+                    currentIndex: page.category
+                    onActivated: (index) => {
+                        page.category = index
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    ListView {
+                        id: resultsList
+
+                        anchors.fill: parent
+                        clip: true
+                        spacing: Design.space1
+                        model: page.viewModel
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                        delegate: DsListRow {
+                            id: resultRow
+
+                            // Roles are qint64 in GlobalSearchModel; keep them as
+                            // var so a large chat id does not fail the binding.
+                            required property var chatId
+                            required property var messageId
+                            required property var date
+                            required property string chatTitle
+                            required property string senderName
+                            required property string text
+                            // Optional: only present when the model carries one.
+                            property var kind
+
+                            width: resultsList.width
+                            title: page.rowTitle(resultRow.chatTitle,
+                                                 resultRow.senderName)
+                            subtitle: page.highlighted(resultRow.text)
+
+                            Accessible.name: resultRow.title
+                            Accessible.description: page.plainText(resultRow.text)
+
+                            leading: DsAvatar {
+                                size: Design.avatarSmall
+                                initials: page.initialsFor(resultRow.chatTitle)
+                                accentIndex: page.accentFor(resultRow.chatId)
+                            }
+
+                            trailing: ColumnLayout {
+                                spacing: Design.space1
+
+                                DsBadge {
+                                    Layout.alignment: Qt.AlignRight
+                                    text: page.kindLabel(resultRow.kind)
+                                    tone: page.kindTone(resultRow.kind)
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignRight
+                                    text: page.dateLabel(resultRow.date)
+                                    color: BeyGramTheme.muted
+                                    font.pixelSize: Design.fontCaption
+                                }
+                            }
+
+                            onClicked: page.resultActivated(resultRow.chatId,
+                                                            resultRow.messageId)
+                        }
+                    }
+
+                    DsSpinner {
                         anchors.centerIn: parent
-                        spacing: 10
+                        running: page.loading && resultsList.count === 0
+                        visible: running
+                    }
 
-                        BusyIndicator {
-                            running: page.loading && resultsList.count > 0
-                            visible: running
-                            implicitWidth: 22
-                            implicitHeight: 22
-                        }
+                    DsEmptyState {
+                        anchors.centerIn: parent
+                        visible: !page.loading && resultsList.count === 0
+                                 && page.query.trim().length === 0
+                        glyph: "🔍"
+                        title: "Search messages"
+                        description: "Type a word or phrase to search every chat."
+                    }
 
-                        Rectangle {
-                            Layout.preferredWidth: 150
-                            Layout.preferredHeight: 36
-                            radius: 18
-                            visible: page.hasMore
-                            opacity: page.loading ? 0.5 : 1.0
-                            color: loadMoreArea.containsMouse && !page.loading
-                                   ? BeyGramTheme.surface2
-                                   : "transparent"
-                            border.width: 1
-                            border.color: BeyGramTheme.line
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Load more"
-                                color: BeyGramTheme.accent
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                            }
-
-                            MouseArea {
-                                id: loadMoreArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (!page.loading)
-                                        page.loadMoreRequested()
-                                }
-                            }
-                        }
+                    DsEmptyState {
+                        anchors.centerIn: parent
+                        visible: !page.loading && resultsList.count === 0
+                                 && page.query.trim().length > 0
+                                 && page.appliedQuery.length > 0
+                        title: "No results"
+                        description: "Nothing matched \""
+                                     + page.appliedQuery.replace(/[<>]/g, "")
+                                     + "\". Try a different word or spelling."
                     }
                 }
-            }
 
-            BusyIndicator {
-                anchors.centerIn: parent
-                running: page.loading && resultsList.count === 0
-                visible: running
-                implicitWidth: 32
-                implicitHeight: 32
-            }
-
-            Text {
-                anchors.centerIn: parent
-                width: Math.max(0, Math.min(360, parent.width - 64))
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-                visible: !page.loading && resultsList.count === 0
-                         && field.text.trim().length === 0
-                text: "Type a word or phrase to search messages in every chat."
-                color: BeyGramTheme.muted
-                font.pixelSize: 13
-            }
-
-            Text {
-                anchors.centerIn: parent
-                visible: !page.loading && resultsList.count === 0
-                         && field.text.trim().length > 0
-                         && page.appliedQuery.length > 0
-                text: "No results"
-                color: BeyGramTheme.muted
-                font.pixelSize: 13
+                DsButton {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: page.hasMore
+                    text: "Load more"
+                    tone: "secondary"
+                    size: "sm"
+                    loading: page.loading
+                    onClicked: page.loadMoreRequested()
+                }
             }
         }
     }

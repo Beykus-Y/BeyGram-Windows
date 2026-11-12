@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 /// Read-only poll / quiz card.
 ///
@@ -9,7 +10,8 @@ import BeyGram.Theme 1.0
 /// total is unknown (0 or less) no percentage or bar is drawn.
 ///
 /// Options are `{ text, voterCount, chosen }`. Selecting an option emits
-/// `optionSelected(index)` and is ignored once `closed` is true.
+/// `optionSelected(index)` and is ignored once `closed` is true. The public API
+/// is unchanged; the card now uses DS surfaces, radii and type tokens.
 Item {
     id: root
 
@@ -23,7 +25,7 @@ Item {
     signal optionSelected(int index)
 
     implicitWidth: 300
-    implicitHeight: column.implicitHeight + 24
+    implicitHeight: column.implicitHeight + Design.space3 * 2
 
     readonly property int voteCount: totalVoterCount > 0 ? totalVoterCount : 0
 
@@ -68,8 +70,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
-        color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.9 : 0.98)
+        radius: Design.radiusMd
+        color: Qt.alpha(BeyGramTheme.surface2, 0.6)
         border.width: 1
         border.color: Qt.alpha(BeyGramTheme.line, 0.9)
     }
@@ -80,27 +82,27 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
-        anchors.topMargin: 12
-        anchors.bottomMargin: 12
-        spacing: 8
+        anchors.leftMargin: Design.space3
+        anchors.rightMargin: Design.space3
+        anchors.topMargin: Design.space3
+        anchors.bottomMargin: Design.space3
+        spacing: Design.space2
 
         Text {
             Layout.fillWidth: true
             visible: root.question.length > 0
             text: root.question
             color: BeyGramTheme.text
-            font.pixelSize: 13
+            font.pixelSize: Design.fontBody
             font.weight: Font.DemiBold
             wrapMode: Text.Wrap
-            lineHeight: 1.3
+            lineHeight: Design.lineNormal
         }
 
         Column {
             id: optionsColumn
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Design.space1
 
             Repeater {
                 model: root.options ? root.options : []
@@ -116,13 +118,13 @@ Item {
 
                     width: optionsColumn.width
                     height: Math.max(44, optionLabel.implicitHeight + 22)
-                    radius: 10
+                    radius: Design.radiusSm
                     clip: true
                     color: chosen
                            ? Qt.alpha(BeyGramTheme.accentSoft, 0.9)
                            : (hoverArea.containsMouse && !root.closed
-                              ? Qt.alpha(BeyGramTheme.surface2, 0.9)
-                              : Qt.alpha(BeyGramTheme.surface2, 0.5))
+                              ? Qt.alpha(BeyGramTheme.surface, 0.95)
+                              : Qt.alpha(BeyGramTheme.surface, 0.55))
                     border.width: 1
                     border.color: chosen
                                   ? Qt.alpha(BeyGramTheme.accent, 0.38)
@@ -132,6 +134,10 @@ Item {
                                                          : Accessible.RadioButton
                     Accessible.name: root.optionText(option)
                     Accessible.checked: chosen
+                    Accessible.onPressAction: {
+                        if (!root.closed)
+                            root.optionSelected(index)
+                    }
 
                     // Result fill: width is count / total, never a decorative value.
                     Rectangle {
@@ -146,9 +152,9 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 12
-                        spacing: 9
+                        anchors.leftMargin: Design.space3
+                        anchors.rightMargin: Design.space3
+                        spacing: Design.space2
 
                         Item {
                             Layout.alignment: Qt.AlignVCenter
@@ -157,7 +163,8 @@ Item {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: root.multipleChoice ? 4 : 8
+                                radius: root.multipleChoice ? Design.radiusXs
+                                                            : width / 2
                                 color: "transparent"
                                 border.width: 1.5
                                 border.color: optionRow.chosen
@@ -170,7 +177,7 @@ Item {
                                 visible: optionRow.chosen
                                 width: 8
                                 height: 8
-                                radius: root.multipleChoice ? 2 : 4
+                                radius: root.multipleChoice ? 2 : width / 2
                                 color: BeyGramTheme.accent
                             }
                         }
@@ -181,12 +188,12 @@ Item {
                             Layout.alignment: Qt.AlignVCenter
                             text: root.optionText(optionRow.option)
                             color: BeyGramTheme.text
-                            font.pixelSize: 13
+                            font.pixelSize: Design.fontBody
                             font.weight: optionRow.chosen ? Font.DemiBold : Font.Normal
                             wrapMode: Text.Wrap
                             maximumLineCount: 3
                             elide: Text.ElideRight
-                            lineHeight: 1.25
+                            lineHeight: Design.lineNormal
                         }
 
                         ColumnLayout {
@@ -200,7 +207,7 @@ Item {
                                 text: optionRow.percent >= 0 ? optionRow.percent + "%" : ""
                                 color: optionRow.chosen ? BeyGramTheme.accentInk
                                                         : BeyGramTheme.muted
-                                font.pixelSize: 12
+                                font.pixelSize: Design.fontSmall
                                 font.weight: Font.DemiBold
                             }
 
@@ -209,7 +216,7 @@ Item {
                                 visible: optionRow.count > 0
                                 text: optionRow.count
                                 color: BeyGramTheme.muted
-                                font.pixelSize: 11
+                                font.pixelSize: Design.fontCaption
                             }
                         }
                     }
@@ -229,32 +236,35 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Design.space1
 
             Text {
                 text: root.voteSummary()
                 color: BeyGramTheme.muted
-                font.pixelSize: 11
+                font.pixelSize: Design.fontCaption
             }
 
             Item { Layout.fillWidth: true }
 
-            Pill {
+            DsBadge {
+                Layout.alignment: Qt.AlignVCenter
                 visible: root.closed
                 text: "Closed"
-                tone: "neutral"
+                tone: "muted"
             }
 
-            Pill {
+            DsBadge {
+                Layout.alignment: Qt.AlignVCenter
                 visible: root.quiz
                 text: "Quiz"
                 tone: "accent"
             }
 
-            Pill {
+            DsBadge {
+                Layout.alignment: Qt.AlignVCenter
                 visible: root.multipleChoice
                 text: "Multiple choice"
-                tone: "neutral"
+                tone: "muted"
             }
         }
     }

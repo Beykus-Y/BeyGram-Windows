@@ -1,58 +1,65 @@
 import QtQuick
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
+/// One labelled status line: a tone dot, the label, the value on the right and
+/// an optional wrapped detail underneath.
+///
+/// The line itself is a DsListRow so it matches every other list row; the
+/// detail is a plain Text below it because DsListRow's subtitle is a single
+/// elided line and these details are full sentences.
 Item {
     id: row
+
     property string label: ""
     property string value: ""
     property string detail: ""
     property string tone: "neutral" // neutral | ok | warn | danger | accent
 
-    implicitHeight: inner.implicitHeight
+    implicitWidth: 320
+    implicitHeight: layout.implicitHeight
+
+    /// The tone colours both the dot and the value.
+    readonly property color toneColor: {
+        if (row.tone === "ok")
+            return BeyGramTheme.okInk
+        if (row.tone === "warn")
+            return BeyGramTheme.warnInk
+        if (row.tone === "danger")
+            return BeyGramTheme.danger
+        if (row.tone === "accent")
+            return BeyGramTheme.accent
+        return BeyGramTheme.muted
+    }
 
     ColumnLayout {
-        id: inner
+        id: layout
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 3
+        spacing: Design.space1
 
-        RowLayout {
+        DsListRow {
             Layout.fillWidth: true
-            spacing: 10
+            // Status lines are read-only, so no hover tint or pointing hand.
+            hoverEnabled: false
+            title: row.label
 
-            Rectangle {
+            leading: Rectangle {
                 width: 8
                 height: 8
                 radius: 4
-                color: {
-                    if (row.tone === "ok") return BeyGramTheme.okInk
-                    if (row.tone === "warn") return BeyGramTheme.warnInk
-                    if (row.tone === "danger") return BeyGramTheme.danger
-                    if (row.tone === "accent") return BeyGramTheme.accent
-                    return BeyGramTheme.muted
-                }
+                color: row.toneColor
+                antialiasing: true
             }
 
-            Text {
-                text: row.label
-                color: BeyGramTheme.text
-                font.pixelSize: 13
-                font.weight: Font.Medium
-                Layout.fillWidth: true
-                elide: Text.ElideRight
-            }
-
-            Text {
+            trailing: Text {
+                // Keep a long value from squeezing the label out of the row.
+                width: Math.min(implicitWidth, row.width * 0.5)
                 text: row.value
-                color: {
-                    if (row.tone === "ok") return BeyGramTheme.okInk
-                    if (row.tone === "warn") return BeyGramTheme.warnInk
-                    if (row.tone === "danger") return BeyGramTheme.danger
-                    if (row.tone === "accent") return BeyGramTheme.accent
-                    return BeyGramTheme.muted
-                }
-                font.pixelSize: 12
+                color: row.toneColor
+                font.pixelSize: Design.fontSmall
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -60,12 +67,13 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: 18
+            // Align with the title: 12 px padding + 8 px dot + 12 px spacing.
+            Layout.leftMargin: Design.space8
             visible: row.detail !== ""
             text: row.detail
             color: BeyGramTheme.muted
-            font.pixelSize: 12
-            lineHeight: 1.25
+            font.pixelSize: Design.fontSmall
+            lineHeight: Design.lineNormal
             wrapMode: Text.WordWrap
         }
     }

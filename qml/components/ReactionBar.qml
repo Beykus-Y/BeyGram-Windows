@@ -5,11 +5,13 @@
 // customEmojiId, count, chosen } — and turns the emitted signals into TDLib
 // addMessageReaction / removeMessageReaction requests. Nothing in this file
 // touches TDLib, the network, the message store, or logging.
+//
+// Chips are DsChip pills so the strip inherits the design-system geometry,
+// hover/focus states and selected styling. The public API is unchanged.
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: reactionBar
@@ -32,11 +34,11 @@ Item {
         if (!reaction)
             return ""
         if (reaction.customEmojiId > 0)
-            return "★"
+            return "\u2605"
         if (reaction.emoji && reaction.emoji.length > 0)
             return reaction.emoji
         // Paid (Stars) reactions carry no emoji; Telegram renders them as a star.
-        return reaction.type === "paid" ? "★" : ""
+        return reaction.type === "paid" ? "\u2605" : ""
     }
 
     // Returns 0 for a missing or non-positive count so the label can stay hidden.
@@ -64,93 +66,37 @@ Item {
         // The parent supplies the width (bubble layout / Layout.fillWidth); the
         // strip wraps at that width and reports the resulting height.
         width: reactionBar.width
-        spacing: 4
+        spacing: Design.space1
 
         Repeater {
             model: reactionBar.reactions ? reactionBar.reactions : []
 
-            delegate: Rectangle {
+            delegate: DsChip {
                 id: pill
                 property var reaction: modelData
                 property bool chosen: !!(reaction && reaction.chosen)
                 property int count: reactionBar.countFor(reaction)
                 property string glyph: reactionBar.glyphFor(reaction)
 
-                width: content.implicitWidth + 18
-                height: 28
-                radius: 14
-                color: pill.chosen ? BeyGramTheme.accentSoft : BeyGramTheme.surface2
+                text: pill.glyph.length > 0
+                      ? (pill.count > 0 ? pill.glyph + " " + pill.count : pill.glyph)
+                      : (pill.count > 0 ? String(pill.count) : "")
+                selected: pill.chosen
+                enabled: pill.glyph.length > 0
 
-                Accessible.role: Accessible.CheckBox
-                Accessible.name: pill.count > 0 ? pill.glyph + " " + pill.count : pill.glyph
-                Accessible.checked: pill.chosen
-
-                // Hover tint sits over the base colour so chosen/unchosen keep
-                // their exact accentSoft / surface2 fills.
-                Rectangle {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    color: Qt.alpha(BeyGramTheme.accent, pill.chosen ? 0.10 : 0.08)
-                    visible: hoverArea.containsMouse
-                }
-
-                RowLayout {
-                    id: content
-                    anchors.centerIn: parent
-                    spacing: 3
-
-                    Text {
-                        text: pill.glyph
-                        visible: text.length > 0
-                        color: BeyGramTheme.text
-                        font.pixelSize: 13
-                    }
-
-                    Text {
-                        text: pill.count
-                        visible: pill.count > 0
-                        color: pill.chosen ? BeyGramTheme.accentInk : BeyGramTheme.muted
-                        font.pixelSize: 11
-                    }
-                }
-
-                MouseArea {
-                    id: hoverArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    enabled: pill.glyph.length > 0
-                    onClicked: reactionBar.toggle(pill.reaction)
-                }
+                onClicked: reactionBar.toggle(pill.reaction)
             }
         }
 
         // Trailing add-reaction affordance.
-        Rectangle {
+        DsChip {
             visible: reactionBar.canReact
-            width: 28
-            height: 28
-            radius: 14
-            color: plusHover.containsMouse ? Qt.alpha(BeyGramTheme.accent, 0.14)
-                                           : BeyGramTheme.surface2
+            text: "+"
 
             Accessible.role: Accessible.Button
             Accessible.name: "Add reaction"
 
-            Text {
-                anchors.centerIn: parent
-                text: "+"
-                color: BeyGramTheme.muted
-                font.pixelSize: 15
-            }
-
-            MouseArea {
-                id: plusHover
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: reactionBar.addReactionRequested()
-            }
+            onClicked: reactionBar.addReactionRequested()
         }
     }
 }

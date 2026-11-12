@@ -5,14 +5,15 @@
 // and reports failures through `errorText`. When the user confirms, this file
 // only emits `saveRequested` with trimmed values; it performs no network,
 // logging or C++ calls of its own. The dialog stays open until the parent
-// closes it (typically on success).
+// closes it (typically on success), so an error can be shown in place.
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-Dialog {
+DsDialog {
     id: root
 
     property string firstName: ""
@@ -44,186 +45,157 @@ Dialog {
                            bioField.text.trim())
     }
 
-    parent: Overlay.overlay
-    x: parent ? Math.round((parent.width - width) / 2) : 0
-    y: parent ? Math.round((parent.height - height) / 2) : 0
-    width: 420
-    padding: 0
-    modal: true
-    focus: true
     title: "Edit profile"
-    closePolicy: Popup.CloseOnEscape
+    description: "Update how others see you. The first name is required."
+    busy: root.saving
+    // A form should not close because of a stray click on the scrim; Escape
+    // still dismisses it when no request is in flight.
+    closePolicy: root.busy ? Popup.NoAutoClose : Popup.CloseOnEscape
 
     onOpened: {
-        resetFields()
-        firstField.forceInputFocus()
+        root.resetFields()
+        firstField.forceActiveFocus()
     }
 
-    Overlay.modal: Rectangle {
-        color: Qt.alpha("#000000", 0.35)
+    DsTextField {
+        id: firstField
+        Layout.fillWidth: true
+        label: "First name"
+        placeholderText: "Required"
+        maximumLength: 64
+        clearable: true
+        onAccepted: root.attemptSave()
     }
 
-    background: Rectangle {
-        radius: 16
-        color: BeyGramTheme.surface
-        border.width: 1
-        border.color: Qt.alpha(BeyGramTheme.line, 1.0)
+    DsTextField {
+        id: lastField
+        Layout.fillWidth: true
+        label: "Last name"
+        placeholderText: "Optional"
+        maximumLength: 64
+        clearable: true
+        onAccepted: root.attemptSave()
     }
 
-    header: Item {
-        implicitHeight: 52
+    DsTextField {
+        id: usernameField
+        Layout.fillWidth: true
+        label: "Username"
+        placeholderText: "Optional"
+        maximumLength: 32
+        clearable: true
+        inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+        onAccepted: root.attemptSave()
+    }
+
+    Text {
+        Layout.fillWidth: true
+        Layout.topMargin: -Design.space1
+        text: "Public @handle. Leave empty to remove it."
+        color: BeyGramTheme.muted
+        font.pixelSize: Design.fontCaption
+        wrapMode: Text.WordWrap
+    }
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Design.space1
 
         Text {
-            anchors.left: parent.left
-            anchors.leftMargin: 18
-            anchors.right: parent.right
-            anchors.rightMargin: 18
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.title
-            color: BeyGramTheme.text
-            font.pixelSize: 15
+            Layout.fillWidth: true
+            text: "Bio"
+            color: BeyGramTheme.muted
+            font.pixelSize: Design.fontCaption
             font.weight: Font.DemiBold
-            elide: Text.ElideRight
+            font.letterSpacing: 0.3
+        }
+
+        TextArea {
+            id: bioField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 96
+            leftPadding: Design.space3
+            rightPadding: Design.space3
+            topPadding: Design.space2
+            bottomPadding: Design.space2
+            color: BeyGramTheme.text
+            placeholderText: "A few words about you (optional)"
+            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
+            selectionColor: BeyGramTheme.accent
+            selectedTextColor: BeyGramTheme.onAccent
+            font.pixelSize: Design.fontBody
+            wrapMode: TextArea.Wrap
+            selectByMouse: true
+
+            background: Rectangle {
+                radius: Design.radiusSm
+                color: BeyGramTheme.surface2
+                border.width: 1
+                border.color: bioField.activeFocus
+                              ? BeyGramTheme.accent
+                              : BeyGramTheme.line
+                Behavior on border.color { ColorAnimation { duration: Design.motionFast } }
+            }
         }
     }
 
-    contentItem: ColumnLayout {
-        spacing: 12
-        implicitWidth: 420
+    Rectangle {
+        Layout.fillWidth: true
+        visible: root.errorText.length > 0
+        implicitHeight: errorLabel.implicitHeight + Design.space3 * 2
+        radius: Design.radiusSm
+        color: Qt.alpha(BeyGramTheme.danger, 0.12)
+        border.width: 1
+        border.color: Qt.alpha(BeyGramTheme.danger, 0.35)
 
-        AuthField {
-            id: firstField
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            Layout.topMargin: 2
-            label: "First name"
-            placeholderText: "First name"
-            maximumLength: 64
-            onAccepted: root.attemptSave()
-        }
-
-        AuthField {
-            id: lastField
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            label: "Last name"
-            placeholderText: "Last name (optional)"
-            maximumLength: 64
-            onAccepted: root.attemptSave()
-        }
-
-        AuthField {
-            id: usernameField
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            label: "Username"
-            placeholderText: "username (optional)"
-            hint: "Public @handle. Leave empty to remove it."
-            maximumLength: 32
-            inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
-            onAccepted: root.attemptSave()
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            spacing: 6
-
-            Text {
-                text: "Bio"
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
-
-            TextArea {
-                id: bioField
-                Layout.fillWidth: true
-                Layout.preferredHeight: 88
-                leftPadding: 14
-                rightPadding: 14
-                topPadding: 10
-                bottomPadding: 10
-                color: BeyGramTheme.text
-                placeholderText: "A few words about you (optional)"
-                placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-                selectionColor: BeyGramTheme.accent
-                selectedTextColor: BeyGramTheme.onAccent
-                font.pixelSize: 14
-                wrapMode: TextArea.Wrap
-                selectByMouse: true
-
-                background: Rectangle {
-                    radius: 10
-                    color: Qt.alpha(BeyGramTheme.surface2, 0.75)
-                    border.width: bioField.activeFocus ? 2 : 1
-                    border.color: bioField.activeFocus
-                                  ? BeyGramTheme.accent
-                                  : Qt.alpha(BeyGramTheme.line, 1.0)
-                    Behavior on border.color { ColorAnimation { duration: 120 } }
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            visible: root.errorText !== ""
-            implicitHeight: errorLabel.implicitHeight + 20
-            radius: 10
-            color: Qt.alpha(BeyGramTheme.danger, 0.12)
-            border.width: 1
-            border.color: Qt.alpha(BeyGramTheme.danger, 0.35)
-
-            Text {
-                id: errorLabel
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: 10
-                text: root.errorText
-                color: BeyGramTheme.danger
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                lineHeight: 1.3
-            }
-        }
-
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 6
-        }
-    }
-
-    footer: Item {
-        implicitHeight: 58
-
-        Rectangle {
-            anchors.top: parent.top
+        Text {
+            id: errorLabel
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 1
-            color: Qt.alpha(BeyGramTheme.line, 0.9)
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.margins: Design.space3
+            text: root.errorText
+            color: BeyGramTheme.danger
+            font.pixelSize: Design.fontSmall
+            wrapMode: Text.WordWrap
+            lineHeight: Design.lineNormal
         }
+    }
+
+    // A custom footer keeps Save disabled until a first name is present and
+    // keeps the dialog open after the request, so `errorText` can be shown
+    // without losing the user's edits. DsDialog's shared footer always closes
+    // on accept and cannot express that.
+    footer: Item {
+        implicitHeight: 36 + Design.space5
 
         RowLayout {
-            anchors.right: parent.right
-            anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
+            anchors.fill: parent
+            anchors.leftMargin: Design.space5
+            anchors.rightMargin: Design.space5
+            anchors.bottomMargin: Design.space5
+            spacing: Design.space2
 
-            SecondaryButton {
+            Item { Layout.fillWidth: true }
+
+            BusyIndicator {
+                running: root.saving
+                visible: root.saving
+                implicitWidth: 18
+                implicitHeight: 18
+                Layout.preferredWidth: 18
+                Layout.preferredHeight: 18
+            }
+
+            DsButton {
                 text: "Cancel"
+                tone: "secondary"
+                enabled: !root.saving
                 onClicked: root.close()
             }
 
-            PrimaryButton {
-                text: root.saving ? "Saving..." : "Save"
+            DsButton {
+                text: root.saving ? "Saving…" : "Save"
                 enabled: !root.saving && root.trimmedFirstName.length > 0
                 onClicked: root.attemptSave()
             }

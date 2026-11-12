@@ -1,12 +1,19 @@
 // PinnedMessageBanner — slim strip shown above the message list for the chat's
-// pinned message. This component is presentation only: the parent loads the
-// pinned message (title/preview) and performs the unpin request when
-// `unpinRequested` fires. It holds no C++/network/logging state of its own.
+// pinned message.
+//
+// Presentation only: the parent loads the pinned message (title/preview) and
+// performs the unpin request when `unpinRequested` fires. It holds no
+// C++/network/logging state of its own.
+//
+// The strip is 40 px tall on `surface2`, marked by a 3 px accent rail and a
+// single 12 px label. `preview` is what the user actually reads; `title` is the
+// fallback for messages without text (media, service messages) and the spoken
+// name of the strip.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: banner
@@ -18,18 +25,36 @@ Item {
 
     // Height is fixed; `visible` is Item's own property (default overridden
     // below) so a parent can bind it to whether a pinned message exists.
-    height: 42
-    implicitHeight: 42
+    implicitHeight: 40
+    height: 40
     visible: false
     clip: true
+
+    readonly property bool _hasPreview: banner.preview.length > 0
+    readonly property string _label: _hasPreview ? banner.preview : banner.title
 
     Rectangle {
         id: background
         anchors.fill: parent
         radius: 0
         color: BeyGramTheme.surface2
-        border.width: 0
 
+        // Hover wash, painted beneath the content so the label keeps contrast.
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.alpha(BeyGramTheme.text, Design.opacityHover)
+            opacity: activateArea.containsMouse ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Design.motionFast
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // Hairline against the message list below.
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -39,98 +64,64 @@ Item {
         }
     }
 
-    // Left accent bar.
+    // Accent rail marking the strip as the pinned-message affordance.
     Rectangle {
         id: accentBar
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: 3
-        radius: 0
-        color: BeyGramTheme.accentInk
+        color: BeyGramTheme.accent
     }
 
-    // Whole-banner activation target; declared before the content so the
-    // unpin button (drawn above) keeps its own clicks.
+    // Whole-strip activation target; declared before the content so the unpin
+    // button (drawn above) keeps its own clicks.
     MouseArea {
         id: activateArea
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: banner.activated()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: banner._hasPreview
+                         ? banner.title + ": " + banner.preview
+                         : banner.title
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 14
-        anchors.rightMargin: 8
-        anchors.topMargin: 0
-        anchors.bottomMargin: 0
-        spacing: 9
+        anchors.leftMargin: Design.space3
+        anchors.rightMargin: Design.space1
+        spacing: Design.space2
+
+        DsIcon {
+            Layout.alignment: Qt.AlignVCenter
+            name: "\uE718" // Segoe MDL2 Assets: Pin
+            size: 14
+            color: BeyGramTheme.accentInk
+            filled: true
+        }
 
         Text {
-            id: pinGlyph
-            Layout.alignment: Qt.AlignVCenter
-            text: "PIN"
-            color: BeyGramTheme.accentInk
-            font.pixelSize: 10
-            font.weight: Font.DemiBold
-            font.letterSpacing: 0.6
-        }
-
-        ColumnLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
-            spacing: 1
-
-            Text {
-                Layout.fillWidth: true
-                text: banner.title
-                color: BeyGramTheme.muted
-                font.pixelSize: 10
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-                maximumLineCount: 1
-                wrapMode: Text.NoWrap
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: banner.preview
-                color: BeyGramTheme.text
-                font.pixelSize: 12
-                elide: Text.ElideRight
-                maximumLineCount: 1
-                wrapMode: Text.NoWrap
-            }
+            text: banner._label
+            color: BeyGramTheme.text
+            font.pixelSize: Design.fontSmall
+            font.weight: Font.Medium
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            wrapMode: Text.NoWrap
+            Accessible.ignored: true
         }
 
-        ToolButton {
-            id: unpinButton
+        DsIconButton {
             Layout.alignment: Qt.AlignVCenter
-            implicitWidth: 24
-            implicitHeight: 24
-            padding: 0
-            focusPolicy: Qt.NoFocus
+            icon: "\uE711" // Segoe MDL2 Assets: Cancel
+            size: "sm"
+            tooltip: qsTr("Unpin message")
             onClicked: banner.unpinRequested()
-
-            background: Rectangle {
-                radius: 12
-                color: unpinButton.hovered ? Qt.alpha(BeyGramTheme.accentInk, 0.12)
-                                           : "transparent"
-            }
-
-            contentItem: Text {
-                text: "\u2715"
-                color: unpinButton.hovered ? BeyGramTheme.text : BeyGramTheme.muted
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Unpin message")
-            ToolTip.delay: 600
         }
     }
 }

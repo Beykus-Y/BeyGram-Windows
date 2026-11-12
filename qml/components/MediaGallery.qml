@@ -1,21 +1,23 @@
+// Full-screen media gallery overlay.
+//
+// The component is passive: it reads and drives the GalleryFacade assigned to
+// `facade` and never owns it, so the chat view that opens the gallery keeps
+// the single facade instance. While `facade` is null the overlay stays hidden.
+//
+// The rounded frame stands in for the media of the current item and is
+// labelled with the message id it belongs to. The arrows over its sides step
+// through the gallery, the bottom bar shows the "i / n" counter and the zoom
+// controls, and the header closes the gallery. Escape, the left arrow and the
+// right arrow work as keyboard shortcuts.
+//
+// The facade clamps the zoom to 1.0..5.0 and resets it whenever the current
+// item changes, so the overlay never applies a zoom of its own.
+
 import QtQuick
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-/// Full-screen media gallery overlay.
-///
-/// The component is passive: it reads and drives the GalleryFacade assigned to
-/// `facade` and never owns it, so the chat view that opens the gallery keeps
-/// the single facade instance. While `facade` is null the overlay stays hidden.
-///
-/// The large rounded placeholder stands in for the media of the current item
-/// and is labelled with the message id it belongs to. The arrows over its sides
-/// step through the gallery, the bottom bar shows the "i / n" counter and the
-/// zoom controls, and the header closes the gallery. Escape, the left arrow and
-/// the right arrow work as keyboard shortcuts.
-///
-/// The facade clamps the zoom to 1.0..5.0 and resets it whenever the current
-/// item changes, so the overlay never applies a zoom of its own.
 Item {
     id: root
 
@@ -33,14 +35,40 @@ Item {
     readonly property bool canGoNext: root.itemIndex >= 0
                                       && root.itemIndex + 1 < root.itemCount
 
+    // The only literal colour in the overlay is the scrim; everything else is
+    // derived from the active theme so Light, Dark and AMOLED stay coherent.
+    readonly property color _scrim: Qt.alpha("#000000", 0.92)
+    readonly property color _ink: BeyGramTheme.onAccent
+    readonly property color _inkSecondary: Qt.alpha(BeyGramTheme.onAccent, Design.opacitySecondary)
+    readonly property color _hairline: Qt.alpha(BeyGramTheme.onAccent, 0.10)
+    readonly property color _frameFill: Qt.alpha(BeyGramTheme.onAccent, 0.06)
+    readonly property color _frameLine: Qt.alpha(BeyGramTheme.onAccent, 0.14)
+
     anchors.fill: parent
     visible: root.open
     z: 1000
     focus: root.open
 
+    onVisibleChanged: {
+        if (visible)
+            root.forceActiveFocus()
+    }
+
     Keys.onEscapePressed: root.closeGallery()
     Keys.onLeftPressed: root.goPrevious()
     Keys.onRightPressed: root.goNext()
+    Keys.onPressed: function (event) {
+        if (event.key === Qt.Key_Plus || event.key === Qt.Key_Equal) {
+            root.zoomIn()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Minus) {
+            root.zoomOut()
+            event.accepted = true
+        } else if (event.key === Qt.Key_0) {
+            root.resetZoom()
+            event.accepted = true
+        }
+    }
 
     function closeGallery() {
         if (root.facade !== null)
@@ -72,11 +100,10 @@ Item {
             root.facade.resetZoom()
     }
 
-    // Backdrop: darkens the chat and closes the gallery on a click outside the
-    // media, like the single-media viewer does.
+    // Full-bleed scrim. A click outside the media closes the gallery.
     Rectangle {
         anchors.fill: parent
-        color: Qt.alpha("#000000", 0.94)
+        color: root._scrim
 
         MouseArea {
             anchors.fill: parent
@@ -85,184 +112,267 @@ Item {
     }
 
     Rectangle {
-        id: stage
-        anchors.fill: parent
-        anchors.topMargin: 56
-        anchors.bottomMargin: 76
-        color: "transparent"
+        id: topBar
 
-        Rectangle {
-            id: placeholder
-            anchors.fill: parent
-            anchors.margins: 26
-            radius: 18
-            color: Qt.alpha("#141414", 0.92)
-            border.width: 1
-            border.color: Qt.alpha(BeyGramTheme.accent, 0.3)
-            clip: true
-
-            // The zoom belongs to the item on screen, so the placeholder scales
-            // around its centre; navigation resets it through the facade.
-            transform: Scale {
-                origin.x: placeholder.width / 2
-                origin.y: placeholder.height / 2
-                xScale: root.zoom
-                yScale: root.zoom
-            }
-
-            Column {
-                width: parent.width
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
-
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: qsTr("MEDIA")
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 11
-                    font.letterSpacing: 1.6
-                }
-
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: root.currentId.length > 0
-                          ? qsTr("Message %1").arg(root.currentId)
-                          : qsTr("No media")
-                    color: BeyGramTheme.text
-                    font.pixelSize: 26
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideMiddle
-                }
-
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: qsTr("Full-size media appears here")
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 11
-                }
-            }
-        }
-
-        SecondaryButton {
-            anchors.left: parent.left
-            anchors.leftMargin: 4
-            anchors.verticalCenter: parent.verticalCenter
-            width: 44
-            height: 44
-            text: qsTr("‹")
-            enabled: root.canGoPrevious
-            onClicked: root.goPrevious()
-            Accessible.name: qsTr("Previous media")
-        }
-
-        SecondaryButton {
-            anchors.right: parent.right
-            anchors.rightMargin: 4
-            anchors.verticalCenter: parent.verticalCenter
-            width: 44
-            height: 44
-            text: qsTr("›")
-            enabled: root.canGoNext
-            onClicked: root.goNext()
-            Accessible.name: qsTr("Next media")
-        }
-    }
-
-    Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: 56
-        color: Qt.alpha("#000000", 0.55)
+        height: Design.headerHeight
+        color: "transparent"
+
+        // Chrome clicks must not fall through to the closing scrim.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: root._hairline
+        }
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 18
-            anchors.rightMargin: 12
-            spacing: 10
+            anchors.leftMargin: Design.space4
+            anchors.rightMargin: Design.space4
+            spacing: Design.space3
 
             Text {
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
                 text: root.currentId.length > 0
                       ? qsTr("Gallery · %1").arg(root.currentId) : qsTr("Gallery")
-                color: "white"
-                font.pixelSize: 14
+                color: root._ink
+                font.pixelSize: Design.fontTitle
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
+                maximumLineCount: 1
             }
 
-            SecondaryButton {
-                text: qsTr("Close")
+            DsIconButton {
+                Layout.alignment: Qt.AlignVCenter
+                icon: "\uE8BB"
+                tone: "soft"
+                tooltip: qsTr("Close")
                 onClicked: root.closeGallery()
             }
         }
     }
 
+    Item {
+        id: stage
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: topBar.bottom
+        anchors.bottom: bottomBar.top
+        clip: true
+
+        Rectangle {
+            id: frame
+
+            anchors.fill: parent
+            anchors.margins: Design.space6
+            radius: Design.radiusMd
+            color: root._frameFill
+            border.width: 1
+            border.color: root._frameLine
+            clip: true
+            antialiasing: true
+
+            // Zoom scales the placeholder inside the fixed 12 px frame.
+            Item {
+                id: zoomLayer
+
+                anchors.fill: parent
+
+                transform: Scale {
+                    origin.x: zoomLayer.width / 2
+                    origin.y: zoomLayer.height / 2
+                    xScale: root.zoom
+                    yScale: root.zoom
+                }
+
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.max(0, parent.width - Design.space8)
+                    spacing: Design.space3
+
+                    Item {
+                        width: parent.width
+                        height: Design.space10 + Design.space2
+
+                        DsIcon {
+                            anchors.centerIn: parent
+                            name: "\uE91B"
+                            size: Design.space10
+                            color: Qt.alpha(BeyGramTheme.onAccent, 0.55)
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: qsTr("Media")
+                        color: root._inkSecondary
+                        font.pixelSize: Design.fontCaption
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: root.currentId.length > 0
+                              ? qsTr("Message %1").arg(root.currentId)
+                              : qsTr("No media")
+                        color: root._ink
+                        font.pixelSize: Design.fontHeadline
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideMiddle
+                        maximumLineCount: 1
+                    }
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: qsTr("Full-size media appears here")
+                        color: root._inkSecondary
+                        font.pixelSize: Design.fontSmall
+                    }
+                }
+            }
+
+            // Keeps a click on the media from reaching the closing scrim.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                onClicked: function (mouse) {
+                    mouse.accepted = true
+                }
+                onWheel: function (wheel) {
+                    if (wheel.angleDelta.y > 0)
+                        root.zoomIn()
+                    else if (wheel.angleDelta.y < 0)
+                        root.zoomOut()
+                    wheel.accepted = true
+                }
+            }
+        }
+
+        DsIconButton {
+            anchors.left: parent.left
+            anchors.leftMargin: Design.space3
+            anchors.verticalCenter: parent.verticalCenter
+            z: 2
+            icon: "\uE76B"
+            tone: "soft"
+            size: "lg"
+            tooltip: qsTr("Previous media")
+            enabled: root.canGoPrevious
+            onClicked: root.goPrevious()
+        }
+
+        DsIconButton {
+            anchors.right: parent.right
+            anchors.rightMargin: Design.space3
+            anchors.verticalCenter: parent.verticalCenter
+            z: 2
+            icon: "\uE76C"
+            tone: "soft"
+            size: "lg"
+            tooltip: qsTr("Next media")
+            enabled: root.canGoNext
+            onClicked: root.goNext()
+        }
+    }
+
     Rectangle {
+        id: bottomBar
+
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 76
-        color: Qt.alpha("#000000", 0.55)
+        height: Design.space4 * 2 + Design.controlHeightLarge
+        color: "transparent"
+
+        // Chrome clicks must not fall through to the closing scrim.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            color: root._hairline
+        }
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            spacing: 10
+            anchors.leftMargin: Design.space4
+            anchors.rightMargin: Design.space4
+            spacing: Design.space2
 
             Text {
+                Layout.alignment: Qt.AlignVCenter
                 text: root.open ? (root.itemIndex + 1) + " / " + root.itemCount
                                 : "0 / 0"
-                color: "white"
-                font.pixelSize: 13
+                color: root._ink
+                font.pixelSize: Design.fontSmall
                 font.weight: Font.DemiBold
             }
 
             Item { Layout.fillWidth: true }
 
-            SecondaryButton {
-                Layout.preferredWidth: 40
-                text: qsTr("−")
-                enabled: root.zoom > 1.0
+            Text {
+                Layout.alignment: Qt.AlignVCenter
+                text: qsTr("Zoom")
+                color: root._inkSecondary
+                font.pixelSize: Design.fontCaption
+                font.weight: Font.DemiBold
+            }
+
+            DsIconButton {
+                Layout.alignment: Qt.AlignVCenter
+                icon: "\uE8A3"
+                tone: "soft"
+                tooltip: qsTr("Zoom out")
+                enabled: root.zoom > 1.001
                 onClicked: root.zoomOut()
-                Accessible.name: qsTr("Zoom out")
             }
 
             Text {
-                Layout.preferredWidth: 48
+                Layout.preferredWidth: Design.space10 + Design.space4
+                Layout.alignment: Qt.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
                 text: Math.round(root.zoom * 100) + "%"
-                color: "white"
-                font.pixelSize: 12
+                color: root._ink
+                font.pixelSize: Design.fontSmall
+                font.weight: Font.DemiBold
             }
 
-            SecondaryButton {
-                Layout.preferredWidth: 40
-                text: qsTr("+")
-                enabled: root.zoom < 5.0
+            DsIconButton {
+                Layout.alignment: Qt.AlignVCenter
+                icon: "\uE71F"
+                tone: "soft"
+                tooltip: qsTr("Zoom in")
+                enabled: root.zoom < 4.999
                 onClicked: root.zoomIn()
-                Accessible.name: qsTr("Zoom in")
             }
 
-            SecondaryButton {
-                text: qsTr("Reset")
-                enabled: root.zoom > 1.0
+            DsIconButton {
+                Layout.alignment: Qt.AlignVCenter
+                icon: "\uE72C"
+                tone: "soft"
+                tooltip: qsTr("Reset zoom")
+                enabled: root.zoom > 1.001
                 onClicked: root.resetZoom()
-                Accessible.name: qsTr("Reset zoom")
             }
-        }
-    }
-
-    Connections {
-        target: root.facade
-
-        function onChanged() {
-            if (root.open && !root.activeFocus)
-                root.forceActiveFocus()
         }
     }
 }

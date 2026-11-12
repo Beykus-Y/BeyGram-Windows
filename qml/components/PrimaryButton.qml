@@ -1,39 +1,23 @@
 import QtQuick
-import QtQuick.Controls
-import BeyGram.Theme 1.0
 
-Button {
+// PrimaryButton is the legacy name for the accent-filled DsButton. Pages keep
+// their old API (text, tone, enabled, clicked); the design-system button owns
+// the visuals.
+DsButton {
     id: control
-    property string tone: "neutral" // neutral | ok | warn | danger | accent
 
-    implicitHeight: 36
-    leftPadding: 14
-    rightPadding: 14
-    hoverEnabled: true
-    opacity: enabled ? 1.0 : 0.45
-    Accessible.role: Accessible.Button
-    Accessible.name: text
+    tone: "primary"
 
-    contentItem: Text {
-        text: control.text
-        color: BeyGramTheme.onAccent
-        font.pixelSize: 12
-        font.weight: Font.DemiBold
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+    // Legacy pages also use neutral, ok, warn and accent; the DS has no such
+    // button tones, so they fall back to primary. "danger" is forwarded
+    // unchanged.
+    onToneChanged: {
+        if (control.tone !== "primary" && control.tone !== "secondary"
+                && control.tone !== "ghost" && control.tone !== "danger")
+            control.tone = "primary"
     }
 
-    background: Rectangle {
-        radius: 10
-        color: {
-            let base = BeyGramTheme.accent
-            if (control.tone === "ok") base = BeyGramTheme.okInk
-            if (control.tone === "warn") base = BeyGramTheme.warnInk
-            if (control.tone === "danger") base = BeyGramTheme.danger
-            return control.pressed ? Qt.darker(base, 1.15)
-                                   : (control.hovered ? Qt.lighter(base, 1.06) : base)
-        }
-        Behavior on color { ColorAnimation { duration: 120 } }
-    }
+    // Pages set Accessible.name on the old Button root. DsButton exposes the
+    // spoken label as accessibleName for the inner native button.
+    accessibleName: Accessible.name
 }

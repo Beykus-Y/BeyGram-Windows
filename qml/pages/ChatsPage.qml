@@ -4,15 +4,49 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
+import "../ds/design.js" as Design
 
+// ChatsPage — two-pane conversations screen.
+//
+// Wide windows (>= 900 px) show the chat list at 320 px next to the open
+// conversation. Narrower windows collapse to one pane: the list until a chat
+// is opened, then the conversation with a back action in its header.
+//
+// The page owns drafts, reply/edit state and the in-chat search timer; every
+// message/chat request still goes through BeyGramApp. Geometry comes from
+// design.js and colours from BeyGramTheme, so the page follows the active
+// preset and Light/Dark/AMOLED mode.
 Item {
     id: page
 
+    // --- Public surface (kept for callers) ---------------------------------
     property var editingId: 0
     property var loadedChatId: 0
     property bool searchOpen: false
     property var forwardMessageId: 0
 
+    readonly property int wideBreakpoint: 900
+    readonly property bool wideLayout: page.width >= page.wideBreakpoint
+    readonly property int chatListWidth: Design.space10 * 8 // 320
+
+    readonly property var chatListModel: BeyGramApp.archiveOpen && BeyGramApp.archivedChats
+                                         ? BeyGramApp.archivedChats
+                                         : BeyGramApp.chatList
+    readonly property bool chatListLoading: BeyGramApp.archiveOpen
+                                            ? BeyGramApp.archiveLoading
+                                            : BeyGramApp.chatLoading
+    readonly property int chatListCount: page.chatListModel
+                                         ? Number(page.chatListModel.count) : 0
+    readonly property string chatListTitle: BeyGramApp.archiveOpen ? "Archive" : "Chats"
+    readonly property string chatListSubtitle: {
+        if (BeyGramApp.archiveOpen) {
+            return page.chatListCount === 1
+                    ? "1 archived chat" : page.chatListCount + " archived chats"
+        }
+        return page.chatListCount === 1 ? "1 chat" : page.chatListCount + " chats"
+    }
+
+    // --- Public functions (kept) -------------------------------------------
     function openSearch() {
         searchOpen = true
         searchField.forceActiveFocus()
@@ -23,6 +57,11 @@ Item {
         searchField.text = ""
         searchTimer.stop()
         BeyGramApp.clearSearch()
+    }
+
+    function focusChatSearch() {
+        chatSearchField.forceActiveFocus()
+        chatSearchField.cursorPosition = chatSearchField.length
     }
 
     function flushDraft() {
@@ -88,6 +127,49 @@ Item {
         composer.forceActiveFocus()
     }
 
+    // --- Small formatting helpers ------------------------------------------
+    function chatTimeText(timestamp) {
+        const value = Number(timestamp)
+        if (!value || value <= 0)
+            return ""
+        const date = new Date(value * 1000)
+        const now = new Date()
+        if (date.toDateString() === now.toDateString())
+            return Qt.formatTime(date, "hh:mm")
+        return Qt.formatDate(date, "dd.MM")
+    }
+
+    function dayStart(timestamp) {
+        const value = Number(timestamp)
+        if (!value || value <= 0)
+            return -1
+        const date = new Date(value * 1000)
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+    }
+
+    function dayLabel(timestamp) {
+        const value = Number(timestamp)
+        if (!value || value <= 0)
+            return ""
+        const date = new Date(value * 1000)
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+        if (day === today)
+            return "Today"
+        const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime()
+        if (day === yesterday)
+            return "Yesterday"
+        return Qt.formatDate(date, "dd.MM.yyyy")
+    }
+
+    function avatarSource(fileId, ready, revision) {
+        if (!ready || Number(fileId) <= 0)
+            return ""
+        // DsAvatar applies its own circular mask, so no &round=1 is needed.
+        return "image://beygrammedia/" + fileId + "?v=" + revision
+    }
+
     Timer {
         id: draftTimer
         property var chatId: 0
@@ -119,145 +201,129 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // ------------------------------------------------------------------
-        // Chat list
-        // ------------------------------------------------------------------
+        // ==================================================================
+        // Chat list pane
+        // ==================================================================
         Rectangle {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 360
-            color: BeyGramTheme.surface
+            id: chatListPane
 
-            Rectangle {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 1
-                color: BeyGramTheme.line
-            }
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredWidth: page.wideLayout ? page.chatListWidth : page.width
+            Layout.maximumWidth: page.wideLayout ? page.chatListWidth
+                                                 : Number.POSITIVE_INFINITY
+            color: BeyGramTheme.surface
+            visible: page.wideLayout || BeyGramApp.currentChatId === 0
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 10
+                spacing: 0
 
-                RowLayout {
+                DsHeader {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 4
-                    Layout.rightMargin: 2
+                    title: page.chatListTitle
+                    subtitle: page.chatListSubtitle
 
-                    Text {
-                        text: BeyGramApp.archiveOpen ? "Archive" : "Chats"
-                        color: BeyGramTheme.text
-                        font.pixelSize: 26
-                        font.weight: Font.DemiBold
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: BeyGramApp.archiveOpen
-                              ? (BeyGramApp.archivedChats ? BeyGramApp.archivedChats.count : 0)
-                              : chatListView.count
-                        color: BeyGramTheme.muted
-                        font.pixelSize: 11
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    visible: BeyGramApp.archiveOpen
-                    SecondaryButton {
-                        text: "← Back to chats"
+                    leading: DsIconButton {
+                        // DsHeader's slots are positioners, so an implicit-only
+                        // control needs an explicit size here.
+                        width: implicitWidth
+                        height: implicitHeight
+                        icon: "\uE72B" // Segoe MDL2 Assets: Back
+                        size: "sm"
+                        tooltip: "Back to chats"
+                        visible: BeyGramApp.archiveOpen
                         onClicked: BeyGramApp.closeArchive()
                     }
-                    Item { Layout.fillWidth: true }
+
+                    trailing: DsIconButton {
+                        width: implicitWidth
+                        height: implicitHeight
+                        icon: "\uE70F" // Segoe MDL2 Assets: Edit (compose)
+                        tooltip: "New message"
+                        // The backend has no create-chat call yet, so the
+                        // compose entry point focuses the chat search where a
+                        // conversation can be picked.
+                        onClicked: page.focusChatSearch()
+                    }
                 }
 
-                Rectangle {
+                // Archive entry point: a single tappable card above the list.
+                DsCard {
                     Layout.fillWidth: true
-                    implicitHeight: 46
-                    radius: 10
-                    color: archiveArea.containsMouse ? BeyGramTheme.surface2 : BeyGramTheme.surface
+                    Layout.leftMargin: Design.space3
+                    Layout.rightMargin: Design.space3
+                    Layout.bottomMargin: Design.space2
+                    padding: Design.space3
+                    interactive: true
                     visible: !BeyGramApp.archiveOpen
                              && BeyGramApp.archivedChats
                              && BeyGramApp.archivedChats.count > 0
+                    onClicked: BeyGramApp.openArchive()
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 14
-                        spacing: 8
-                        Text {
-                            text: "🗄"
-                            font.pixelSize: 15
+                    content: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Design.space3
+
+                        DsIcon {
+                            Layout.alignment: Qt.AlignVCenter
+                            name: "\uE7B8" // Segoe MDL2 Assets: Archive
+                            size: Design.iconSize
+                            color: BeyGramTheme.accentInk
+                            filled: true
                         }
+
                         Text {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
                             text: "Archived chats"
                             color: BeyGramTheme.text
-                            font.pixelSize: 13
-                            Layout.fillWidth: true
+                            font.pixelSize: Design.fontBody
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
                         }
-                        Text {
-                            text: BeyGramApp.archivedChats ? BeyGramApp.archivedChats.count : 0
+
+                        DsBadge {
+                            Layout.alignment: Qt.AlignVCenter
+                            tone: "muted"
+                            text: BeyGramApp.archivedChats
+                                  ? BeyGramApp.archivedChats.count.toString() : "0"
+                        }
+
+                        DsIcon {
+                            Layout.alignment: Qt.AlignVCenter
+                            name: "\uE76C" // Segoe MDL2 Assets: ChevronRight
+                            size: Design.iconSize - Design.space1
                             color: BeyGramTheme.muted
-                            font.pixelSize: 11
                         }
                     }
+                }
 
-                    MouseArea {
-                        id: archiveArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: BeyGramApp.openArchive()
+                DsSearchField {
+                    id: chatSearchField
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Design.space3
+                    Layout.rightMargin: Design.space3
+                    Layout.bottomMargin: Design.space2
+                    placeholderText: "Search chats"
+                    text: BeyGramApp.chatFilter
+                    onTextEdited: BeyGramApp.chatFilter = text
+                    onCleared: {
+                        BeyGramApp.chatFilter = ""
+                        // clearText() assigns `text` directly; restore the
+                        // binding so an external filter reset still shows.
+                        text = Qt.binding(function() { return BeyGramApp.chatFilter })
                     }
                 }
 
                 ChatFolderTabs {
                     Layout.fillWidth: true
+                    Layout.leftMargin: Design.space3
+                    Layout.rightMargin: Design.space3
+                    Layout.bottomMargin: Design.space2
                     model: BeyGramApp.chatFolders
                     currentFolderId: BeyGramApp.currentFolderId
                     onFolderSelected: (folderId) => BeyGramApp.selectFolder(folderId)
-                }
-
-                TextField {
-                    id: chatSearchField
-                    Layout.fillWidth: true
-                    implicitHeight: 44
-                    leftPadding: 13
-                    rightPadding: 30
-                    placeholderText: "Search chats"
-                    placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-                    color: BeyGramTheme.text
-                    selectionColor: BeyGramTheme.accent
-                    selectedTextColor: BeyGramTheme.onAccent
-                    font.pixelSize: 13
-                    text: BeyGramApp.chatFilter
-                    onTextEdited: BeyGramApp.chatFilter = text
-
-                    background: Rectangle {
-                        radius: 22
-                        color: BeyGramTheme.surface2
-                        border.width: chatSearchField.activeFocus ? 1 : 0
-                        border.color: BeyGramTheme.accent
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: chatSearchField.text.length > 0
-                        text: "×"
-                        color: BeyGramTheme.muted
-                        font.pixelSize: 16
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                chatSearchField.text = ""
-                                BeyGramApp.chatFilter = ""
-                            }
-                        }
-                    }
                 }
 
                 Item {
@@ -268,31 +334,43 @@ Item {
                         id: chatListView
                         anchors.fill: parent
                         clip: true
-                        spacing: 1
-                        model: BeyGramApp.archiveOpen && BeyGramApp.archivedChats
-                               ? BeyGramApp.archivedChats
-                               : BeyGramApp.chatList
+                        spacing: Design.space1
+                        model: page.chatListModel
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
                         delegate: Item {
-                            width: chatListView.width
-                            height: chatRowItem.implicitHeight
+                            id: chatDelegate
 
-                            ChatRow {
-                                id: chatRowItem
+                            width: chatListView.width
+                            height: chatRow.implicitHeight
+
+                            readonly property int photoFileId: model.photoFileId
+
+                            // DsChatRow renders the photo from imageSource; the
+                            // page keeps requesting it through the app facade.
+                            Component.onCompleted: {
+                                if (photoFileId > 0)
+                                    BeyGramApp.requestChatPhoto(photoFileId)
+                            }
+                            onPhotoFileIdChanged: {
+                                if (photoFileId > 0)
+                                    BeyGramApp.requestChatPhoto(photoFileId)
+                            }
+
+                            DsChatRow {
+                                id: chatRow
                                 width: parent.width
-                                chatId: model.chatId
                                 title: model.title
                                 preview: model.preview
-                                unreadCount: model.unreadCount
+                                timeText: page.chatTimeText(model.lastDate)
+                                unread: model.unreadCount
                                 pinned: model.pinned
                                 muted: model.muted
                                 initials: model.initials
                                 accentIndex: model.accentIndex
-                                lastDate: model.lastDate
-                                photoFileId: model.photoFileId
-                                photoReady: model.photoReady
-                                photoRevision: model.photoRevision
+                                imageSource: page.avatarSource(model.photoFileId,
+                                                               model.photoReady,
+                                                               model.photoRevision)
                                 selected: BeyGramApp.currentChatId === model.chatId
                                 onClicked: {
                                     page.resetComposer()
@@ -300,88 +378,96 @@ Item {
                                 }
                             }
 
+                            // Right-click menu. Accepted buttons only, so left
+                            // clicks and hover continue to reach DsChatRow.
                             MouseArea {
                                 anchors.fill: parent
                                 acceptedButtons: Qt.RightButton
                                 onClicked: {
-                                    chatMenu.chatId = chatRowItem.chatId
-                                    chatMenu.chatMuted = chatRowItem.muted
+                                    chatMenu.chatId = model.chatId
+                                    chatMenu.chatMuted = model.muted
                                     chatMenu.popup()
                                 }
                             }
                         }
                     }
 
-                    BusyIndicator {
+                    DsSpinner {
                         anchors.centerIn: parent
-                        running: BeyGramApp.chatLoading && chatListView.count === 0
+                        running: page.chatListLoading && chatListView.count === 0
                         visible: running
                     }
 
-                    Column {
+                    DsEmptyState {
                         anchors.centerIn: parent
-                        spacing: 6
-                        width: parent.width - 40
-                        visible: chatListView.count === 0 && !BeyGramApp.chatLoading
-
-                        Text {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: BeyGramApp.chatError.length > 0 ? "Chats unavailable"
-                                                                  : "No chats yet"
-                            color: BeyGramTheme.text
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: BeyGramApp.chatError.length > 0
-                                  ? BeyGramApp.chatError
-                                  : "Your Telegram chats will appear here."
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
-                        }
+                        width: Math.max(0, Math.min(Design.space10 * 7,
+                                                     parent.width - Design.space6 * 2))
+                        visible: chatListView.count === 0 && !page.chatListLoading
+                        glyph: BeyGramApp.archiveOpen ? "\uD83D\uDDC4" : "\uD83D\uDCAC"
+                        title: BeyGramApp.chatError.length > 0
+                               ? "Chats unavailable"
+                               : (BeyGramApp.archiveOpen ? "No archived chats"
+                                                         : "No chats yet")
+                        description: BeyGramApp.chatError.length > 0
+                                     ? BeyGramApp.chatError
+                                     : (BeyGramApp.archiveOpen
+                                        ? "Chats you archive will appear here."
+                                        : "Your Telegram chats will appear here.")
                     }
                 }
             }
         }
 
-        // ------------------------------------------------------------------
-        // Conversation
-        // ------------------------------------------------------------------
+        // Hairline between the panes on wide windows.
+        Item {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 1
+            visible: page.wideLayout
+
+            Rectangle {
+                anchors.fill: parent
+                color: BeyGramTheme.line
+            }
+        }
+
+        // ==================================================================
+        // Conversation pane
+        // ==================================================================
         Rectangle {
+            id: conversationPane
+
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: BeyGramTheme.bg
+            visible: page.wideLayout || BeyGramApp.currentChatId !== 0
 
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
                 visible: BeyGramApp.currentChatId !== 0
 
-                Rectangle {
+                DsHeader {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 64
-                    color: BeyGramTheme.surface
+                    title: BeyGramApp.currentChatTitle
+                    subtitle: BeyGramApp.typingText.length > 0
+                              ? BeyGramApp.typingText
+                              : BeyGramApp.currentChatSubtitle
 
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 1
-                        color: BeyGramTheme.line
-                    }
+                    leading: RowLayout {
+                        spacing: Design.space2
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 18
-                        anchors.rightMargin: 18
-                        spacing: 12
+                        DsIconButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            icon: "\uE72B" // Segoe MDL2 Assets: Back
+                            size: "sm"
+                            tooltip: "Back to chats"
+                            visible: !page.wideLayout
+                            onClicked: BeyGramApp.closeChat()
+                        }
 
                         Avatar {
-                            size: 40
+                            Layout.alignment: Qt.AlignVCenter
+                            size: Design.avatarMedium
                             fileId: BeyGramApp.currentChatPhotoFileId
                             ready: BeyGramApp.currentChatPhotoReady
                             revision: BeyGramApp.currentChatPhotoRevision
@@ -391,100 +477,40 @@ Item {
                             tint: BeyGramTheme.accentSoft
                             ink: BeyGramTheme.accentInk
                         }
+                    }
 
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-                            Text {
-                                Layout.fillWidth: true
-                                text: BeyGramApp.currentChatTitle
-                                color: BeyGramTheme.text
-                                font.pixelSize: 16
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: BeyGramApp.currentChatSubtitle
-                                color: BeyGramTheme.muted
-                                font.pixelSize: 12
-                            }
-                        }
-
-                        SecondaryButton {
-                            text: "Profile"
-                            implicitHeight: 30
-                            onClicked: BeyGramApp.requestProfile(BeyGramApp.currentChatId)
-                        }
-
-                        SecondaryButton {
-                            text: page.searchOpen ? "Close search" : "Search"
-                            implicitHeight: 30
-                            onClicked: page.searchOpen ? page.closeSearch() : page.openSearch()
-                        }
+                    trailing: RowLayout {
+                        spacing: Design.space1
 
                         Pill {
+                            Layout.alignment: Qt.AlignVCenter
                             visible: BeyGramApp.connectionTitle !== "Connected"
                             text: BeyGramApp.connectionTitle.toUpperCase()
                             tone: "warn"
                         }
+
+                        DsIconButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            icon: "\uE721" // Segoe MDL2 Assets: Search
+                            tooltip: page.searchOpen ? "Close search"
+                                                     : "Search in chat"
+                            selected: page.searchOpen
+                            onClicked: page.searchOpen ? page.closeSearch()
+                                                       : page.openSearch()
+                        }
+
+                        DsIconButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            icon: "\uE77B" // Segoe MDL2 Assets: Contact
+                            tooltip: "Profile"
+                            onClicked: BeyGramApp.requestProfile(BeyGramApp.currentChatId)
+                        }
                     }
                 }
 
-                TypingIndicator {
+                SecretChatBanner {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 18
-                    active: BeyGramApp.typingText.length > 0
-                    text: BeyGramApp.typingText
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    visible: page.searchOpen
-                    implicitHeight: 48
-                    color: BeyGramTheme.surface
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 1
-                        color: BeyGramTheme.line
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 12
-                        spacing: 8
-
-                        TextField {
-                            id: searchField
-                            Layout.fillWidth: true
-                            implicitHeight: 34
-                            leftPadding: 12
-                            rightPadding: 12
-                            placeholderText: "Search in this chat"
-                            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-                            color: BeyGramTheme.text
-                            selectionColor: BeyGramTheme.accent
-                            selectedTextColor: BeyGramTheme.onAccent
-                            font.pixelSize: 13
-                            background: Rectangle {
-                                radius: 17
-                                color: BeyGramTheme.surface2
-                                border.width: searchField.activeFocus ? 1 : 0
-                                border.color: BeyGramTheme.accent
-                            }
-                            onTextEdited: searchTimer.restart()
-                        }
-                        BusyIndicator {
-                            running: BeyGramApp.searchLoading
-                            visible: running
-                            implicitWidth: 22
-                            implicitHeight: 22
-                        }
-                    }
+                    facade: BeyGramApp.security
                 }
 
                 PinnedMessageBanner {
@@ -496,6 +522,49 @@ Item {
                     onUnpinRequested: BeyGramApp.unpinPinnedMessage()
                 }
 
+                // In-chat search bar. DsSearchField owns the pill and clear
+                // affordance; the page keeps the debounce timer.
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: page.searchOpen
+                    implicitHeight: searchBar.implicitHeight + Design.space2 * 2
+                    color: BeyGramTheme.surface
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: BeyGramTheme.line
+                    }
+
+                    RowLayout {
+                        id: searchBar
+                        anchors.fill: parent
+                        anchors.leftMargin: Design.space3
+                        anchors.rightMargin: Design.space3
+                        spacing: Design.space2
+
+                        DsSearchField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            placeholderText: "Search in this chat"
+                            onTextEdited: searchTimer.restart()
+                            onCleared: {
+                                searchTimer.stop()
+                                BeyGramApp.clearSearch()
+                            }
+                        }
+
+                        DsSpinner {
+                            Layout.alignment: Qt.AlignVCenter
+                            running: BeyGramApp.searchLoading
+                            visible: running
+                        }
+                    }
+                }
+
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -504,30 +573,75 @@ Item {
                         id: messageListView
                         anchors.fill: parent
                         clip: true
-                        spacing: 4
+                        spacing: 0
                         model: BeyGramApp.messages
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
+                        // One section per timestamp, but the section delegate
+                        // only draws when the calendar day changes. Zero-height
+                        // sections keep the flow identical to a plain list.
+                        section.property: "date"
+                        section.criteria: ViewSection.FullString
+                        section.delegate: Item {
+                            id: dateSection
+
+                            readonly property real stamp: Number(ListView.section)
+                            readonly property bool newDay: stamp > 0
+                                                           && (ListView.previousSection === ""
+                                                               || page.dayStart(Number(ListView.previousSection))
+                                                                  !== page.dayStart(stamp))
+
+                            width: messageListView.width
+                            height: newDay ? datePill.height + Design.space3 : 0
+                            visible: newDay
+
+                            Rectangle {
+                                id: datePill
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.top: parent.top
+                                anchors.topMargin: Design.space2
+                                width: dateLabel.implicitWidth + Design.space4
+                                height: dateLabel.implicitHeight + Design.space1 * 2
+                                radius: Design.radiusPill
+                                color: Qt.alpha(BeyGramTheme.surface2, 0.9)
+
+                                Text {
+                                    id: dateLabel
+                                    anchors.centerIn: parent
+                                    text: page.dayLabel(dateSection.stamp)
+                                    color: BeyGramTheme.muted
+                                    font.pixelSize: Design.fontCaption
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+
                         header: Item {
                             width: messageListView.width
-                            height: BeyGramApp.hasMoreHistory ? 36 : 6
+                            height: BeyGramApp.hasMoreHistory || BeyGramApp.historyLoading
+                                    ? Design.space10 : Design.space2
 
-                            SecondaryButton {
+                            DsButton {
                                 anchors.centerIn: parent
+                                width: implicitWidth
+                                height: implicitHeight
                                 text: "Load older messages"
+                                tone: "secondary"
+                                size: "sm"
                                 visible: BeyGramApp.hasMoreHistory
                                          && !BeyGramApp.historyLoading
                                 onClicked: BeyGramApp.loadOlderMessages()
                             }
-                            BusyIndicator {
+
+                            DsSpinner {
                                 anchors.centerIn: parent
                                 running: BeyGramApp.historyLoading
                                 visible: running
-                                implicitWidth: 22
-                                implicitHeight: 22
                             }
                         }
 
+                        // MessageBubble keeps its own API while the message
+                        // bubble migration lands; every binding is unchanged.
                         delegate: MessageBubble {
                             messageId: model.messageId
                             text: model.text
@@ -588,133 +702,150 @@ Item {
                         }
                     }
 
+                    // Floating in-chat search results, above the message list.
                     Rectangle {
                         id: searchPanel
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        height: Math.min(320, parent.height * 0.55)
+                        height: Math.min(Design.space10 * 8, parent.height * 0.55)
                         visible: page.searchOpen && searchField.text.trim().length > 0
                         z: 20
                         color: BeyGramTheme.surface
+                        radius: Design.radiusLg
                         border.width: 1
                         border.color: BeyGramTheme.line
 
                         ListView {
                             id: searchList
                             anchors.fill: parent
+                            anchors.margins: Design.space1
                             clip: true
                             model: BeyGramApp.searchResults
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                            delegate: Rectangle {
+                            delegate: DsListRow {
                                 width: searchList.width
-                                height: 56
-                                color: hover.containsMouse ? BeyGramTheme.surface2 : "transparent"
-
-                                Column {
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: 16
-                                    anchors.rightMargin: 16
-                                    spacing: 3
-                                    Text {
-                                        width: parent.width
-                                        text: model.text.length > 0 ? model.text : "[media]"
-                                        color: BeyGramTheme.text
-                                        font.pixelSize: 13
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        text: model.date > 0
-                                              ? Qt.formatDateTime(new Date(model.date * 1000),
-                                                                  "dd.MM.yyyy hh:mm")
-                                              : ""
-                                        color: BeyGramTheme.muted
-                                        font.pixelSize: 11
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: hover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: page.closeSearch()
-                                }
+                                title: model.text.length > 0 ? model.text : "[media]"
+                                subtitle: model.date > 0
+                                          ? Qt.formatDateTime(new Date(model.date * 1000),
+                                                              "dd.MM.yyyy hh:mm")
+                                          : ""
+                                onClicked: page.closeSearch()
                             }
                         }
 
                         Text {
                             anchors.centerIn: parent
+                            width: parent.width - Design.space8
+                            horizontalAlignment: Text.AlignHCenter
                             visible: searchList.count === 0 && !BeyGramApp.searchLoading
                             text: "No matches"
                             color: BeyGramTheme.muted
-                            font.pixelSize: 12
+                            font.pixelSize: Design.fontSmall
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    BusyIndicator {
+                    DsSpinner {
                         anchors.centerIn: parent
                         running: BeyGramApp.historyLoading && messageListView.count === 0
                         visible: running
                     }
 
-                    Column {
+                    DsEmptyState {
                         anchors.centerIn: parent
-                        spacing: 6
-                        width: parent.width - 80
+                        width: Math.max(0, Math.min(Design.space10 * 7,
+                                                     parent.width - Design.space8))
                         visible: messageListView.count === 0 && !BeyGramApp.historyLoading
-                        Text {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: "No messages loaded"
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 12
+                        glyph: "\uD83D\uDCAC"
+                        title: "No messages loaded"
+                        description: "Messages from this chat will appear here."
+                    }
+
+                    // Scroll-to-latest affordance, only while the view is not
+                    // already pinned to the end.
+                    DsIconButton {
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.rightMargin: Design.space4
+                        anchors.bottomMargin: Design.space4
+                        width: implicitWidth
+                        height: implicitHeight
+                        icon: "\uE70D" // Segoe MDL2 Assets: ChevronDown
+                        tone: "soft"
+                        tooltip: "Scroll to latest"
+                        visible: messageListView.count > 0 && !messageListView.atYEnd
+                        onClicked: messageListView.positionViewAtEnd()
+                        z: 10
+                    }
+
+                    // Selection is owned by the facade; the toolbar floats so
+                    // it never changes the message-list geometry.
+                    SelectionToolbar {
+                        id: selectionToolbar
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: Design.space4
+                        width: implicitWidth
+                        height: implicitHeight
+                        facade: BeyGramApp.selection
+                        z: 30
+
+                        onDeleteRequested: {
+                            const ids = BeyGramApp.selection ? BeyGramApp.selection.ids : []
+                            for (let i = 0; i < ids.length; ++i) {
+                                const id = Number(ids[i])
+                                if (id > 0)
+                                    BeyGramApp.deleteChatMessage(id, true)
+                            }
+                            if (BeyGramApp.selection)
+                                BeyGramApp.selection.clear()
                         }
                     }
                 }
 
+                // Chat-level error strip, dismissible without leaving the chat.
                 Rectangle {
                     Layout.fillWidth: true
                     visible: BeyGramApp.chatError.length > 0
-                    implicitHeight: errorRow.implicitHeight + 14
+                    implicitHeight: errorRow.implicitHeight + Design.space3
                     color: Qt.alpha(BeyGramTheme.danger, 0.10)
 
                     RowLayout {
                         id: errorRow
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 12
+                        anchors.leftMargin: Design.space4
+                        anchors.rightMargin: Design.space2
+                        spacing: Design.space2
+
                         Text {
                             Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
                             text: BeyGramApp.chatError
                             color: BeyGramTheme.danger
-                            font.pixelSize: 11
+                            font.pixelSize: Design.fontCaption
                             wrapMode: Text.WordWrap
                         }
-                        Button {
-                            text: "×"
-                            flat: true
-                            implicitWidth: 26
-                            implicitHeight: 26
+
+                        DsIconButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            icon: "\uE711" // Segoe MDL2 Assets: Cancel
+                            size: "sm"
+                            tone: "danger"
+                            tooltip: "Dismiss"
                             onClicked: BeyGramApp.clearChatError()
-                            contentItem: Text {
-                                text: "×"
-                                color: BeyGramTheme.danger
-                                font.pixelSize: 16
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                            background: null
                         }
                     }
                 }
 
+                // ----------------------------------------------------------
+                // Composer: reply/edit strips above the attach + poll row.
+                // ----------------------------------------------------------
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: composerColumn.implicitHeight + 18
-                    color: Qt.alpha(BeyGramTheme.surface, BeyGramTheme.darkMode ? 0.72 : 0.88)
+                    implicitHeight: composerColumn.implicitHeight + Design.space4
+                    color: BeyGramTheme.surface
 
                     Rectangle {
                         anchors.left: parent.left
@@ -727,84 +858,144 @@ Item {
                     ColumnLayout {
                         id: composerColumn
                         anchors.fill: parent
-                        anchors.margins: 9
-                        spacing: 6
+                        anchors.margins: Design.space2
+                        spacing: Design.space2
 
-                        RowLayout {
+                        // Edit mode banner.
+                        Rectangle {
                             Layout.fillWidth: true
                             visible: page.editingId > 0
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Editing message"
-                                color: BeyGramTheme.muted
-                                font.pixelSize: 10
+                            implicitHeight: editRow.implicitHeight + Design.space2
+                            radius: Design.radiusSm
+                            color: Qt.alpha(BeyGramTheme.accent, 0.10)
+                            clip: true
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: 3
+                                color: BeyGramTheme.accent
                             }
-                            SecondaryButton {
-                                text: "Cancel"
-                                implicitHeight: 26
-                                onClicked: page.resetComposer()
+
+                            RowLayout {
+                                id: editRow
+                                anchors.fill: parent
+                                anchors.leftMargin: Design.space3
+                                anchors.rightMargin: Design.space1
+                                spacing: Design.space2
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: "Editing message"
+                                    color: BeyGramTheme.muted
+                                    font.pixelSize: Design.fontSmall
+                                    elide: Text.ElideRight
+                                }
+
+                                DsIconButton {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    icon: "\uE711" // Segoe MDL2 Assets: Cancel
+                                    size: "sm"
+                                    tooltip: "Cancel editing"
+                                    onClicked: page.resetComposer()
+                                }
                             }
                         }
 
-                        RowLayout {
+                        // Reply banner.
+                        Rectangle {
                             Layout.fillWidth: true
                             visible: page.editingId === 0
                                      && BeyGramApp.replyToMessageId > 0
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Replying: " + BeyGramApp.replyPreview
-                                color: BeyGramTheme.muted
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
+                            implicitHeight: replyRow.implicitHeight + Design.space2
+                            radius: Design.radiusSm
+                            color: Qt.alpha(BeyGramTheme.accent, 0.10)
+                            clip: true
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: 3
+                                color: BeyGramTheme.accent
                             }
-                            SecondaryButton {
-                                text: "Cancel"
-                                implicitHeight: 26
-                                onClicked: BeyGramApp.cancelReply()
+
+                            RowLayout {
+                                id: replyRow
+                                anchors.fill: parent
+                                anchors.leftMargin: Design.space3
+                                anchors.rightMargin: Design.space1
+                                spacing: Design.space2
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: "Replying: " + BeyGramApp.replyPreview
+                                    color: BeyGramTheme.muted
+                                    font.pixelSize: Design.fontSmall
+                                    elide: Text.ElideRight
+                                }
+
+                                DsIconButton {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    icon: "\uE711" // Segoe MDL2 Assets: Cancel
+                                    size: "sm"
+                                    tooltip: "Cancel reply"
+                                    onClicked: BeyGramApp.cancelReply()
+                                }
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: Design.space2
 
-                            SecondaryButton {
-                                text: "Attach"
-                                implicitHeight: 40
+                            DsIconButton {
+                                Layout.alignment: Qt.AlignBottom
+                                icon: "\uE723" // Segoe MDL2 Assets: Attach
+                                tooltip: "Attach file"
                                 onClicked: attachDialog.open()
                             }
-                            SecondaryButton {
-                                text: "Poll"
-                                implicitHeight: 40
+
+                            DsIconButton {
+                                Layout.alignment: Qt.AlignBottom
+                                icon: "\uE9D9" // Segoe MDL2 Assets: Poll
+                                tooltip: "Create poll"
                                 onClicked: pollDialog.open()
                             }
 
                             TextArea {
                                 id: composer
                                 Layout.fillWidth: true
-                                implicitHeight: Math.min(92, Math.max(42, contentHeight + 16))
-                                leftPadding: 12
-                                rightPadding: 12
-                                topPadding: 9
-                                bottomPadding: 9
+                                implicitHeight: Math.min(Design.space10 * 2 + Design.space3,
+                                                         Math.max(Design.controlHeight,
+                                                                  contentHeight + Design.space4))
+                                leftPadding: Design.space3
+                                rightPadding: Design.space3
+                                topPadding: Design.space2
+                                bottomPadding: Design.space2
                                 placeholderText: "Write a message"
                                 placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
                                 color: BeyGramTheme.text
                                 selectionColor: BeyGramTheme.accent
                                 selectedTextColor: BeyGramTheme.onAccent
-                                font.pixelSize: 14
+                                font.pixelSize: Design.fontBody
                                 wrapMode: TextArea.Wrap
                                 background: Rectangle {
-                                    radius: 20
+                                    radius: Design.composerRadius
                                     color: BeyGramTheme.surface2
                                     border.width: composer.activeFocus ? 1 : 0
                                     border.color: BeyGramTheme.accent
                                 }
                                 Keys.onPressed: (event) => {
                                     if (event.key === Qt.Key_Return
-                                        && !(event.modifiers & Qt.ShiftModifier)) {
-                                        page.submitComposer()
-                                        event.accepted = true
+                                        || event.key === Qt.Key_Enter) {
+                                        if (!(event.modifiers & Qt.ShiftModifier)) {
+                                            page.submitComposer()
+                                            event.accepted = true
+                                        }
                                     }
                                 }
                                 onTextChanged: {
@@ -814,22 +1005,27 @@ Item {
                                 }
                             }
 
-                            PrimaryButton {
+                            DsButton {
+                                Layout.alignment: Qt.AlignBottom
                                 text: page.editingId > 0 ? "Save" : "Send"
                                 enabled: composer.text.trim().length > 0
                                 onClicked: page.submitComposer()
                             }
                         }
-
                     }
                 }
             }
 
+            // --------------------------------------------------------------
+            // Profile side panel (not a dialog: it overlays the conversation).
+            // --------------------------------------------------------------
             Rectangle {
+                id: profilePanel
+
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                width: 320
+                width: page.chatListWidth
                 visible: BeyGramApp.profileVisible
                 z: 40
                 color: BeyGramTheme.surface
@@ -838,28 +1034,34 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 12
+                    anchors.margins: Design.space5
+                    spacing: Design.space3
 
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: Design.space2
+
                         Text {
                             Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
                             text: "Profile"
                             color: BeyGramTheme.text
-                            font.pixelSize: 18
+                            font.pixelSize: Design.fontTitle
                             font.weight: Font.DemiBold
                         }
-                        SecondaryButton {
-                            text: "Close"
-                            implicitHeight: 28
+
+                        DsIconButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            icon: "\uE711" // Segoe MDL2 Assets: Cancel
+                            size: "sm"
+                            tooltip: "Close profile"
                             onClicked: BeyGramApp.closeProfile()
                         }
                     }
 
                     Avatar {
                         Layout.alignment: Qt.AlignHCenter
-                        size: 84
+                        size: Design.avatarXLarge
                         fileId: BeyGramApp.currentChatPhotoFileId
                         ready: BeyGramApp.currentChatPhotoReady
                         revision: BeyGramApp.currentChatPhotoRevision
@@ -877,10 +1079,11 @@ Item {
                               ? BeyGramApp.profileName
                               : BeyGramApp.currentChatTitle
                         color: BeyGramTheme.text
-                        font.pixelSize: 17
+                        font.pixelSize: Design.fontTitle
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
+
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -888,9 +1091,10 @@ Item {
                         text: BeyGramApp.profileUsername.length > 0
                               ? "@" + BeyGramApp.profileUsername : ""
                         color: BeyGramTheme.accentInk
-                        font.pixelSize: 12
+                        font.pixelSize: Design.fontSmall
                         elide: Text.ElideRight
                     }
+
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -899,83 +1103,66 @@ Item {
                               + (BeyGramApp.profileMemberCount > 0
                                  ? " · " + BeyGramApp.profileMemberCount + " members" : "")
                         color: BeyGramTheme.muted
-                        font.pixelSize: 12
+                        font.pixelSize: Design.fontSmall
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: BeyGramTheme.line }
+                    DsDivider {
+                        Layout.fillWidth: true
+                    }
 
                     Text {
                         Layout.fillWidth: true
                         visible: BeyGramApp.profileBio.length > 0
                         text: BeyGramApp.profileBio
                         color: BeyGramTheme.text
-                        font.pixelSize: 13
+                        font.pixelSize: Design.fontBody
                         wrapMode: Text.WordWrap
-                        lineHeight: 1.35
+                        lineHeight: Design.lineNormal
                     }
+
                     Text {
                         Layout.fillWidth: true
                         visible: BeyGramApp.profilePhone.length > 0
                         text: BeyGramApp.profilePhone
                         color: BeyGramTheme.muted
-                        font.pixelSize: 12
+                        font.pixelSize: Design.fontSmall
                     }
-                    BusyIndicator {
+
+                    DsSpinner {
                         Layout.alignment: Qt.AlignHCenter
                         running: BeyGramApp.profileLoading
                         visible: running
                     }
-                    Item { Layout.fillHeight: true }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
                 }
             }
 
-            // Empty conversation state
-            ColumnLayout {
+            // Empty conversation state, shown in the wide two-pane layout.
+            DsEmptyState {
                 anchors.centerIn: parent
-                spacing: 8
-                width: 360
+                width: Math.max(0, Math.min(Design.space10 * 9,
+                                             page.width - Design.space8))
                 visible: BeyGramApp.currentChatId === 0
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 64
-                    height: 64
-                    radius: 20
-                    color: Qt.alpha(BeyGramTheme.accent, 0.12)
-                    Text {
-                        anchors.centerIn: parent
-                        text: "B"
-                        color: BeyGramTheme.accent
-                        font.pixelSize: 28
-                        font.weight: Font.DemiBold
-                    }
-                }
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: "Select a chat"
-                    color: BeyGramTheme.text
-                    font.pixelSize: 20
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: "The chat list and message history are loaded from your authorized Telegram session."
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 11
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.3
-                }
+                glyph: "B"
+                title: "Select a chat"
+                description: "The chat list and message history are loaded from your authorized Telegram session."
             }
         }
     }
 
+    // ------------------------------------------------------------------
+    // App state
+    // ------------------------------------------------------------------
     Connections {
         target: BeyGramApp
+
         function onInitialHistoryLoaded() {
             Qt.callLater(messageListView.positionViewAtEnd)
         }
+
         function onChatStateChanged() {
             if (page.searchOpen && BeyGramApp.currentChatId !== page.loadedChatId)
                 page.closeSearch()
@@ -986,11 +1173,15 @@ Item {
                 page.loadDraft()
             }
         }
+
         function onReplyStateChanged() {
             page.scheduleDraft()
         }
     }
 
+    // ------------------------------------------------------------------
+    // Dialogs and menus
+    // ------------------------------------------------------------------
     ForwardDialog {
         id: forwardDialog
         model: BeyGramApp.chatList
@@ -1028,60 +1219,45 @@ Item {
         }
     }
 
-    Dialog {
+    // Delete keeps both scopes: "for me" stays in the content, the destructive
+    // "for everyone" action is the dialog's primary button.
+    DsDialog {
         id: deleteDialog
-        property var messageId: 0
-        title: "Delete message?"
-        modal: true
-        anchors.centerIn: parent
-        standardButtons: Dialog.NoButton
-        width: 400
 
-        ColumnLayout {
-            spacing: 12
-            Text {
-                Layout.fillWidth: true
-                text: "Choose whether to remove this message only for you or for everyone. TDLib enforces the account's delete permission."
-                color: BeyGramTheme.text
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                spacing: 8
-                SecondaryButton {
-                    text: "Cancel"
-                    onClicked: deleteDialog.close()
-                }
-                SecondaryButton {
-                    text: "Delete for me"
-                    onClicked: {
-                        deleteDialog.close()
-                        BeyGramApp.deleteChatMessage(deleteDialog.messageId, false)
-                    }
-                }
-                PrimaryButton {
-                    text: "Delete for everyone"
-                    tone: "danger"
-                    onClicked: {
-                        deleteDialog.close()
-                        BeyGramApp.deleteChatMessage(deleteDialog.messageId, true)
-                    }
-                }
+        property var messageId: 0
+
+        title: "Delete message?"
+        description: "Choose whether to remove this message only for you or for everyone. TDLib enforces the account's delete permission."
+        primaryText: "Delete for everyone"
+        secondaryText: "Cancel"
+        tone: "danger"
+
+        onAccepted: BeyGramApp.deleteChatMessage(deleteDialog.messageId, true)
+
+        DsButton {
+            Layout.fillWidth: true
+            text: "Delete for me"
+            tone: "secondary"
+            onClicked: {
+                deleteDialog.close()
+                BeyGramApp.deleteChatMessage(deleteDialog.messageId, false)
             }
         }
     }
 
-    Menu {
+    DsMenu {
         id: chatMenu
+
         property var chatId: 0
         property bool chatMuted: false
 
-        MenuItem {
+        DsMenuItem {
             text: chatMenu.chatMuted ? "Unmute" : "Mute"
-            onTriggered: BeyGramApp.setChatMuted(chatMenu.chatId, !chatMenu.chatMuted)
+            onTriggered: BeyGramApp.setChatMuted(chatMenu.chatId,
+                                                 !chatMenu.chatMuted)
         }
-        MenuItem {
+
+        DsMenuItem {
             text: BeyGramApp.archiveOpen ? "Unarchive" : "Archive"
             onTriggered: BeyGramApp.setChatArchived(chatMenu.chatId,
                                                     !BeyGramApp.archiveOpen)

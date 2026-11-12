@@ -7,11 +7,15 @@
 //
 // All controls are guarded against a null facade, so the panel can be
 // instantiated before the facade exists.
+//
+// Layout comes from the design system: a DsSection per group, a DsCard for each
+// group, DsListRow with a DsSwitch for the toggles, DsSlider for the numeric
+// settings, DsTextField for the background and DsDialog for the reset.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: root
@@ -42,7 +46,7 @@ Item {
         if (!root.ready || !root.facade)
             return
         // The switches are assigned explicitly: a user toggle replaces their
-        // `checked` binding, so a reset must write the box back too.
+        // `checked` binding, so a reset must write the switch back too.
         reduceMotionBox.checked = root.facade.reduceMotion
         highContrastBox.checked = root.facade.highContrast
         largeTextBox.checked = root.facade.largeText
@@ -93,415 +97,288 @@ Item {
     ColumnLayout {
         id: content
         width: root.width
-        spacing: 10
+        spacing: Design.space4
 
-        Text {
+        // Accessibility ------------------------------------------------------
+
+        DsSection {
             Layout.fillWidth: true
-            text: qsTr("Accessibility")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
+            title: qsTr("Accessibility")
+            description: qsTr("Adjust motion, contrast and text size for this device.")
 
-        CheckBox {
-            id: reduceMotionBox
-            Layout.fillWidth: true
-            text: qsTr("Reduce motion")
-            checked: root.facade ? root.facade.reduceMotion : false
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            palette.buttonText: BeyGramTheme.text
-            onToggled: {
-                if (root.facade)
-                    root.facade.reduceMotion = checked
-            }
-            Accessible.name: text
-        }
-
-        CheckBox {
-            id: highContrastBox
-            Layout.fillWidth: true
-            text: qsTr("High contrast")
-            checked: root.facade ? root.facade.highContrast : false
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            palette.buttonText: BeyGramTheme.text
-            onToggled: {
-                if (root.facade)
-                    root.facade.highContrast = checked
-            }
-            Accessible.name: text
-        }
-
-        CheckBox {
-            id: largeTextBox
-            Layout.fillWidth: true
-            text: qsTr("Large text")
-            checked: root.facade ? root.facade.largeText : false
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            palette.buttonText: BeyGramTheme.text
-            onToggled: {
-                if (root.facade)
-                    root.facade.largeText = checked
-            }
-            Accessible.name: text
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-
-            Text {
-                text: qsTr("Text scale")
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-            }
-
-            Slider {
-                id: scaleSlider
+            content: DsCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 26
-                from: root.minimumScale
-                to: root.maximumScale
-                stepSize: 1
-                value: root.facade ? root.facade.textScale : 100
-                onMoved: {
-                    if (root.facade)
-                        root.facade.textScale = Math.round(value)
-                }
-                Accessible.name: qsTr("Text scale")
 
-                background: Rectangle {
-                    x: scaleSlider.leftPadding
-                    y: scaleSlider.topPadding
-                       + scaleSlider.availableHeight / 2 - height / 2
-                    width: scaleSlider.availableWidth
-                    height: 4
-                    radius: 2
-                    color: BeyGramTheme.line
+                content: ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
 
-                    Rectangle {
-                        width: scaleSlider.visualPosition * parent.width
-                        height: parent.height
-                        radius: 2
-                        color: BeyGramTheme.accent
+                    DsListRow {
+                        Layout.fillWidth: true
+                        title: qsTr("Reduce motion")
+                        subtitle: qsTr("Trim animations across the interface.")
+
+                        trailing: DsSwitch {
+                            id: reduceMotionBox
+
+                            checked: root.facade ? root.facade.reduceMotion : false
+                            Accessible.name: qsTr("Reduce motion")
+
+                            onToggled: {
+                                if (root.facade)
+                                    root.facade.reduceMotion = reduceMotionBox.checked
+                            }
+                        }
                     }
-                }
 
-                handle: Rectangle {
-                    x: scaleSlider.leftPadding
-                       + scaleSlider.visualPosition
-                         * (scaleSlider.availableWidth - width)
-                    y: scaleSlider.topPadding
-                       + scaleSlider.availableHeight / 2 - height / 2
-                    width: 14
-                    height: 14
-                    radius: 7
-                    color: BeyGramTheme.accent
-                    border.width: 2
-                    border.color: BeyGramTheme.surface
-                }
-            }
-
-            Text {
-                Layout.preferredWidth: 40
-                text: (root.facade ? root.facade.textScale : 100) + "%"
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-                horizontalAlignment: Text.AlignRight
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            implicitHeight: 1
-            color: Qt.alpha(BeyGramTheme.line, 0.9)
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Chat background")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-
-            TextField {
-                id: kindField
-                Layout.preferredWidth: 130
-                text: root.facade ? root.facade.backgroundKind : "none"
-                placeholderText: qsTr("Kind")
-                color: BeyGramTheme.text
-                placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-                selectionColor: BeyGramTheme.accent
-                selectedTextColor: BeyGramTheme.onAccent
-                font.pixelSize: 13
-                inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
-                onEditingFinished: root.commitBackground()
-                Accessible.name: qsTr("Background kind")
-
-                background: Rectangle {
-                    radius: 10
-                    color: Qt.alpha(BeyGramTheme.surface2, 0.75)
-                    border.width: kindField.activeFocus ? 2 : 1
-                    border.color: kindField.activeFocus
-                                  ? BeyGramTheme.accent
-                                  : Qt.alpha(BeyGramTheme.line, 1.0)
-                }
-            }
-
-            TextField {
-                id: valueField
-                Layout.fillWidth: true
-                text: root.facade ? root.facade.backgroundValue : ""
-                placeholderText: qsTr("Value, e.g. #1b2836 or an image path")
-                color: BeyGramTheme.text
-                placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-                selectionColor: BeyGramTheme.accent
-                selectedTextColor: BeyGramTheme.onAccent
-                font.pixelSize: 13
-                onEditingFinished: root.commitBackground()
-                Accessible.name: qsTr("Background value")
-
-                background: Rectangle {
-                    radius: 10
-                    color: Qt.alpha(BeyGramTheme.surface2, 0.75)
-                    border.width: valueField.activeFocus ? 2 : 1
-                    border.color: valueField.activeFocus
-                                  ? BeyGramTheme.accent
-                                  : Qt.alpha(BeyGramTheme.line, 1.0)
-                }
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Kinds: none, solid, gradient, pattern, wallpaper. A background needs a value.")
-            color: Qt.alpha(BeyGramTheme.muted, 0.85)
-            font.pixelSize: 10
-            wrapMode: Text.WordWrap
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-
-            Text {
-                text: qsTr("Dimmer")
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-            }
-
-            Slider {
-                id: dimmerSlider
-                Layout.fillWidth: true
-                Layout.preferredHeight: 26
-                from: 0
-                to: 100
-                stepSize: 1
-                value: root.facade ? root.facade.dimmer : 0
-                onMoved: {
-                    if (root.facade)
-                        root.facade.dimmer = Math.round(value)
-                }
-                Accessible.name: qsTr("Background dimmer")
-
-                background: Rectangle {
-                    x: dimmerSlider.leftPadding
-                    y: dimmerSlider.topPadding
-                       + dimmerSlider.availableHeight / 2 - height / 2
-                    width: dimmerSlider.availableWidth
-                    height: 4
-                    radius: 2
-                    color: BeyGramTheme.line
-
-                    Rectangle {
-                        width: dimmerSlider.visualPosition * parent.width
-                        height: parent.height
-                        radius: 2
-                        color: BeyGramTheme.accent
+                    DsDivider {
+                        Layout.fillWidth: true
+                        inset: Design.space3
                     }
-                }
 
-                handle: Rectangle {
-                    x: dimmerSlider.leftPadding
-                       + dimmerSlider.visualPosition
-                         * (dimmerSlider.availableWidth - width)
-                    y: dimmerSlider.topPadding
-                       + dimmerSlider.availableHeight / 2 - height / 2
-                    width: 14
-                    height: 14
-                    radius: 7
-                    color: BeyGramTheme.accent
-                    border.width: 2
-                    border.color: BeyGramTheme.surface
-                }
-            }
+                    DsListRow {
+                        Layout.fillWidth: true
+                        title: qsTr("High contrast")
+                        subtitle: qsTr("Stronger borders and separators.")
 
-            Text {
-                Layout.preferredWidth: 40
-                text: (root.facade ? root.facade.dimmer : 0) + "%"
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-                horizontalAlignment: Text.AlignRight
-            }
-        }
+                        trailing: DsSwitch {
+                            id: highContrastBox
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
+                            checked: root.facade ? root.facade.highContrast : false
+                            Accessible.name: qsTr("High contrast")
 
-            Text {
-                text: qsTr("Blur")
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-            }
-
-            Slider {
-                id: blurSlider
-                Layout.fillWidth: true
-                Layout.preferredHeight: 26
-                from: 0
-                to: 100
-                stepSize: 1
-                value: root.facade ? root.facade.blur : 0
-                onMoved: {
-                    if (root.facade)
-                        root.facade.blur = Math.round(value)
-                }
-                Accessible.name: qsTr("Background blur")
-
-                background: Rectangle {
-                    x: blurSlider.leftPadding
-                    y: blurSlider.topPadding
-                       + blurSlider.availableHeight / 2 - height / 2
-                    width: blurSlider.availableWidth
-                    height: 4
-                    radius: 2
-                    color: BeyGramTheme.line
-
-                    Rectangle {
-                        width: blurSlider.visualPosition * parent.width
-                        height: parent.height
-                        radius: 2
-                        color: BeyGramTheme.accent
+                            onToggled: {
+                                if (root.facade)
+                                    root.facade.highContrast = highContrastBox.checked
+                            }
+                        }
                     }
-                }
 
-                handle: Rectangle {
-                    x: blurSlider.leftPadding
-                       + blurSlider.visualPosition
-                         * (blurSlider.availableWidth - width)
-                    y: blurSlider.topPadding
-                       + blurSlider.availableHeight / 2 - height / 2
-                    width: 14
-                    height: 14
-                    radius: 7
-                    color: BeyGramTheme.accent
-                    border.width: 2
-                    border.color: BeyGramTheme.surface
-                }
-            }
+                    DsDivider {
+                        Layout.fillWidth: true
+                        inset: Design.space3
+                    }
 
-            Text {
-                Layout.preferredWidth: 40
-                text: (root.facade ? root.facade.blur : 0) + "%"
-                color: BeyGramTheme.muted
-                font.pixelSize: 11
-                horizontalAlignment: Text.AlignRight
-            }
-        }
+                    DsListRow {
+                        Layout.fillWidth: true
+                        title: qsTr("Large text")
+                        subtitle: qsTr("Use a larger base size for message text.")
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            implicitHeight: 1
-            color: Qt.alpha(BeyGramTheme.line, 0.9)
-        }
+                        trailing: DsSwitch {
+                            id: largeTextBox
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Language")
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
+                            checked: root.facade ? root.facade.largeText : false
+                            Accessible.name: qsTr("Large text")
 
-        Text {
-            Layout.fillWidth: true
-            visible: languageList.count === 0
-            text: qsTr("No language packs are offered yet.")
-            color: Qt.alpha(BeyGramTheme.muted, 0.85)
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-        }
+                            onToggled: {
+                                if (root.facade)
+                                    root.facade.largeText = largeTextBox.checked
+                            }
+                        }
+                    }
 
-        ListView {
-            id: languageList
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(contentHeight, 180)
-            visible: count > 0
-            clip: true
-            spacing: 2
-            model: root.facade ? root.facade.languageNames : []
+                    DsDivider {
+                        Layout.fillWidth: true
+                        inset: Design.space3
+                    }
 
-            delegate: Rectangle {
-                required property int index
-                required property string modelData
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: Design.space3
+                        spacing: Design.space3
 
-                readonly property bool isCurrent: root.facade !== null
-                                                  && root.facade.languageIndex === index
+                        DsSlider {
+                            id: scaleSlider
 
-                width: languageList.width
-                height: 34
-                radius: 8
-                color: isCurrent ? Qt.alpha(BeyGramTheme.accent, 0.18) : "transparent"
-                border.width: isCurrent ? 1 : 0
-                border.color: Qt.alpha(BeyGramTheme.accent, 0.55)
+                            Layout.fillWidth: true
+                            label: qsTr("Text scale")
+                            valueText: (root.facade ? root.facade.textScale : 100) + "%"
+                            from: root.minimumScale
+                            to: root.maximumScale
+                            stepSize: 1
+                            value: root.facade ? root.facade.textScale : 100
 
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.right: parent.right
-                    anchors.rightMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: parent.modelData
-                    color: parent.isCurrent ? BeyGramTheme.accentInk : BeyGramTheme.text
-                    font.pixelSize: 13
-                    font.weight: parent.isCurrent ? Font.DemiBold : Font.Normal
-                    elide: Text.ElideRight
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    Accessible.role: Accessible.RadioButton
-                    Accessible.name: parent.modelData
-                    Accessible.checked: parent.isCurrent
-                    onClicked: {
-                        if (root.facade)
-                            root.facade.selectLanguage(index)
+                            onMoved: {
+                                if (root.facade)
+                                    root.facade.textScale = Math.round(value)
+                            }
+                        }
                     }
                 }
             }
         }
 
-        SecondaryButton {
-            Layout.alignment: Qt.AlignRight
-            Layout.topMargin: 4
-            text: qsTr("Reset appearance")
-            enabled: root.facade !== null
-            onClicked: {
-                if (root.facade)
-                    root.facade.reset()
+        // Chat background ----------------------------------------------------
+
+        DsSection {
+            Layout.fillWidth: true
+            title: qsTr("Chat background")
+            description: qsTr("Kinds: none, solid, gradient, pattern, wallpaper. A background needs a value.")
+
+            content: DsCard {
+                Layout.fillWidth: true
+
+                content: ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Design.space3
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Design.space2
+
+                        DsTextField {
+                            id: kindField
+
+                            Layout.preferredWidth: 150
+                            label: qsTr("Kind")
+                            placeholderText: "none"
+                            inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+                            Accessible.name: qsTr("Background kind")
+
+                            onEditingFinished: root.commitBackground()
+                        }
+
+                        DsTextField {
+                            id: valueField
+
+                            Layout.fillWidth: true
+                            label: qsTr("Value")
+                            placeholderText: qsTr("#1b2836 or an image path")
+                            Accessible.name: qsTr("Background value")
+
+                            onEditingFinished: root.commitBackground()
+                        }
+                    }
+
+                    DsSlider {
+                        id: dimmerSlider
+
+                        Layout.fillWidth: true
+                        label: qsTr("Dimmer")
+                        valueText: (root.facade ? root.facade.dimmer : 0) + "%"
+                        from: 0
+                        to: 100
+                        stepSize: 1
+                        value: root.facade ? root.facade.dimmer : 0
+
+                        onMoved: {
+                            if (root.facade)
+                                root.facade.dimmer = Math.round(value)
+                        }
+                    }
+
+                    DsSlider {
+                        id: blurSlider
+
+                        Layout.fillWidth: true
+                        label: qsTr("Blur")
+                        valueText: (root.facade ? root.facade.blur : 0) + "%"
+                        from: 0
+                        to: 100
+                        stepSize: 1
+                        value: root.facade ? root.facade.blur : 0
+
+                        onMoved: {
+                            if (root.facade)
+                                root.facade.blur = Math.round(value)
+                        }
+                    }
+                }
             }
+        }
+
+        // Language -----------------------------------------------------------
+
+        DsSection {
+            Layout.fillWidth: true
+            title: qsTr("Language")
+
+            content: DsCard {
+                Layout.fillWidth: true
+
+                content: ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.margins: Design.space3
+                        visible: languageList.count === 0
+                        text: qsTr("No language packs are offered yet.")
+                        color: BeyGramTheme.muted
+                        font.pixelSize: Design.fontSmall
+                        wrapMode: Text.WordWrap
+                    }
+
+                    ListView {
+                        id: languageList
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.min(contentHeight, 240)
+                        visible: count > 0
+                        clip: true
+                        spacing: 0
+                        model: root.facade ? root.facade.languageNames : []
+
+                        delegate: DsListRow {
+                            id: languageRow
+
+                            required property int index
+                            required property string modelData
+
+                            readonly property bool isCurrent: root.facade !== null
+                                                              && root.facade.languageIndex === index
+
+                            width: languageList.width
+                            title: modelData
+                            selected: isCurrent
+                            hoverEnabled: true
+
+                            trailing: DsBadge {
+                                visible: languageRow.isCurrent
+                                text: qsTr("Current")
+                                tone: "accent"
+                            }
+
+                            onClicked: {
+                                if (root.facade)
+                                    root.facade.selectLanguage(index)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Design.space2
+
+            Item { Layout.fillWidth: true }
+
+            DsButton {
+                text: qsTr("Reset appearance")
+                tone: "danger"
+                enabled: root.facade !== null
+                onClicked: resetDialog.open()
+            }
+        }
+    }
+
+    // A reset discards the custom scale, contrast, background and language, so
+    // it is confirmed before the facade is asked to do it.
+    DsDialog {
+        id: resetDialog
+
+        title: qsTr("Reset appearance?")
+        description: qsTr("Text scale, contrast, the chat background and the language go back to their defaults.")
+        primaryText: qsTr("Reset")
+        secondaryText: qsTr("Cancel")
+        tone: "danger"
+
+        onAccepted: {
+            if (root.facade)
+                root.facade.reset()
         }
     }
 }

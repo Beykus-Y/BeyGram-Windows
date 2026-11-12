@@ -1,11 +1,14 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 
+// Application window. It owns only the window chrome, the global shortcuts and
+// the swap between the sign-in card and the signed-in shell; every screen and
+// every request lives behind BeyGramApp.
 ApplicationWindow {
     id: root
+
     visible: true
     width: 1280
     height: 860
@@ -42,7 +45,11 @@ ApplicationWindow {
         opacity: BeyGramTheme.darkMode ? 0.55 : 0.9
     }
 
+    // The window hosts exactly one screen at a time. The loader is replaced
+    // when the session becomes ready, so the shell is never built before the
+    // account is authorized.
     Loader {
+        id: screen
         anchors.fill: parent
         sourceComponent: BeyGramApp.ready ? shellComponent : authComponent
 

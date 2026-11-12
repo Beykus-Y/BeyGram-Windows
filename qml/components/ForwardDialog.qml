@@ -1,18 +1,25 @@
 // ForwardDialog - modal chat picker for forwarding one or more messages.
 //
 // The parent owns the data layer and the action: it assigns `model` from
-// ChatListModel (roles: chatId, title, initials, photoFileId, photoReady,
-// photoRevision, accentIndex), sets `messageCount`, and performs the actual
-// `forwardMessages` call once `chatSelected(chatId)` is emitted. This file
-// only renders the picker. Filtering is local (title substring), it reads
-// nothing but model roles, and it has no network, logging or C++ calls.
+// ChatListModel (roles: chatId, title, preview, unreadCount, muted, initials,
+// photoFileId, photoReady, photoRevision, accentIndex), sets `messageCount`,
+// and performs the actual `forwardMessages` call once `chatSelected(chatId)` is
+// emitted. This file only renders the picker. Filtering is local (title
+// substring), it reads nothing but model roles, and it has no network, logging
+// or C++ calls.
+//
+// Keyboard: the search field takes focus on open. Down/Enter moves into the
+// list and selects the first match; Up/Down move the selection, Enter forwards
+// it, Escape closes. Clicking a row selects it and the footer's Forward button
+// commits, so a stray click cannot forward by accident.
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-Dialog {
+DsDialog {
     id: root
 
     property var model: null
@@ -33,6 +40,9 @@ Dialog {
         "#A9731D", "#3A78C2", "#B0476E"
     ]
 
+    // Chat chosen in the list; 0 means nothing is selected yet.
+    property var _selectedChatId: 0
+
     function matches(title) {
         if (root.query.length === 0)
             return true
@@ -41,223 +51,224 @@ Dialog {
     }
 
     function choose(chatId) {
+        if (chatId === undefined || chatId === null || chatId === 0)
+            return
         root.chatSelected(chatId)
         root.close()
     }
 
-    parent: Overlay.overlay
-    x: parent ? Math.round((parent.width - width) / 2) : 0
-    y: parent ? Math.round((parent.height - height) / 2) : 0
-    width: 440
-    padding: 0
-    modal: true
-    focus: true
-    title: dialogTitle
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    onOpened: {
-        searchField.text = ""
-        chatList.positionViewAtBeginning()
-        searchField.forceActiveFocus()
-    }
-
-    Overlay.modal: Rectangle {
-        color: Qt.alpha("#000000", 0.35)
-    }
-
-    background: Rectangle {
-        radius: 16
-        color: BeyGramTheme.surface
-        border.width: 1
-        border.color: Qt.alpha(BeyGramTheme.line, 1.0)
-    }
-
-    header: Item {
-        implicitHeight: 52
-
-        Text {
-            anchors.left: parent.left
-            anchors.leftMargin: 18
-            anchors.right: parent.right
-            anchors.rightMargin: 18
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.dialogTitle
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-            elide: Text.ElideRight
+    function resetSelection() {
+        root._selectedChatId = 0
+        if (chatList) {
+            chatList.currentIndex = -1
+            chatList.positionViewAtBeginning()
         }
     }
 
-    contentItem: ColumnLayout {
-        spacing: 10
-        implicitWidth: 440
+    // First visible row that matches the current query.
+    function firstMatchIndex() {
+        for (let i = 0; i < chatList.count; ++i) {
+            const row = chatList.itemAtIndex(i)
+            if (row && row.matched)
+                return i
+        }
+        return -1
+    }
 
-        TextField {
-            id: searchField
-            Layout.fillWidth: true
-            Layout.leftMargin: 18
-            Layout.rightMargin: 18
-            Layout.topMargin: 2
-            Layout.preferredHeight: 38
-            implicitHeight: 38
-            leftPadding: 13
-            rightPadding: 13
-            placeholderText: "Search chats"
-            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-            color: BeyGramTheme.text
-            font.pixelSize: 13
-            selectByMouse: true
-            selectionColor: BeyGramTheme.accent
-            selectedTextColor: BeyGramTheme.onAccent
-            onTextChanged: chatList.positionViewAtBeginning()
+    function selectFirstMatch() {
+        const index = root.firstMatchIndex()
+        if (index < 0)
+            return false
+        chatList.currentIndex = index
+        const row = chatList.itemAtIndex(index)
+        if (row)
+            root._selectedChatId = row.chatId
+        chatList.positionViewAtIndex(index, ListView.Contain)
+        return true
+    }
+
+    function moveCurrent(delta) {
+        if (chatList.count === 0)
+            return
+        let next = chatList.currentIndex
+        if (next < 0)
+            next = delta > 0 ? -1 : chatList.count
+        for (let guard = 0; guard < chatList.count; ++guard) {
+            next += delta
+            if (next < 0 || next >= chatList.count)
+                return
+            let row = chatList.itemAtIndex(next)
+            if (!row) {
+                chatList.positionViewAtIndex(next, ListView.Contain)
+                row = chatList.itemAtIndex(next)
+            }
+            if (row && row.matched) {
+                chatList.currentIndex = next
+                chatList.positionViewAtIndex(next, ListView.Contain)
+                root._selectedChatId = row.chatId
+                return
+            }
+        }
+    }
+
+    title: root.dialogTitle
+    description: root.messageCount > 1
+                 ? "Choose a chat to forward these " + root.messageCount + " messages to."
+                 : "Choose a chat to forward this message to."
+    width: 500
+
+    onOpened: {
+        searchField.text = ""
+        root.resetSelection()
+        searchField.forceActiveFocus()
+    }
+
+    onModelChanged: root.resetSelection()
+
+    DsSearchField {
+        id: searchField
+        Layout.fillWidth: true
+        placeholderText: "Search chats"
+        onTextChanged: root.resetSelection()
+        onAccepted: {
+            if (root.selectFirstMatch())
+                chatList.forceActiveFocus()
+        }
+        Keys.onDownPressed: (event) => {
+            if (root.selectFirstMatch())
+                chatList.forceActiveFocus()
+            event.accepted = true
+        }
+    }
+
+    Item {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 320
+
+        ListView {
+            id: chatList
+            anchors.fill: parent
+            clip: true
+            spacing: 0
+            model: root.model
+            boundsBehavior: Flickable.StopAtBounds
+            activeFocusOnTab: true
+            keyNavigationEnabled: false
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            onActiveFocusChanged: {
+                if (activeFocus && root._selectedChatId === 0)
+                    root.selectFirstMatch()
+            }
+
+            Keys.onUpPressed: (event) => {
+                root.moveCurrent(-1)
+                event.accepted = true
+            }
+            Keys.onDownPressed: (event) => {
+                root.moveCurrent(1)
+                event.accepted = true
+            }
+            Keys.onReturnPressed: (event) => {
+                root.choose(root._selectedChatId)
+                event.accepted = true
+            }
+            Keys.onEnterPressed: (event) => {
+                root.choose(root._selectedChatId)
+                event.accepted = true
+            }
             Keys.onEscapePressed: (event) => {
                 root.close()
                 event.accepted = true
             }
 
-            background: Rectangle {
-                radius: 19
-                color: BeyGramTheme.surface2
-                border.width: 1
-                border.color: searchField.activeFocus ? BeyGramTheme.accent
-                                                      : Qt.alpha(BeyGramTheme.line, 0.9)
-                Behavior on border.color { ColorAnimation { duration: 120 } }
-            }
-        }
+            delegate: Item {
+                id: chatRow
 
-        Item {
-            Layout.fillWidth: true
-            Layout.leftMargin: 6
-            Layout.rightMargin: 6
-            Layout.bottomMargin: 10
-            Layout.preferredHeight: 300
+                required property var chatId
+                required property string title
+                required property string preview
+                required property int unreadCount
+                required property bool muted
+                required property string initials
+                required property int photoFileId
+                required property bool photoReady
+                required property int photoRevision
+                required property int accentIndex
+                required property int index
 
-            ListView {
-                id: chatList
-                anchors.fill: parent
-                clip: true
-                spacing: 0
-                model: root.model
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                readonly property bool matched: root.matches(chatRow.title)
 
-                // Local title filtering: a delegate that does not match
-                // collapses to zero height instead of being rebuilt, so the
-                // picker works with any chat-list model without touching it.
-                delegate: Item {
-                    id: chatRow
+                width: chatList.width
+                height: matched ? Design.rowHeight : 0
+                visible: matched
 
-                    required property var chatId
-                    required property string title
-                    required property string initials
-                    required property int photoFileId
-                    required property bool photoReady
-                    required property int photoRevision
-                    required property int accentIndex
-                    required property int index
+                DsListRow {
+                    width: parent.width
+                    height: parent.height
 
-                    readonly property bool matched: root.matches(chatRow.title)
+                    title: chatRow.title
+                    subtitle: chatRow.preview
+                    unread: chatRow.unreadCount
+                    muted: chatRow.muted
+                    selected: root._selectedChatId === chatRow.chatId
 
-                    width: chatList.width
-                    height: matched ? 48 : 0
-                    visible: matched
-
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.leftMargin: 4
-                        anchors.rightMargin: 4
-                        radius: 10
-                        color: (rowMouse.containsMouse
-                                || chatList.currentIndex === chatRow.index)
-                               ? BeyGramTheme.surface2
-                               : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                    leading: Avatar {
+                        size: Design.avatarSmall
+                        fileId: chatRow.photoFileId
+                        ready: chatRow.photoReady
+                        revision: chatRow.photoRevision
+                        initials: chatRow.initials
+                        tint: root.avatarColors[Math.abs(chatRow.accentIndex)
+                                                % root.avatarColors.length]
+                        ink: "white"
                     }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        spacing: 10
-
-                        Avatar {
-                            size: 38
-                            Layout.alignment: Qt.AlignVCenter
-                            fileId: chatRow.photoFileId
-                            ready: chatRow.photoReady
-                            revision: chatRow.photoRevision
-                            initials: chatRow.initials
-                            tint: root.avatarColors[Math.abs(chatRow.accentIndex)
-                                                    % root.avatarColors.length]
-                            ink: "white"
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: chatRow.title
-                            color: BeyGramTheme.text
-                            font.pixelSize: 13
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
-                        }
-                    }
-
-                    MouseArea {
-                        id: rowMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.choose(chatRow.chatId)
+                    onClicked: {
+                        chatList.currentIndex = chatRow.index
+                        root._selectedChatId = chatRow.chatId
+                        chatList.forceActiveFocus()
                     }
                 }
             }
+        }
 
-            Text {
-                anchors.centerIn: parent
-                width: parent.width - 40
-                horizontalAlignment: Text.AlignHCenter
-                visible: chatList.count === 0
-                text: "No chats available"
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                anchors.centerIn: parent
-                width: parent.width - 40
-                horizontalAlignment: Text.AlignHCenter
-                visible: chatList.count > 0 && chatList.contentHeight <= 0
-                         && root.query.length > 0
-                text: "No chats match your search"
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
+        DsEmptyState {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - Design.space8, implicitWidth)
+            visible: chatList.count === 0
+                     || (root.query.length > 0 && chatList.contentHeight <= 0)
+            title: chatList.count === 0 ? "No chats yet" : "No matches"
+            description: chatList.count === 0
+                         ? "Your Telegram chats will appear here."
+                         : "Try a different name or clear the search."
         }
     }
 
+    // DsDialog's shared footer cannot disable its primary button, so the
+    // picker owns a footer with the same geometry and a guarded Forward action.
     footer: Item {
-        implicitHeight: 58
-
-        Rectangle {
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 1
-            color: Qt.alpha(BeyGramTheme.line, 0.9)
-        }
+        implicitHeight: 36 + Design.space5
 
         RowLayout {
-            anchors.right: parent.right
-            anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
+            anchors.fill: parent
+            anchors.leftMargin: Design.space5
+            anchors.rightMargin: Design.space5
+            anchors.bottomMargin: Design.space5
+            spacing: Design.space2
 
-            SecondaryButton {
+            Item { Layout.fillWidth: true }
+
+            DsButton {
                 text: "Cancel"
+                tone: "secondary"
                 onClicked: root.close()
+            }
+
+            DsButton {
+                text: "Forward"
+                enabled: root._selectedChatId !== 0
+                onClicked: root.choose(root._selectedChatId)
             }
         }
     }

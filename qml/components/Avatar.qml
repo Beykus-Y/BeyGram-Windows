@@ -1,11 +1,18 @@
 import QtQuick
 import BeyGram.Theme 1.0
 
-/// Circular avatar.
+/// Circular avatar — compatibility adapter over DsAvatar.
 ///
-/// The media image provider applies the circular alpha mask when the URL asks
-/// for it, so the photo is a real circle rather than a square clipped by a
-/// rounded Rectangle (Qt Quick's `clip` is always rectangular).
+/// The public surface is unchanged: `fileId` / `ready` / `revision` still build
+/// the media-provider URL, `initials` is the fallback, and `size` drives the
+/// diameter. Rendering (circle mask, initials, presence dot) is delegated to
+/// DsAvatar.
+///
+/// `tint` and `ink` stay for source compatibility. Callers that pass one of
+/// DsAvatar's six palette colours (the `avatarColors` arrays in ChatRow,
+/// ArchivePage and ForwardDialog) keep exactly the same colour, because the
+/// matching palette index is recovered from `tint`. Any other tint falls back
+/// to palette index 0, since DsAvatar owns the palette.
 Item {
     id: root
 
@@ -16,36 +23,46 @@ Item {
     property string initials: "?"
     property color tint: BeyGramTheme.accentSoft
     property color ink: BeyGramTheme.accentInk
+    // Explicit palette index; -1 derives it from `tint`.
+    property int accentIndex: -1
+    // Optional explicit source; wins over the fileId/ready/revision URL.
+    property string imageSource: ""
+    property bool online: false
+    property bool muted: false
 
     implicitWidth: size
     implicitHeight: size
 
-    Rectangle {
-        anchors.fill: parent
-        radius: width / 2
-        color: root.tint
+    // Media provider URL kept as before; DsAvatar adds its own circular mask.
+    readonly property string _source: {
+        if (root.imageSource.length > 0)
+            return root.imageSource
+        if (!root.ready || root.fileId <= 0)
+            return ""
+        return "image://beygrammedia/" + root.fileId + "?v=" + root.revision
+                + "&round=1"
     }
 
-    Text {
-        anchors.centerIn: parent
-        visible: image.status !== Image.Ready
-        text: root.initials
-        color: root.ink
-        font.pixelSize: Math.round(root.size * 0.40)
-        font.weight: Font.DemiBold
+    readonly property int _tintIndex: {
+        for (var i = 0; i < avatar.avatarPalette.length; ++i) {
+            if (Qt.colorEqual(root.tint, avatar.avatarPalette[i]))
+                return i
+        }
+        return -1
     }
 
-    Image {
-        id: image
+    readonly property int _resolvedAccentIndex: root.accentIndex >= 0
+                                                ? root.accentIndex
+                                                : (root._tintIndex >= 0 ? root._tintIndex : 0)
+
+    DsAvatar {
+        id: avatar
         anchors.fill: parent
-        source: root.ready && root.fileId > 0
-                ? "image://beygrammedia/" + root.fileId + "?v=" + root.revision
-                  + "&round=1"
-                : ""
-        sourceSize: Qt.size(root.size, root.size)
-        cache: true
-        asynchronous: true
-        fillMode: Image.PreserveAspectCrop
-        visible: status === Image.Ready
+        size: root.size
+        initials: root.initials
+        imageSource: root._source
+        accentIndex: root._resolvedAccentIndex
+        online: root.online
+        muted: root.muted
     }
 }

@@ -1,16 +1,21 @@
+// LinkPreviewCard — compact link / web-page preview card.
+//
+// Presentational only: the caller supplies already-resolved preview text and an
+// optional thumbnail file id. The thumbnail is loaded through the shared
+// `beygrammedia` image provider, and `revision` busts the image cache when the
+// same file id is downloaded again.
+//
+// The card is a DsCard at a 12 px radius: site name in accent ink, title at
+// 13 px medium, description at 12 px muted, with the thumbnail on the left when
+// one exists. Visibility is deliberately not bound here — the parent decides
+// when a preview is worth showing. `hasContent` mirrors that decision.
+
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-/// Compact link / web-page preview card.
-///
-/// Presentational only: the caller supplies already-resolved preview text and
-/// an optional thumbnail file id. The thumbnail is loaded through the shared
-/// `beygrammedia` image provider, and `revision` busts the image cache when the
-/// same file id is downloaded again.
-///
-/// Visibility is deliberately not bound here — the parent decides when a
-/// preview is worth showing. `hasContent` mirrors that decision.
 Item {
     id: root
 
@@ -35,56 +40,43 @@ Item {
     implicitWidth: 320
     implicitHeight: card.implicitHeight
 
-    Rectangle {
+    DsCard {
         id: card
+
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        implicitHeight: content.implicitHeight + 20
-        radius: 10
-        color: Qt.alpha(BeyGramTheme.surface2, mouse.containsMouse ? 0.95 : 0.72)
-        border.width: 1
-        border.color: Qt.alpha(BeyGramTheme.line, 0.7)
-        clip: true
 
-        Behavior on color { ColorAnimation { duration: 140 } }
+        radius: Design.radiusMd
+        padding: Design.space3
+        interactive: true
+        onClicked: root.clicked()
 
-        // Accent rail marking the card as an outbound link preview.
-        Rectangle {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.topMargin: 10
-            anchors.bottomMargin: 10
-            width: 3
-            radius: 1.5
-            color: BeyGramTheme.accent
-        }
+        Accessible.role: Accessible.Link
+        Accessible.name: root.title.length > 0 ? root.title : root.url
+        Accessible.description: root.siteName
 
-        RowLayout {
-            id: content
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.leftMargin: 14
-            anchors.rightMargin: 14
-            anchors.topMargin: 10
-            spacing: 11
+        content: RowLayout {
+            Layout.fillWidth: true
+            spacing: Design.space3
 
+            // Thumbnail slot: only reserved when the caller has a picture, so
+            // text-only previews use the full card width.
             Rectangle {
-                Layout.preferredWidth: 60
-                Layout.preferredHeight: 60
+                Layout.preferredWidth: 56
+                Layout.preferredHeight: 56
                 Layout.alignment: Qt.AlignTop
-                radius: 8
+                visible: root.thumbnailSource.length > 0
+                radius: Design.radiusSm
                 clip: true
-                color: Qt.alpha(BeyGramTheme.surface2, 0.6)
+                color: Qt.alpha(BeyGramTheme.surface2, 0.9)
                 border.width: 1
-                border.color: Qt.alpha(BeyGramTheme.line, 0.55)
+                border.color: Qt.alpha(BeyGramTheme.line, 0.8)
 
                 Image {
                     anchors.fill: parent
                     source: root.thumbnailSource
-                    sourceSize: Qt.size(120, 120)
+                    sourceSize: Qt.size(112, 112)
                     cache: true
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
@@ -94,17 +86,19 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignVCenter
                 spacing: 2
 
                 Text {
                     Layout.fillWidth: true
                     visible: root.siteName.length > 0
                     text: root.siteName
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                    maximumLineCount: 1
+                    color: BeyGramTheme.accentInk
+                    font.pixelSize: Design.fontCaption
+                    font.weight: Font.Medium
                     elide: Text.ElideRight
+                    maximumLineCount: 1
+                    wrapMode: Text.NoWrap
+                    Accessible.ignored: true
                 }
 
                 Text {
@@ -112,10 +106,13 @@ Item {
                     visible: root.title.length > 0
                     text: root.title
                     color: BeyGramTheme.text
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                    maximumLineCount: 1
+                    font.pixelSize: 13
+                    font.weight: Font.Medium
                     elide: Text.ElideRight
+                    maximumLineCount: 2
+                    wrapMode: Text.WordWrap
+                    lineHeight: Design.lineTight
+                    Accessible.ignored: true
                 }
 
                 Text {
@@ -123,21 +120,23 @@ Item {
                     visible: root.description.length > 0
                     text: root.description
                     color: BeyGramTheme.muted
-                    font.pixelSize: 11
-                    wrapMode: Text.Wrap
-                    lineHeight: 1.25
-                    maximumLineCount: 2
+                    font.pixelSize: Design.fontSmall
                     elide: Text.ElideRight
+                    maximumLineCount: 2
+                    wrapMode: Text.WordWrap
+                    lineHeight: Design.lineNormal
+                    Accessible.ignored: true
                 }
             }
         }
-
-        MouseArea {
-            id: mouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.clicked()
-        }
     }
+
+    // The URL is not printed in the card, so surface it on hover.
+    HoverHandler {
+        id: hover
+    }
+
+    ToolTip.visible: hover.hovered && root.url.length > 0
+    ToolTip.text: root.url
+    ToolTip.delay: 800
 }

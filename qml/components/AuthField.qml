@@ -1,13 +1,22 @@
+// AuthField.qml — labelled text field for the auth flow and the editors.
+//
+// A thin wrapper over DsTextField that keeps the historical AuthField API:
+// `hint` is a muted helper line under the box (hidden while `error` is set),
+// and `accepted()` / `edited()` re-expose the TextField signals under the
+// names the callers already use. Geometry, focus ring and colours all come
+// from DsTextField.
+
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: control
 
     property string label: ""
     property string hint: ""
+    property string error: ""
+
     property alias text: field.text
     property alias placeholderText: field.placeholderText
     property alias echoMode: field.echoMode
@@ -15,64 +24,43 @@ Item {
     property alias inputMethodHints: field.inputMethodHints
     property alias readOnly: field.readOnly
     property alias validator: field.validator
+
     signal accepted()
     signal edited()
 
-    implicitHeight: layout.implicitHeight
-    implicitWidth: layout.implicitWidth
+    readonly property bool _hasHint: control.hint !== "" && !control.error
+
+    implicitWidth: field.implicitWidth
+    implicitHeight: field.implicitHeight
+                    + (control._hasHint ? hintText.implicitHeight + Design.space1 : 0)
 
     function forceInputFocus() {
         field.forceActiveFocus()
     }
 
-    ColumnLayout {
-        id: layout
+    DsTextField {
+        id: field
+
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 6
+        label: control.label
+        error: control.error
 
-        Text {
-            visible: control.label !== ""
-            text: control.label
-            color: BeyGramTheme.muted
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
+        onAccepted: control.accepted()
+        onTextEdited: control.edited()
+    }
 
-        TextField {
-            id: field
-            Layout.fillWidth: true
-            implicitHeight: 44
-            leftPadding: 14
-            rightPadding: 14
-            selectByMouse: true
-            color: BeyGramTheme.text
-            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-            selectionColor: BeyGramTheme.accent
-            selectedTextColor: BeyGramTheme.onAccent
-            font.pixelSize: 14
-            onAccepted: control.accepted()
-            onTextEdited: control.edited()
+    Text {
+        id: hintText
 
-            background: Rectangle {
-                radius: 10
-                color: Qt.alpha(BeyGramTheme.surface2, 0.75)
-                border.width: field.activeFocus ? 2 : 1
-                border.color: field.activeFocus
-                              ? BeyGramTheme.accent
-                              : Qt.alpha(BeyGramTheme.line, 1.0)
-                Behavior on border.color { ColorAnimation { duration: 120 } }
-            }
-        }
-
-        Text {
-            visible: control.hint !== ""
-            Layout.fillWidth: true
-            text: control.hint
-            color: BeyGramTheme.muted
-            font.pixelSize: 10
-            wrapMode: Text.WordWrap
-            lineHeight: 1.25
-        }
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: field.bottom
+        anchors.topMargin: Design.space1
+        visible: control._hasHint
+        text: control.hint
+        color: BeyGramTheme.muted
+        font.pixelSize: Design.fontCaption
+        wrapMode: Text.WordWrap
     }
 }

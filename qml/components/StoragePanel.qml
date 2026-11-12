@@ -9,11 +9,15 @@
 //
 // The facade is nullable so the panel can be created before the controller is
 // wired up; until it is set, the panel renders the empty state.
+//
+// Layout comes from the design system: a DsSection per group, a DsCard for each
+// group, DsListRow per setting, DsSwitch for the toggles and DsDialog for the
+// destructive cleanup confirmation.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: root
@@ -50,213 +54,218 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        spacing: 12
+        spacing: Design.space4
 
-        Text {
+        DsSection {
             Layout.fillWidth: true
-            text: qsTr("Storage")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
+            title: qsTr("Storage")
+            description: qsTr("Cached media on this device. Choose the kinds you want to remove.")
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Cached media on this device. Tick the kinds you want to remove.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
-            lineHeight: 1.3
-        }
-
-        // One row per cached kind: the checkbox drives the cleanup selection,
-        // the label is the facade's formatted size for that row.
-        Repeater {
-            model: root.kindList
-
-            delegate: RowLayout {
-                id: kindRow
-                required property int index
-                required property string modelData
-
+            content: DsCard {
                 Layout.fillWidth: true
-                spacing: 8
 
-                CheckBox {
-                    id: kindBox
+                content: ColumnLayout {
                     Layout.fillWidth: true
-                    text: kindRow.modelData
-                    checked: root.kindSelected(kindRow.modelData)
-                    palette.text: BeyGramTheme.text
-                    palette.windowText: BeyGramTheme.text
-                    palette.buttonText: BeyGramTheme.text
-                    Accessible.name: text
-                    onToggled: root.toggleKind(kindRow.modelData, kindBox.checked)
+                    spacing: 0
 
-                    // A user toggle replaces the `checked` binding, so the box is
-                    // re-synced explicitly whenever the selection moves: a tick,
-                    // a storage refresh that drops a kind, a completed cleanup.
-                    Connections {
-                        target: root.facade
-                        function onChanged() {
-                            kindBox.checked = root.kindSelected(kindRow.modelData)
+                    DsListRow {
+                        Layout.fillWidth: true
+                        visible: root.kindList.length === 0
+                        title: qsTr("Nothing cached yet.")
+                        muted: true
+                        hoverEnabled: false
+                    }
+
+                    // One row per cached kind: the switch drives the cleanup
+                    // selection, the subtitle is the facade's formatted size.
+                    Repeater {
+                        model: root.kindList
+
+                        delegate: ColumnLayout {
+                            id: kindRow
+
+                            required property int index
+                            required property string modelData
+
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            DsListRow {
+                                Layout.fillWidth: true
+                                title: kindRow.modelData
+                                subtitle: kindRow.index < root.sizeList.length
+                                          ? root.sizeList[kindRow.index] : ""
+
+                                trailing: DsSwitch {
+                                    id: kindSwitch
+
+                                    checked: root.kindSelected(kindRow.modelData)
+                                    Accessible.name: kindRow.modelData
+
+                                    onToggled: root.toggleKind(kindRow.modelData, kindSwitch.checked)
+                                }
+                            }
+
+                            // A user toggle replaces the `checked` binding, so
+                            // the switch is re-synced whenever the selection
+                            // moves: a tick, a refresh that drops a kind, or a
+                            // completed cleanup.
+                            Connections {
+                                target: root.facade
+
+                                function onChanged() {
+                                    kindSwitch.checked = root.kindSelected(kindRow.modelData)
+                                }
+                            }
+
+                            DsDivider {
+                                Layout.fillWidth: true
+                                inset: Design.space3
+                                visible: kindRow.index < root.kindList.length - 1
+                            }
+                        }
+                    }
+
+                    DsDivider {
+                        Layout.fillWidth: true
+                        inset: Design.space3
+                        visible: root.kindList.length > 0
+                    }
+
+                    DsListRow {
+                        Layout.fillWidth: true
+                        title: qsTr("Total")
+                        hoverEnabled: false
+
+                        trailing: Text {
+                            text: root.facade ? root.facade.totalText : ""
+                            color: BeyGramTheme.text
+                            font.pixelSize: Design.fontBody
+                            font.weight: Font.DemiBold
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: Design.space3
+                        spacing: Design.space2
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.facade
+                                  ? qsTr("Selected: %1").arg(root.facade.selectedText)
+                                  : ""
+                            color: BeyGramTheme.muted
+                            font.pixelSize: Design.fontSmall
+                            elide: Text.ElideRight
+                        }
+
+                        DsButton {
+                            text: root.facade && root.facade.canClean
+                                  ? qsTr("Clean %1").arg(root.facade.selectedText)
+                                  : qsTr("Clean")
+                            tone: "danger"
+                            size: "sm"
+                            enabled: root.facade ? root.facade.canClean : false
+                            onClicked: cleanDialog.open()
                         }
                     }
                 }
+            }
+        }
 
-                Text {
-                    Layout.alignment: Qt.AlignVCenter
-                    text: kindRow.index < root.sizeList.length
-                          ? root.sizeList[kindRow.index] : ""
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                    Accessible.role: Accessible.StaticText
-                    Accessible.name: text
+        DsSection {
+            Layout.fillWidth: true
+            title: qsTr("Automatic downloads")
+
+            content: DsCard {
+                Layout.fillWidth: true
+
+                content: DsListRow {
+                    Layout.fillWidth: true
+                    title: qsTr("Download media automatically")
+                    subtitle: qsTr("New photos and videos arrive without asking.")
+
+                    trailing: DsSwitch {
+                        id: autoBox
+
+                        checked: root.facade ? root.facade.autoDownload : true
+                        Accessible.name: qsTr("Download media automatically")
+
+                        onToggled: {
+                            if (root.facade)
+                                root.facade.autoDownload = autoBox.checked
+                        }
+                    }
                 }
             }
         }
 
-        Text {
+        DsSection {
             Layout.fillWidth: true
-            visible: root.kindList.length === 0
-            text: qsTr("Nothing cached yet.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
-        }
+            title: qsTr("Data usage")
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            height: 1
-            color: BeyGramTheme.line
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
+            content: DsCard {
                 Layout.fillWidth: true
-                text: qsTr("Total")
-                color: BeyGramTheme.text
-                font.pixelSize: 13
-                font.weight: Font.Medium
-            }
 
-            Text {
-                text: root.facade ? root.facade.totalText : ""
-                color: BeyGramTheme.text
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
-                Accessible.role: Accessible.StaticText
-                Accessible.name: text
-            }
-        }
+                content: ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
+                    DsListRow {
+                        Layout.fillWidth: true
+                        visible: root.usageList.length === 0
+                        title: qsTr("No data usage recorded yet.")
+                        muted: true
+                        hoverEnabled: false
+                    }
 
-            Text {
-                Layout.fillWidth: true
-                text: root.facade
-                      ? qsTr("Selected: %1").arg(root.facade.selectedText)
-                      : ""
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
+                    // Already formatted by the facade:
+                    // "Photos · 1.0 KB sent · 512 B received".
+                    Repeater {
+                        model: root.usageList
 
-            PrimaryButton {
-                tone: "danger"
-                text: root.facade && root.facade.canClean
-                      ? qsTr("Clean %1").arg(root.facade.selectedText)
-                      : qsTr("Clean")
-                enabled: root.facade ? root.facade.canClean : false
-                onClicked: {
-                    if (root.facade)
-                        root.facade.clean()
+                        delegate: DsListRow {
+                            required property int index
+                            required property string modelData
+
+                            Layout.fillWidth: true
+                            title: modelData
+                            muted: true
+                            hoverEnabled: false
+                        }
+                    }
                 }
             }
         }
+    }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 6
-            height: 1
-            color: BeyGramTheme.line
+    // Cleaning deletes cached files, so it is confirmed before the facade is
+    // asked to run it.
+    DsDialog {
+        id: cleanDialog
+
+        title: qsTr("Clean cached media?")
+        description: root.facade && root.facade.canClean
+                     ? qsTr("This removes %1 of cached media from this device.").arg(root.facade.selectedText)
+                     : qsTr("This removes the ticked media from this device.")
+        primaryText: qsTr("Clean")
+        secondaryText: qsTr("Cancel")
+        tone: "danger"
+
+        onAccepted: {
+            if (root.facade)
+                root.facade.clean()
         }
+    }
 
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Automatic downloads")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
+    // A user toggle replaces the `checked` binding, so the switch is re-synced
+    // whenever the facade reports a real change.
+    Connections {
+        target: root.facade
 
-        CheckBox {
-            id: autoBox
-            Layout.fillWidth: true
-            text: qsTr("Download media automatically")
-            checked: root.facade ? root.facade.autoDownload : true
-            palette.text: BeyGramTheme.text
-            palette.windowText: BeyGramTheme.text
-            palette.buttonText: BeyGramTheme.text
-            Accessible.name: text
-            onToggled: {
-                if (root.facade)
-                    root.facade.autoDownload = autoBox.checked
-            }
-
-            Connections {
-                target: root.facade
-                function onChanged() {
-                    autoBox.checked = root.facade ? root.facade.autoDownload : true
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 6
-            height: 1
-            color: BeyGramTheme.line
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Data usage")
-            color: BeyGramTheme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-        }
-
-        // Already formatted by the facade:
-        // "Photos · 1.0 KB sent · 512 B received".
-        Repeater {
-            model: root.usageList
-
-            delegate: Text {
-                required property string modelData
-
-                Layout.fillWidth: true
-                text: modelData
-                color: BeyGramTheme.muted
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            visible: root.usageList.length === 0
-            text: qsTr("No data usage recorded yet.")
-            color: BeyGramTheme.muted
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
+        function onChanged() {
+            autoBox.checked = root.facade ? root.facade.autoDownload : true
         }
     }
 }

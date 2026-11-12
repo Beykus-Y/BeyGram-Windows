@@ -5,26 +5,30 @@
 // state, and the terminateRequested signal the parent forwards to TDLib. This
 // file only renders the rows and their buttons; it performs no network, logging
 // or C++ calls of its own. A row's "Terminate" button and the footer both open a
-// confirmation in the facade, and the confirmation row sends it with confirm()
-// or dismisses it with cancel().
+// confirmation in the facade, and the DsDialog sends it with confirm() or
+// dismisses it with cancel().
+//
+// Layout comes from the design system: one DsSection, one DsCard, DsListRow per
+// device and DsDialog for the destructive confirmation.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
-Card {
+Item {
     id: panel
 
     property var facade: null
+
+    implicitWidth: 520
+    implicitHeight: content.implicitHeight
 
     readonly property var deviceRows: panel.facade ? panel.facade.devices : []
     readonly property var deviceIds: panel.facade ? panel.facade.sessionIds : []
     readonly property bool confirming: panel.facade ? panel.facade.confirming : false
     readonly property bool running: panel.facade ? panel.facade.running : false
     readonly property bool hasOthers: panel.deviceRows.length > 0
-
-    spacing: 12
 
     // What the pending confirmation would sign out, in words. "all" is the
     // facade's marker for terminateAllOtherSessions; anything else is a session
@@ -34,128 +38,124 @@ Card {
             return ""
         const target = panel.facade.pendingTarget
         if (target === "all")
-            return "all other sessions"
+            return qsTr("all other sessions")
         const index = panel.deviceIds.indexOf(target)
-        return index >= 0 ? panel.deviceRows[index] : "this session"
+        return index >= 0 ? panel.deviceRows[index] : qsTr("this session")
     }
 
-    Text {
-        text: "Active devices"
-        color: BeyGramTheme.text
-        font.pixelSize: 15
-        font.weight: Font.DemiBold
-    }
+    ColumnLayout {
+        id: content
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: Design.space4
 
-    Text {
-        Layout.fillWidth: true
-        text: panel.hasOthers
-              ? "These devices are signed in to your account. Terminating one signs it out."
-              : "No other devices are signed in."
-        color: BeyGramTheme.muted
-        font.pixelSize: 12
-        wrapMode: Text.WordWrap
-    }
-
-    Repeater {
-        model: panel.deviceRows
-
-        delegate: RowLayout {
+        DsSection {
             Layout.fillWidth: true
-            spacing: 10
+            title: qsTr("Active devices")
+            description: qsTr("Every device signed in to your account appears here. Terminating one signs it out.")
 
-            Rectangle {
-                width: 8
-                height: 8
-                radius: 4
-                color: BeyGramTheme.muted
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Text {
+            content: DsCard {
                 Layout.fillWidth: true
-                text: modelData
-                color: BeyGramTheme.text
-                font.pixelSize: 13
-                elide: Text.ElideRight
-            }
 
-            SecondaryButton {
-                text: "Terminate"
-                enabled: panel.facade !== null && !panel.running && !panel.confirming
-                onClicked: panel.facade.requestTerminate(panel.deviceIds[index])
+                content: ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    DsListRow {
+                        Layout.fillWidth: true
+                        visible: !panel.hasOthers
+                        title: qsTr("No other devices are signed in.")
+                        muted: true
+                        hoverEnabled: false
+                    }
+
+                    Repeater {
+                        model: panel.deviceRows
+
+                        delegate: ColumnLayout {
+                            id: deviceRow
+
+                            required property int index
+                            required property string modelData
+
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            DsListRow {
+                                Layout.fillWidth: true
+                                title: deviceRow.modelData
+
+                                trailing: DsButton {
+                                    text: qsTr("Terminate")
+                                    tone: "danger"
+                                    size: "sm"
+                                    enabled: panel.facade !== null && !panel.running && !panel.confirming
+                                    onClicked: panel.facade.requestTerminate(panel.deviceIds[deviceRow.index])
+                                }
+                            }
+
+                            DsDivider {
+                                Layout.fillWidth: true
+                                inset: Design.space3
+                                visible: deviceRow.index < panel.deviceRows.length - 1
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: Design.space3
+                        spacing: Design.space2
+                        visible: panel.hasOthers
+
+                        Item { Layout.fillWidth: true }
+
+                        DsButton {
+                            text: qsTr("Terminate all other sessions")
+                            tone: "danger"
+                            size: "sm"
+                            enabled: panel.facade !== null && panel.hasOthers
+                                     && !panel.running && !panel.confirming
+                            onClicked: panel.facade.requestTerminateAllOthers()
+                        }
+                    }
+                }
             }
         }
     }
 
-    Rectangle {
-        Layout.fillWidth: true
-        height: 1
-        visible: panel.hasOthers
-        color: BeyGramTheme.line
-    }
+    // Confirmation: one target at a time. While the facade reports the action as
+    // running the dialog stays open and busy, so the same termination cannot be
+    // sent twice; the caller's cancel() clears `confirming` and closes it.
+    DsDialog {
+        id: confirmDialog
 
-    SecondaryButton {
-        Layout.fillWidth: true
-        text: "Terminate all other sessions"
-        enabled: panel.facade !== null && panel.hasOthers && !panel.running && !panel.confirming
-        onClicked: panel.facade.requestTerminateAllOthers()
-    }
+        title: panel.running
+               ? qsTr("Signing out %1...").arg(panel.targetLabel())
+               : qsTr("Sign out %1?").arg(panel.targetLabel())
+        description: qsTr("That device will need to sign in again.")
+        primaryText: panel.running ? qsTr("Working...") : qsTr("Sign out")
+        secondaryText: qsTr("Cancel")
+        tone: "danger"
+        busy: panel.running
 
-    // Confirmation row: one target at a time, with the action frozen while it is
-    // in flight so the same termination cannot be sent twice.
-    Rectangle {
-        Layout.fillWidth: true
-        visible: panel.confirming
-        implicitHeight: confirmRow.implicitHeight + 24
-        radius: 12
-        color: Qt.alpha(BeyGramTheme.danger, BeyGramTheme.darkMode ? 0.16 : 0.10)
-        border.width: 1
-        border.color: Qt.alpha(BeyGramTheme.danger, 0.45)
-
-        RowLayout {
-            id: confirmRow
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.margins: 12
-            spacing: 10
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-
-                Text {
-                    Layout.fillWidth: true
-                    text: panel.running
-                          ? "Signing out " + panel.targetLabel() + "..."
-                          : "Sign out " + panel.targetLabel() + "?"
-                    color: BeyGramTheme.text
-                    font.pixelSize: 13
-                    font.weight: Font.Medium
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "That device will need to sign in again."
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                }
-            }
-
-            PrimaryButton {
-                text: panel.running ? "Working..." : "Confirm"
-                tone: "danger"
-                enabled: !panel.running
-                onClicked: panel.facade.confirm()
-            }
-
-            SecondaryButton {
-                text: "Cancel"
-                enabled: !panel.running
-                onClicked: panel.facade.cancel()
-            }
+        onAccepted: {
+            if (panel.facade)
+                panel.facade.confirm()
         }
+        onRejected: {
+            if (panel.facade)
+                panel.facade.cancel()
+        }
+    }
+
+    // The facade owns `confirming`; the dialog mirrors it. A Binding element is
+    // used because the dialog closes itself through its own `open` property.
+    Binding {
+        target: confirmDialog
+        property: "visible"
+        value: panel.confirming
+        restoreMode: Binding.RestoreNone
     }
 }
