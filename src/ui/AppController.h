@@ -362,6 +362,12 @@ public:
     Q_INVOKABLE void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     Q_INVOKABLE void forwardMessage(qint64 fromChatId, qint64 messageId, qint64 toChatId);
     Q_INVOKABLE void votePoll(qint64 chatId, qint64 messageId, int optionIndex);
+    Q_INVOKABLE void sendSticker(qint64 stickerId, int fileId, qint64 replyToMessageId = 0);
+    Q_INVOKABLE void sendGift(qint64 giftId, qint64 chatId, const QString& text);
+    Q_INVOKABLE void savePrivacySetting(const QString& setting, const QString& rule);
+    Q_INVOKABLE void terminateSession(qint64 sessionId);
+    Q_INVOKABLE void terminateAllOtherSessions();
+    Q_INVOKABLE void openStory(qint64 storyId);
     Q_INVOKABLE bool sendPoll(const QString& question, const QStringList& options,
                               bool anonymous, bool multiple, bool quiz,
                               int correctIndex, const QString& explanation);

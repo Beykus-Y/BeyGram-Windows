@@ -261,6 +261,22 @@ add_library(beygram_telegram STATIC
     StickerSetOrderModel.h
     StoryActions.cpp
     StoryActions.h
+    ForumTopics.cpp
+    ForumTopics.h
+    GroupAdministration.cpp
+    GroupAdministration.h
+    GroupCreationController.cpp
+    GroupCreationController.h
+    MessageEffects.cpp
+    MessageEffects.h
+    SecretChatKeyEmoji.cpp
+    SecretChatKeyEmoji.h
+    SharedMediaModel.cpp
+    SharedMediaModel.h
+    SpeechRecognitionController.cpp
+    SpeechRecognitionController.h
+    SyncedLyricsModel.cpp
+    SyncedLyricsModel.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

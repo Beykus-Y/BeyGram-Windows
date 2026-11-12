@@ -9,6 +9,11 @@
 #include "PinnedMessages.h"
 #include "PollInfo.h"
 #include "PollSend.h"
+#include "GiftRequests.h"
+#include "PrivacyRequests.h"
+#include "SessionRequests.h"
+#include "StickerSend.h"
+#include "StoryRequests.h"
 #include "ProfileEdit.h"
 #include "TypingStatus.h"
 #include "ChatFolders.h"
@@ -435,6 +440,124 @@ void TelegramRepository::updateOwnProfile(const QString& firstName, const QStrin
             },
             QStringLiteral("Could not update the profile"));
     }
+}
+
+void TelegramRepository::sendSticker(qint64 stickerId, int fileId, qint64 replyToMessageId)
+{
+    if (m_currentChatId == 0 || stickerId <= 0 || fileId < 0)
+        return;
+    m_error.clear();
+    sendRequest(
+        sendStickerRequest(m_currentChatId, stickerId, fileId, replyToMessageId),
+        [this, chatId = m_currentChatId](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
+                MessageData message = messageFromJson(response);
+                if (chatId == m_currentChatId) {
+                    resolveSender(message);
+                    m_history.addOrUpdate(message);
+                    m_messageModel->addOrUpdate(message);
+                    m_messageModel->resolveReplyPreviews();
+                    markCurrentChatRead();
+                }
+            } else if (response.value(QStringLiteral("@type")).toString()
+                       == QLatin1String("error")) {
+                setError(QStringLiteral("Could not send the sticker: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not send the sticker"));
+    emit stateChanged();
+}
+
+void TelegramRepository::sendGift(qint64 giftId, qint64 chatId, const QString& text)
+{
+    if (giftId <= 0 || chatId == 0)
+        return;
+    m_error.clear();
+    sendRequest(
+        sendGiftRequest(giftId, chatId, text),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not send the gift: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not send the gift"));
+    emit stateChanged();
+}
+
+void TelegramRepository::setPrivacySetting(const QString& setting, const QString& rule)
+{
+    const QJsonObject request = setPrivacySettingRequest(setting, rule);
+    if (request.isEmpty()) {
+        setError(QStringLiteral("Unknown privacy setting"));
+        emit stateChanged();
+        return;
+    }
+    m_error.clear();
+    sendRequest(
+        request,
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not save the privacy setting: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not save the privacy setting"));
+    emit stateChanged();
+}
+
+void TelegramRepository::terminateSession(qint64 sessionId)
+{
+    if (sessionId <= 0)
+        return;
+    m_error.clear();
+    sendRequest(
+        terminateSessionRequest(sessionId),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not end the session: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not end the session"));
+    emit stateChanged();
+}
+
+void TelegramRepository::terminateAllOtherSessions()
+{
+    m_error.clear();
+    sendRequest(
+        terminateAllOtherSessionsRequest(),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not end the other sessions: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not end the other sessions"));
+    emit stateChanged();
+}
+
+void TelegramRepository::openStory(qint64 storyId)
+{
+    if (m_currentChatId == 0 || storyId <= 0)
+        return;
+    sendRequest(
+        openStoryRequest(m_currentChatId, static_cast<int>(storyId)),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not open the story: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+                emit stateChanged();
+            }
+        },
+        QStringLiteral("Could not open the story"));
 }
 
 void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat,
