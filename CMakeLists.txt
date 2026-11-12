@@ -25,7 +25,7 @@ if(WIN32)
     add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Multimedia Test Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Multimedia Test Widgets LinguistTools)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
@@ -71,14 +71,13 @@ if(BEYGRAM_EMBED_API_CREDENTIALS)
     message(STATUS "Embedding Telegram API credentials from secrets.properties (local test build)")
 endif()
 
-qt_add_executable(beygram WIN32
-    src/app/main.cpp
-)
+qt_add_library(beygram_qml STATIC)
 
-qt_add_qml_module(beygram
+qt_add_qml_module(beygram_qml
     URI BeyGram
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
+    OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/BeyGram"
     QML_FILES
         qml/Main.qml
         qml/Shell.qml
@@ -147,6 +146,7 @@ qt_add_qml_module(beygram
         qml/pages/GlobalSearchPage.qml
         qml/pages/ToolsPage.qml
         qml/pages/DesignGalleryPage.qml
+        qml/ds/ChatWallpaper.qml
         qml/ds/DsTooltip.qml
         qml/ds/DsToast.qml
         qml/ds/DsTheme.qml
@@ -181,8 +181,22 @@ qt_add_qml_module(beygram
         qml/pages/LogsPage.qml
 )
 
+target_link_libraries(beygram_qml
+    PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::QuickControls2
+)
+
+qt_add_executable(beygram WIN32
+    src/app/main.cpp
+)
+
 target_link_libraries(beygram
     PRIVATE
+        beygram_qml
+        beygram_qmlplugin
         beygram_ui
         beygram_platform_windows
         Qt6::Core
@@ -196,13 +210,31 @@ if(BEYGRAM_TDLIB_FOUND)
     beygram_copy_tdlib_runtime(beygram)
 endif()
 
-# The QML module is compiled into the executable. Qt's deployment tool creates
-# the redistributable folder (see docs/WINDOWS_FOUNDATION.md).
+# The QML module is compiled into beygram_qml and linked into beygram. Qt's
+# deployment tool creates the redistributable folder (see docs/WINDOWS_FOUNDATION.md).
 
+set(_beygram_i18n_targets beygram)
 if(BEYGRAM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+    if(TARGET tst_qml_ui)
+        list(APPEND _beygram_i18n_targets tst_qml_ui)
+    endif()
 endif()
+
+qt_add_translations(
+    TARGETS
+        ${_beygram_i18n_targets}
+    SOURCE_TARGETS
+        beygram_ui
+        beygram_qml
+        beygram
+    TS_FILES
+        translations/beygram_en.ts
+        translations/beygram_ru.ts
+    RESOURCE_PREFIX "/i18n"
+    NO_GENERATE_PLURALS_TS_FILE
+)
 
 message(STATUS "BeyGram Windows ${PROJECT_VERSION} | Qt ${Qt6Core_VERSION} | tests=${BEYGRAM_BUILD_TESTS}")
 message(STATUS "BeyGram TDLib: ${BEYGRAM_TDLIB_STATUS}")

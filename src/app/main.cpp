@@ -1,7 +1,9 @@
 #include "core/AppPaths.h"
 #include "core/Logging.h"
+#include "platform/windows/WindowChrome.h"
 #include "ui/AppController.h"
 #include "ui/AppearanceStore.h"
+#include "ui/LocalizationManager.h"
 #include "ui/MediaImageProvider.h"
 #include "ui/QrCodeImageProvider.h"
 #include "ui/ThemeController.h"
@@ -54,6 +56,9 @@ int main(int argc, char* argv[])
     beygram::ui::AppearanceStore appearance(
         QDir(beygram::AppPaths::dataDirectory()).filePath(QStringLiteral("appearance.json")));
     appearance.load();
+    beygram::ui::LocalizationManager lang(
+        QDir(beygram::AppPaths::configDirectory()).filePath(QStringLiteral("locale.json")));
+    lang.load();
     beygram::ui::WindowStateStore windowState(
         QDir(beygram::AppPaths::configDirectory())
             .filePath(QStringLiteral("window/window-state.json")));
@@ -65,17 +70,25 @@ int main(int argc, char* argv[])
                          appearance.setThemePreset(theme.presetName());
                          appearance.setThemeMode(theme.modeName());
                      });
+    QObject::connect(&appearance, &beygram::ui::AppearanceStore::changed, &theme,
+                     [&theme, &appearance] {
+                         theme.setPresetName(appearance.themePreset());
+                         theme.setModeName(appearance.themeMode());
+                     });
 
     beygram::ui::AppController controller;
 
     qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramTheme", &theme);
+    qmlRegisterSingletonInstance("BeyGram.Theme", 1, 0, "BeyGramAppearance", &appearance);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramApp", &controller);
+    qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramLang", &lang);
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramMediaViewer",
                                  controller.mediaViewer());
     qmlRegisterSingletonInstance("BeyGram.App", 1, 0, "BeyGramPlayback",
                                  controller.playback());
 
     QQmlApplicationEngine engine;
+    lang.attachEngine(&engine);
 
     auto* qrProvider = new beygram::ui::QrCodeImageProvider();
     engine.addImageProvider(QStringLiteral("beygramqr"), qrProvider);
@@ -106,6 +119,14 @@ int main(int argc, char* argv[])
         } else {
             window->setGeometry(saved.x, saved.y, saved.width, saved.height);
         }
+        auto syncChrome = [window, &theme] {
+            const QColor caption =
+                (theme.modeName() == QLatin1String("Amoled")) ? theme.bg() : theme.surface();
+            beygram::platform::applyWindowTitleBarTheme(window, theme.darkMode(), caption,
+                                                       theme.text());
+        };
+        syncChrome();
+        QObject::connect(&theme, &beygram::ui::ThemeController::themeChanged, window, syncChrome);
         QObject::connect(&application, &QCoreApplication::aboutToQuit,
                          [window, &windowState] {
                              windowState.save({window->x(), window->y(),

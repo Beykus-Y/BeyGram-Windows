@@ -1,5 +1,6 @@
 import QtQuick
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 /// Circular avatar — compatibility adapter over DsAvatar.
 ///
@@ -16,7 +17,7 @@ import BeyGram.Theme 1.0
 Item {
     id: root
 
-    property int size: 46
+    property int size: Design.avatarMedium
     property int fileId: 0
     property bool ready: false
     property int revision: 0

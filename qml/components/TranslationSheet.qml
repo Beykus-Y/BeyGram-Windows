@@ -30,7 +30,7 @@ Dialog {
     padding: 0
     modal: true
     focus: true
-    title: "Translation"
+    title: qsTr("Translation")
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     Overlay.modal: Rectangle {
@@ -70,7 +70,7 @@ Dialog {
             Layout.leftMargin: 18
             Layout.rightMargin: 18
             Layout.topMargin: 2
-            text: "Messages are translated into the selected language."
+            text: qsTr("Messages are translated into the selected language.")
             color: BeyGramTheme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap
@@ -144,7 +144,7 @@ Dialog {
             Layout.rightMargin: 18
             Layout.topMargin: 12
             visible: root.names.length === 0
-            text: "No languages available."
+            text: qsTr("No languages available.")
             color: BeyGramTheme.muted
             font.pixelSize: 12
             horizontalAlignment: Text.AlignHCenter
@@ -176,7 +176,7 @@ Dialog {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Translating message…"
+                    text: qsTr("Translating message…")
                     color: BeyGramTheme.muted
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -192,7 +192,7 @@ Dialog {
             Layout.rightMargin: 12
             Layout.topMargin: 4
             Layout.bottomMargin: 10
-            text: "Translate incoming messages automatically"
+            text: qsTr("Translate incoming messages automatically")
             enabled: root.facade !== null
             checked: root.autoOn
             palette.text: BeyGramTheme.text
@@ -225,7 +225,7 @@ Dialog {
             spacing: 8
 
             PrimaryButton {
-                text: "Done"
+                text: qsTr("Done")
                 onClicked: root.close()
             }
         }

@@ -19,6 +19,9 @@ constexpr int kVersion = 1;
 constexpr int kMinWallpaperIntensity = 0;
 constexpr int kMaxWallpaperIntensity = 45;
 constexpr int kDefaultWallpaperIntensity = 24;
+constexpr int kMinMessageTextSize = 12;
+constexpr int kMaxMessageTextSize = 18;
+constexpr int kDefaultMessageTextSize = 14;
 
 // Stored names from Android `data/appearance/`. Keep them byte-identical: they
 // are what the Android client writes and what the Windows theme engine parses.
@@ -65,6 +68,15 @@ const QStringList& bubbleStyles()
     return values;
 }
 
+const QStringList& listDensities()
+{
+    static const QStringList values{
+        QStringLiteral("Comfortable"),
+        QStringLiteral("Compact"),
+    };
+    return values;
+}
+
 // `ChatWallpaper.None` plus every id in `WallpaperPresets.kt`.
 const QStringList& wallpaperPresets()
 {
@@ -100,6 +112,11 @@ int clampedIntensity(int value)
     return std::clamp(value, kMinWallpaperIntensity, kMaxWallpaperIntensity);
 }
 
+int clampedTextSize(int value)
+{
+    return std::clamp(value, kMinMessageTextSize, kMaxMessageTextSize);
+}
+
 bool settingsEqual(const AppearanceSettings& left, const AppearanceSettings& right)
 {
     return left.themePreset == right.themePreset
@@ -108,7 +125,9 @@ bool settingsEqual(const AppearanceSettings& left, const AppearanceSettings& rig
         && left.bubbleStyle == right.bubbleStyle
         && left.wallpaperPreset == right.wallpaperPreset
         && left.wallpaperIntensity == right.wallpaperIntensity
-        && left.reduceMotion == right.reduceMotion;
+        && left.reduceMotion == right.reduceMotion
+        && left.listDensity == right.listDensity
+        && left.messageTextSize == right.messageTextSize;
 }
 
 /// Reads the file into a fresh settings value. Anything unreadable, unparsable
@@ -150,6 +169,12 @@ AppearanceSettings readSettings(const QString& filePath)
     const QJsonValue reduceMotion = root.value(QStringLiteral("reduceMotion"));
     if (reduceMotion.isBool())
         settings.reduceMotion = reduceMotion.toBool();
+
+    settings.listDensity = normalized(listDensities(),
+                                      root.value(QStringLiteral("listDensity")).toString(),
+                                      settings.listDensity);
+    settings.messageTextSize = clampedTextSize(
+        root.value(QStringLiteral("messageTextSize")).toInt(kDefaultMessageTextSize));
 
     return settings;
 }
@@ -249,6 +274,26 @@ void AppearanceStore::setReduceMotion(bool value)
     emit changed();
 }
 
+void AppearanceStore::setListDensity(const QString& value)
+{
+    const QString next = normalized(listDensities(), value, QStringLiteral("Comfortable"));
+    if (next == m_settings.listDensity)
+        return;
+    m_settings.listDensity = next;
+    persist();
+    emit changed();
+}
+
+void AppearanceStore::setMessageTextSize(int value)
+{
+    const int next = clampedTextSize(value);
+    if (next == m_settings.messageTextSize)
+        return;
+    m_settings.messageTextSize = next;
+    persist();
+    emit changed();
+}
+
 void AppearanceStore::persist()
 {
     if (m_filePath.isEmpty())
@@ -267,6 +312,8 @@ void AppearanceStore::persist()
         {QStringLiteral("wallpaperPreset"), m_settings.wallpaperPreset},
         {QStringLiteral("wallpaperIntensity"), m_settings.wallpaperIntensity},
         {QStringLiteral("reduceMotion"), m_settings.reduceMotion},
+        {QStringLiteral("listDensity"), m_settings.listDensity},
+        {QStringLiteral("messageTextSize"), m_settings.messageTextSize},
     };
 
     QSaveFile file(m_filePath);

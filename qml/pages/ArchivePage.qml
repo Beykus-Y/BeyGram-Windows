@@ -1,17 +1,6 @@
-// ArchivePage — archived chats browser.
-//
-// The parent owns the data layer. It assigns `model` from ChatListModel (roles:
-// chatId, title, preview, unreadCount, pinned, muted, lastDate, initials,
-// accentIndex, isChannel, chatType, photoFileId, photoReady, photoRevision),
-// keeps `loading` in sync, and reacts to chatSelected() by opening the chat and
-// to backRequested() by leaving the archive. `lastDate` is expected in Unix
-// seconds, matching the chat list and message models.
-//
-// Filtering happens inside a DelegateModel group so the source model keeps its
-// order and the view still gets a real count for the header and empty state.
-// The unarchive action is the same one the archive entry in ChatsPage exposes,
-// so the menu calls BeyGramApp.setChatArchived(chatId, false) directly.
+pragma ComponentBehavior: Bound
 
+// ArchivePage — archived chats browser.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -30,17 +19,14 @@ Item {
     signal backRequested()
 
     readonly property string query: searchField.text.trim()
+    readonly property bool compact: BeyGramAppearance.listDensity === "Compact"
 
     function timeLabel(value) {
-        if (!value || value <= 0)
+        var _rev = BeyGramLang.revision
+        const ts = Number(value)
+        if (!ts || ts <= 0)
             return ""
-        const date = new Date(value * 1000)
-        if (isNaN(date.getTime()))
-            return ""
-        const now = new Date()
-        if (date.toDateString() === now.toDateString())
-            return Qt.formatTime(date, "hh:mm")
-        return Qt.formatDate(date, "dd.MM")
+        return BeyGramLang.formatChatTimestamp(ts)
     }
 
     function applyFilter() {
@@ -49,7 +35,6 @@ Item {
         if (!items || items.count === 0)
             return
 
-        // Reset the visible group, then add back every match in source order.
         items.setGroups(0, items.count, ["items"])
         for (let i = 0; i < items.count; ++i) {
             const entry = items.get(i)
@@ -70,14 +55,14 @@ Item {
 
         DsHeader {
             Layout.fillWidth: true
-            title: "Archived chats"
+            title: qsTr("Archived chats")
             subtitle: page.loading && archiveList.count === 0
-                      ? "Loading archived chats"
-                      : archiveList.count + (archiveList.count === 1 ? " chat" : " chats")
+                      ? qsTr("Loading archived chats")
+                      : qsTr("%n chat(s)", "", archiveList.count)
 
             leading: DsIconButton {
                 icon: "\uE72B"
-                tooltip: "Back to chats"
+                tooltip: qsTr("Back to chats")
                 onClicked: page.backRequested()
             }
         }
@@ -91,8 +76,8 @@ Item {
             DsSearchField {
                 id: searchField
                 Layout.fillWidth: true
-                placeholderText: "Search archived chats"
-                Accessible.name: "Search archived chats"
+                placeholderText: qsTr("Search archived chats")
+                Accessible.name: qsTr("Search archived chats")
                 onTextChanged: page.applyFilter()
             }
 
@@ -113,42 +98,37 @@ Item {
                         width: archiveList.width
                         height: (page.loading && archiveList.count > 0) ? 44 : 0
 
-                        BusyIndicator {
+                        DsSpinner {
                             anchors.centerIn: parent
                             running: page.loading && archiveList.count > 0
                             visible: running
-                            implicitWidth: 22
-                            implicitHeight: 22
                         }
                     }
                 }
 
-                BusyIndicator {
+                DsSpinner {
                     anchors.centerIn: parent
                     running: page.loading && archiveList.count === 0
                     visible: running
-                    implicitWidth: 32
-                    implicitHeight: 32
                 }
 
                 DsEmptyState {
                     anchors.centerIn: parent
                     visible: !page.loading && archiveList.count === 0
-                    glyph: "🗄"
-                    title: page.query.length > 0 ? "No matches" : "No archived chats"
+                    glyph: "\uD83D\uDDC4"
+                    title: page.query.length > 0
+                           ? qsTr("No matches")
+                           : qsTr("No archived chats")
                     description: page.query.length > 0
-                                 ? "No archived chat matches your search."
-                                 : "Chats you archive will appear here."
-                    actionText: page.query.length > 0 ? "Clear search" : ""
+                                 ? qsTr("No archived chat matches your search.")
+                                 : qsTr("Chats you archive will appear here.")
+                    actionText: page.query.length > 0 ? qsTr("Clear search") : ""
                     onActionRequested: searchField.clearText()
                 }
             }
         }
     }
 
-    // --------------------------------------------------------------
-    // Filtered view over the parent-supplied model
-    // --------------------------------------------------------------
     DelegateModel {
         id: filteredModel
         model: page.model
@@ -159,15 +139,11 @@ Item {
             includeByDefault: false
         }
 
-        // New or removed source rows must be filtered again. applyFilter()
-        // itself only changes the "visible" group, never the "items" group.
         items.onChanged: Qt.callLater(page.applyFilter)
 
         delegate: Item {
             id: delegateItem
 
-            // Roles are qint64 in ChatListModel; keep ids and dates as var so
-            // large values do not fail the delegate binding.
             required property var chatId
             required property string title
             required property string preview
@@ -182,7 +158,7 @@ Item {
             required property int photoRevision
 
             width: archiveList.width
-            height: Design.rowHeight
+            height: page.compact ? Design.rowHeightCompact : Design.rowHeight
 
             DsChatRow {
                 anchors.fill: parent
@@ -196,13 +172,11 @@ Item {
                 accentIndex: delegateItem.accentIndex
                 imageSource: delegateItem.photoReady && delegateItem.photoFileId > 0
                              ? "image://beygrammedia/" + delegateItem.photoFileId
-                               + "?v=" + delegateItem.photoRevision + "&round=1"
+                               + "?v=" + delegateItem.photoRevision
                              : ""
                 onClicked: page.chatSelected(delegateItem.chatId)
             }
 
-            // Right click opens the row menu; left clicks fall through to the
-            // DsChatRow mouse area above.
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton
@@ -219,8 +193,8 @@ Item {
         property var chatId: 0
 
         DsMenuItem {
-            text: "Unarchive"
-            glyph: "🗄"
+            text: qsTr("Unarchive")
+            glyph: "\uD83D\uDDC4"
             enabled: rowMenu.chatId !== 0
             onTriggered: BeyGramApp.setChatArchived(rowMenu.chatId, false)
         }

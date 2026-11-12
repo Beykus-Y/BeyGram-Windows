@@ -1,9 +1,4 @@
 // LogsPage — live log viewer over the logger's in-memory ring.
-//
-// BeyGramApp.recentLogs() is the model. Refresh replaces the buffer, Clear
-// empties only this page's copy (the rotating file on disk is kept), Copy puts
-// the visible lines on the clipboard and Open folder reveals beygram.log.
-// Secrets are redacted by the logger before a line reaches the ring or the file.
 
 import QtQuick
 import QtQuick.Controls
@@ -15,17 +10,14 @@ import "../ds/design.js" as Design
 Item {
     id: page
 
+    property bool showHeader: true
     property var lines: []
     property var visibleLines: []
 
     readonly property string query: filterField.text.trim()
     readonly property string monoFamily: "Cascadia Mono"
-    // Digits needed for the largest line number, plus the gutter padding.
     readonly property int gutterWidth: Math.max(28, String(Math.max(1, page.lines.length)).length * 7 + 10)
 
-    // The logger writes "yyyy-MM-dd HH:mm:ss.zzz LEVEL [category] message".
-    // Lines without that prefix (stack traces, wrapped messages) stay readable
-    // and keep the default tone.
     function parseLine(raw, lineNumber) {
         const match = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) (\w+)\s+\[[^\]]*\]/.exec(raw)
         return {
@@ -35,8 +27,6 @@ Item {
         }
     }
 
-    // warnInk is the readable ink role for the warn tone; warn itself is a
-    // background tint and would disappear on a surface.
     function levelColor(level) {
         if (level === "DEBUG")
             return BeyGramTheme.muted
@@ -67,7 +57,6 @@ Item {
         if (autoScroll.checked) {
             Qt.callLater(function() { logList.positionViewAtEnd() })
         } else {
-            // Keep the reading position when the user turned following off.
             Qt.callLater(function() {
                 const maxY = Math.max(0, logList.contentHeight - logList.height)
                 logList.contentY = Math.min(previousY, maxY)
@@ -94,8 +83,9 @@ Item {
 
         DsHeader {
             Layout.fillWidth: true
-            title: "Logs"
-            subtitle: "Secrets are redacted before a line reaches this list or the file."
+            visible: page.showHeader
+            title: qsTr("Logs")
+            subtitle: qsTr("Secrets are redacted before a line reaches this list or the file.")
         }
 
         ColumnLayout {
@@ -104,9 +94,6 @@ Item {
             Layout.margins: Design.space4
             spacing: Design.space3
 
-            // ----------------------------------------------------------
-            // Toolbar: filter, follow toggle and the page actions.
-            // ----------------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Design.space2
@@ -114,8 +101,8 @@ Item {
                 DsSearchField {
                     id: filterField
                     Layout.fillWidth: true
-                    placeholderText: "Filter log lines"
-                    Accessible.name: "Filter log lines"
+                    placeholderText: qsTr("Filter log lines")
+                    Accessible.name: qsTr("Filter log lines")
                     onTextChanged: page.rebuild()
                 }
 
@@ -123,8 +110,8 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                     Layout.leftMargin: Design.space1
                     text: page.query.length > 0
-                          ? page.visibleLines.length + " of " + page.lines.length
-                          : page.lines.length + (page.lines.length === 1 ? " line" : " lines")
+                          ? qsTr("%1 of %2").arg(page.visibleLines.length).arg(page.lines.length)
+                          : qsTr("%n line(s)", "", page.lines.length)
                     color: BeyGramTheme.muted
                     font.pixelSize: Design.fontCaption
                 }
@@ -132,7 +119,7 @@ Item {
                 DsSwitch {
                     id: autoScroll
                     Layout.alignment: Qt.AlignVCenter
-                    text: "Auto-scroll"
+                    text: qsTr("Auto-scroll")
                     checked: true
                     onToggled: {
                         if (checked)
@@ -150,14 +137,14 @@ Item {
                 DsIconButton {
                     Layout.alignment: Qt.AlignVCenter
                     icon: "\uE72C"
-                    tooltip: "Refresh logs"
+                    tooltip: qsTr("Refresh logs")
                     onClicked: page.reload()
                 }
 
                 DsIconButton {
                     Layout.alignment: Qt.AlignVCenter
                     icon: "\uE894"
-                    tooltip: "Clear view (the log file is kept)"
+                    tooltip: qsTr("Clear view (the log file is kept)")
                     enabled: page.lines.length > 0
                     onClicked: page.clearView()
                 }
@@ -165,7 +152,7 @@ Item {
                 DsIconButton {
                     Layout.alignment: Qt.AlignVCenter
                     icon: "\uE8C8"
-                    tooltip: "Copy visible lines"
+                    tooltip: qsTr("Copy visible lines")
                     enabled: page.visibleLines.length > 0
                     onClicked: page.copyVisible()
                 }
@@ -173,14 +160,11 @@ Item {
                 DsIconButton {
                     Layout.alignment: Qt.AlignVCenter
                     icon: "\uE838"
-                    tooltip: "Open log folder"
+                    tooltip: qsTr("Open log folder")
                     onClicked: BeyGramApp.openLogFolder()
                 }
             }
 
-            // ----------------------------------------------------------
-            // Monospace surface: gutter, tone-coloured lines, selection.
-            // ----------------------------------------------------------
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -261,8 +245,8 @@ Item {
                     wrapMode: Text.WordWrap
                     visible: logList.count === 0
                     text: page.query.length > 0 && page.lines.length > 0
-                          ? "No log lines match the filter."
-                          : "No log lines yet."
+                          ? qsTr("No log lines match the filter.")
+                          : qsTr("No log lines yet.")
                     color: BeyGramTheme.muted
                     font.pixelSize: Design.fontSmall
                 }
@@ -270,7 +254,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "File: " + BeyGramApp.logDirectory + "\\beygram.log · keeps 3 rotated files, 5 MiB each"
+                text: qsTr("File: %1\\beygram.log · keeps 3 rotated files, 5 MiB each").arg(BeyGramApp.logDirectory)
                 color: BeyGramTheme.muted
                 font.pixelSize: Design.fontCaption
                 elide: Text.ElideMiddle

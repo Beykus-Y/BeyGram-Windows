@@ -1,4 +1,5 @@
 import QtQuick
+import BeyGram.Theme 1.0
 
 // Pill — compatibility adapter over DsBadge.
 //
@@ -29,5 +30,8 @@ Item {
         anchors.fill: parent
         text: root.text
         tone: root._badgeTone
+        border.color: (root.tone === "neutral" && BeyGramTheme.modeName === "Amoled")
+                      ? Qt.lighter(BeyGramTheme.line, 1.35)
+                      : badge.borderColor
     }
 }

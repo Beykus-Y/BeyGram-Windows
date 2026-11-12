@@ -87,7 +87,7 @@ Popup {
             implicitHeight: 34
             leftPadding: 13
             rightPadding: 13
-            placeholderText: "Search stickers"
+            placeholderText: qsTr("Search stickers...")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             color: BeyGramTheme.text
             font.pixelSize: 12
@@ -160,7 +160,7 @@ Popup {
                             color: cellArea.containsMouse ? BeyGramTheme.surface2 : "transparent"
 
                             Accessible.role: Accessible.Button
-                            Accessible.name: cell.emojiText.length > 0 ? cell.emojiText : "Sticker"
+                            Accessible.name: cell.emojiText.length > 0 ? cell.emojiText : qsTr("Sticker")
 
                             Behavior on color { ColorAnimation { duration: 100 } }
 
@@ -185,7 +185,7 @@ Popup {
                                 anchors.centerIn: parent
                                 width: parent.width - 8
                                 visible: !preview.visible
-                                text: cell.emojiText.length > 0 ? cell.emojiText : "[Sticker]"
+                                text: cell.emojiText.length > 0 ? cell.emojiText : qsTr("[Sticker]")
                                 color: cell.emojiText.length > 0 ? BeyGramTheme.text
                                                                  : BeyGramTheme.muted
                                 font.pixelSize: cell.emojiText.length > 0 ? 34 : 10
@@ -219,8 +219,8 @@ Popup {
                 // A Flow skips invisible children, so its height stays 0 while
                 // the set is empty or the search hides every sticker.
                 visible: !root.loading && stickerFlow.height === 0
-                text: root.query.length > 0 ? "No stickers match your search"
-                                            : "No stickers to show"
+                text: root.query.length > 0 ? qsTr("No stickers match your search")
+                                            : qsTr("No stickers to show")
                 color: BeyGramTheme.muted
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter

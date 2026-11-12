@@ -1,20 +1,14 @@
 pragma ComponentBehavior: Bound
 
-// ChatFolderTabs.qml — folder tab strip for the chat list.
+// ChatFolderTabs.qml — horizontal folder tab strip for the chat list.
 //
-// Folder filtering is wired by the parent page: ChatsPage.qml owns
-// `currentFolderId`, passes it in here, and reacts to folderSelected(folderId)
-// by switching the chat list it shows. The folders come from
-// ChatFolderListModel (roles: folderId, title, icon, unreadCount, isMain);
-// this component only maps that model onto DsTabs, which takes a plain list of
-// labels, and translates the selected tab index back into a folder id. It
-// never filters, fetches, or calls into C++ itself.
-//
-// The main list is row 0 of the model (id 0, "All chats"), so the "All" entry
-// is simply the first tab; no extra entry is synthesised here. Unread counts
-// are not rendered because DsTabs labels are plain text.
-
+// Consumes ChatFolderListModel (roles: folderId, title, icon, unreadCount, isMain)
+// or a plain array of folder objects, renders DesignStyle-aware pill/tab chips
+// with per-folder unread badges, and supports horizontal mouse-wheel + drag scroll.
 import QtQuick
+import QtQuick.Layouts
+import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Item {
     id: root
@@ -24,8 +18,12 @@ Item {
 
     signal folderSelected(var folderId)
 
-    // Number of rows in `model` (QAbstractListModel exposes `count`; a plain
-    // JS array exposes `length`).
+    readonly property int _animFast: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
+    readonly property bool _isMaterial2: BeyGramAppearance.designStyle === "Material2"
+    readonly property bool _isMaterial3: BeyGramAppearance.designStyle === "Material3"
+    readonly property bool _isSignature: BeyGramAppearance.designStyle === "Signature"
+    readonly property bool _amoled: BeyGramTheme.modeName === "Amoled"
+
     readonly property int _count: {
         if (!root.model)
             return 0
@@ -36,99 +34,160 @@ Item {
         return 0
     }
 
-    // Row index -> { id, title }, filled by the probe delegates below. A
-    // QAbstractListModel cannot be handed to DsTabs directly, so the probe
-    // materialises the titles DsTabs needs while the id array preserves the
-    // folder mapping.
-    property var _rows: ({})
-    property var _labels: []
-    property var _ids: []
+    visible: root._count > 1
+    implicitWidth: tabsRow.implicitWidth
+    implicitHeight: visible ? (Design.controlHeightSmall + 6) : 0
 
-    readonly property int _currentIndex: {
-        const wanted = Number(root.currentFolderId)
-        for (let i = 0; i < root._ids.length; ++i) {
-            if (root._ids[i] === wanted)
-                return i
-        }
-        return -1
-    }
-
-    function _collect(index, folderId, title) {
-        if (index < 0)
-            return
-        root._rows[index] = {
-            id: Number(folderId),
-            title: title === undefined || title === null ? "" : String(title)
-        }
-        root._publish()
-    }
-
-    function _publish() {
-        const count = root._count
-        const labels = []
-        const ids = []
-
-        for (let i = 0; i < count; ++i) {
-            const row = root._rows[i]
-            if (row === undefined)
-                return
-            labels.push(row.title)
-            ids.push(row.id)
-        }
-
-        let unchanged = labels.length === root._labels.length
-        for (let i = 0; unchanged && i < labels.length; ++i) {
-            unchanged = labels[i] === root._labels[i] && ids[i] === root._ids[i]
-        }
-        if (unchanged)
-            return
-
-        root._labels = labels
-        root._ids = ids
-    }
-
-    implicitWidth: tabs.implicitWidth
-    implicitHeight: tabs.implicitHeight
-
-    DsTabs {
-        id: tabs
-
+    Flickable {
+        id: flick
         anchors.fill: parent
-        model: root._labels
-        currentIndex: root._currentIndex
+        contentWidth: tabsRow.implicitWidth
+        contentHeight: height
+        flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentWidth > width
+        clip: true
 
-        onActivated: function(index) {
-            if (index >= 0 && index < root._ids.length)
-                root.folderSelected(root._ids[index])
-
-            // DsTabs assigns currentIndex itself on click, which would break
-            // the binding to currentFolderId. Restore it so the strip always
-            // reflects the folder the page actually selected.
-            tabs.currentIndex = Qt.binding(function() {
-                return root._currentIndex
-            })
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: (event) => {
+                if (flick.contentWidth <= flick.width)
+                    return
+                var delta = Math.abs(event.pixelDelta.x) > 0
+                            ? event.pixelDelta.x
+                            : (event.angleDelta.x !== 0 ? event.angleDelta.x / 2 : event.angleDelta.y / 2)
+                var maxX = Math.max(0, flick.contentWidth - flick.width)
+                flick.contentX = Math.max(0, Math.min(maxX, flick.contentX - delta))
+                event.accepted = true
+            }
         }
-    }
 
-    // Invisible probe: one delegate per folder row, used only to read the
-    // model roles that DsTabs cannot consume.
-    Repeater {
-        model: root.model
+        Row {
+            id: tabsRow
+            height: flick.height
+            spacing: Design.space1 + 2
 
-        // The model can shrink to zero without any delegate completing, so
-        // clear the materialised labels when the probe's row count drops.
-        onCountChanged: root._publish()
+            Repeater {
+                id: repeater
+                model: root.model
 
-        delegate: Item {
-            required property int index
-            required property var folderId
-            required property var title
+                delegate: Item {
+                    id: tabItem
 
-            width: 0
-            height: 0
-            visible: false
+                    required property int index
+                    required property var folderId
+                    required property string title
+                    required property int unreadCount
 
-            Component.onCompleted: root._collect(index, folderId, title)
+                    readonly property bool selected: Number(root.currentFolderId) === Number(tabItem.folderId)
+                    readonly property bool hovered: tabMouse.containsMouse
+                    readonly property int tabRadius: root._isMaterial2
+                                                     ? Design.radiusXs
+                                                     : (root._isMaterial3 ? Design.radiusPill : Design.radiusMd)
+
+                    width: pill.implicitWidth
+                    height: flick.height
+
+                    Rectangle {
+                        id: pill
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: pillRow.implicitWidth + Design.space3 * 2
+                        height: Design.controlHeightSmall
+                        radius: tabItem.tabRadius
+                        color: {
+                            if (root._isMaterial2)
+                                return tabItem.hovered ? BeyGramTheme.surface2 : "transparent"
+                            if (tabItem.selected)
+                                return BeyGramTheme.accentSoft
+                            if (tabItem.hovered)
+                                return Qt.alpha(BeyGramTheme.surface2, 0.9)
+                            return root._amoled ? Qt.alpha(BeyGramTheme.surface2, 0.45) : "transparent"
+                        }
+                        border.width: {
+                            if (root._isMaterial2)
+                                return 0
+                            if (tabItem.selected && (root._amoled || root._isSignature))
+                                return 1
+                            if (!tabItem.selected && root._amoled)
+                                return 1
+                            return 0
+                        }
+                        border.color: tabItem.selected
+                                      ? Qt.alpha(BeyGramTheme.accent, 0.35)
+                                      : BeyGramTheme.line
+                        antialiasing: true
+
+                        Behavior on color {
+                            ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
+                        }
+
+                        RowLayout {
+                            id: pillRow
+                            anchors.centerIn: parent
+                            spacing: Design.space1 + 2
+
+                            Text {
+                                Layout.alignment: Qt.AlignVCenter
+                                text: tabItem.title.length > 0 ? tabItem.title : qsTr("All chats")
+                                color: tabItem.selected ? BeyGramTheme.accentInk : BeyGramTheme.muted
+                                font.pixelSize: Design.fontSmall
+                                font.weight: tabItem.selected ? Font.DemiBold : Font.Medium
+                                elide: Text.ElideRight
+
+                                Behavior on color {
+                                    ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                visible: tabItem.unreadCount > 0
+                                implicitWidth: Math.max(16, badgeText.implicitWidth + 8)
+                                implicitHeight: 16
+                                radius: height / 2
+                                color: tabItem.selected ? BeyGramTheme.accent : BeyGramTheme.surface2
+                                border.width: tabItem.selected ? 0 : 1
+                                border.color: BeyGramTheme.line
+                                antialiasing: true
+
+                                Text {
+                                    id: badgeText
+                                    anchors.centerIn: parent
+                                    text: tabItem.unreadCount > 99 ? "99+" : String(tabItem.unreadCount)
+                                    color: tabItem.selected ? BeyGramTheme.onAccent : BeyGramTheme.muted
+                                    font.pixelSize: 9
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+
+                        // Material 2 / underline indicator
+                        Rectangle {
+                            visible: root._isMaterial2 && tabItem.selected
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: Design.space2
+                            anchors.rightMargin: Design.space2
+                            height: 2
+                            radius: 1
+                            color: BeyGramTheme.accent
+                        }
+                    }
+
+                    MouseArea {
+                        id: tabMouse
+                        anchors.fill: pill
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.folderSelected(tabItem.folderId)
+                    }
+
+                    Accessible.role: Accessible.PageTab
+                    Accessible.name: tabItem.title
+                    Accessible.checked: tabItem.selected
+                }
+            }
         }
     }
 }

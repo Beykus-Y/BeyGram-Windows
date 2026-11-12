@@ -1,16 +1,4 @@
 // StatisticsPanel.qml — chat statistics, per-message counters and boost state.
-//
-// The parent owns the StatisticsFacade and assigns it to `facade`; this panel
-// only reads it. Refresh asks for new chat statistics through
-// facade.requestChatStats(), and the page answers by calling
-// facade.setChatStats() (plus facade.setBoosts()) once TDLib replies. Opening a
-// message's statistics is the page's job through facade.openMessageStats().
-// Nothing here talks to Telegram.
-//
-// Every list the facade returns is already formatted for display ("1 234",
-// "12.5%"), so the chart strips the grouping spaces before it turns a value
-// into a bar height. The panel never invents a number: a missing value, an
-// unknown maximum or a null facade simply draws nothing.
 
 import QtQuick
 import QtQuick.Layouts
@@ -52,23 +40,18 @@ Rectangle {
 
     Behavior on color { ColorAnimation { duration: 180 } }
 
-    // A facade list entry, or an empty string when the two sides disagree in
-    // length. Guards every positional read so a partial answer cannot throw.
     function textAt(list, index) {
         if (!list || index < 0 || index >= list.length)
             return ""
         return String(list[index])
     }
 
-    // The number behind a formatted entry: "1 234" -> 1234, "12.5%" -> 12.5.
-    // Anything unreadable or negative counts as 0, so no bar is faked.
     function numberAt(list, index) {
         const text = textAt(list, index).replace(/\s/g, "")
         const value = Number(text)
         return isFinite(value) && value > 0 ? value : 0
     }
 
-    // The tallest chart point, used as the 100% of the bar heights.
     readonly property double chartMaximum: {
         let maximum = 0
         for (let i = 0; i < root.chartValues.length; ++i)
@@ -76,15 +59,12 @@ Rectangle {
         return maximum
     }
 
-    // Share of the tallest bar, in [0, 1]. 0 while no point has a value.
     function barFraction(index) {
         if (root.chartMaximum <= 0)
             return 0
         return Math.max(0, Math.min(1, root.numberAt(root.chartValues, index) / root.chartMaximum))
     }
 
-    // "1500" -> "1 500" for the per-message counters, which the facade keeps as
-    // plain ints.
     function groupedCount(value) {
         const count = Number(value)
         if (!isFinite(count) || count <= 0)
@@ -118,7 +98,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Statistics"
+                    text: qsTr("Statistics")
                     color: BeyGramTheme.text
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
@@ -128,9 +108,9 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     text: root.chatStatsAvailable
-                          ? "Chat activity, messages and boosts"
-                          : (root.messageStatsActive ? "This message's statistics"
-                                                     : "No chat statistics loaded")
+                          ? qsTr("Chat activity, messages and boosts")
+                          : (root.messageStatsActive ? qsTr("This message's statistics")
+                                                     : qsTr("No chat statistics loaded"))
                     color: BeyGramTheme.muted
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -138,7 +118,7 @@ Rectangle {
             }
 
             SecondaryButton {
-                text: "Refresh"
+                text: qsTr("Refresh")
                 enabled: root.facade !== null
                 onClicked: {
                     if (root.facade)
@@ -147,7 +127,6 @@ Rectangle {
             }
         }
 
-        // Overview: one "label — value" row per statistics entry.
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 6
@@ -180,7 +159,6 @@ Rectangle {
             }
         }
 
-        // Chart: one bar per label, scaled against the tallest point.
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -188,7 +166,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: "Activity"
+                text: qsTr("Activity")
                 color: BeyGramTheme.text
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -261,7 +239,6 @@ Rectangle {
             }
         }
 
-        // Per-message counters: only meaningful while a message is selected.
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -269,7 +246,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: "This message"
+                text: qsTr("This message")
                 color: BeyGramTheme.text
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -281,7 +258,7 @@ Rectangle {
                 spacing: 10
 
                 Repeater {
-                    model: ["Views", "Forwards", "Reactions"]
+                    model: [qsTr("Views"), qsTr("Forwards"), qsTr("Reactions")]
 
                     delegate: ColumnLayout {
                         Layout.fillWidth: true
@@ -310,8 +287,6 @@ Rectangle {
             }
         }
 
-        // Boost state: the level, the boosts the chat has and the fill towards
-        // the next level. The facade already clamps the progress to [0, 1].
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 6
@@ -323,7 +298,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Boost level " + root.boostLevel
+                    text: qsTr("Boost level %1").arg(root.boostLevel)
                     color: BeyGramTheme.text
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
@@ -331,8 +306,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: root.groupedCount(root.boostCount)
-                          + (root.boostCount === 1 ? " boost" : " boosts")
+                    text: qsTr("%n boost(s)", "", root.boostCount)
                     color: BeyGramTheme.muted
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -357,7 +331,7 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             visible: root.empty
-            text: "Statistics appear here once a chat or a message is opened."
+            text: qsTr("Statistics appear here once a chat or a message is opened.")
             color: BeyGramTheme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap

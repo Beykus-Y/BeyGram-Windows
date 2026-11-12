@@ -270,3 +270,12 @@ beygram_add_test(tst_proxy_latency_model)
 beygram_add_test(tst_trigger_words)
 beygram_add_test(tst_vpn_models)
 set_tests_properties(tst_tdlib_integration PROPERTIES TIMEOUT 180)
+
+beygram_add_test(tst_qml_ui)
+target_link_libraries(tst_qml_ui
+    PRIVATE
+        beygram_qml
+        beygram_qmlplugin
+        Qt6::Quick
+        Qt6::QuickControls2
+)

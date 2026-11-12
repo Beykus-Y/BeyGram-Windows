@@ -1,38 +1,34 @@
+pragma ComponentBehavior: Bound
+
 // Emoji picker popup for the message composer.
 //
 // Presentation only. The owner assigns `facade` (an EmojiFacade); the chips
 // drive facade.selectCategory(), the search field writes facade.query and the
-// grid renders facade.emojis, so all filtering lives in C++ where it is
-// unit-tested. Tapping a cell calls facade.activate(emoji), which is what
-// notifies the owner through EmojiFacade::emojiActivated. Nothing in this file
-// touches TDLib, the network or the message store.
-
+// grid renders facade.emojis. If the facade has no catalog loaded yet, a curated
+// Unicode catalog is seeded once on open so emoji search and categories work
+// immediately in the composer.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
+import "../ds/design.js" as Design
 
 Popup {
     id: root
 
-    /// EmojiFacade. Every binding below is null-safe, so the picker can be
-    /// previewed without an owner.
     property var facade: null
 
-    /// Mirrors of the facade's properties, read once so a delegate never has
-    /// to repeat the null check. An absent facade reads as an empty picker.
     readonly property var categories: root.facade ? root.facade.categories : []
     readonly property var emojis: root.facade ? root.facade.emojis : []
     readonly property string query: root.facade ? root.facade.query : ""
     readonly property int categoryIndex: root.facade ? root.facade.categoryIndex : -1
 
-    /// Edge length of one emoji cell; the Flow wraps to as many columns as the
-    /// popup width allows.
     readonly property int cellSize: 38
     readonly property int cellSpacing: 2
+    readonly property int _animFast: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
 
-    implicitWidth: 380
-    implicitHeight: 440
+    implicitWidth: 372
+    implicitHeight: 416
     width: implicitWidth
     height: implicitHeight
 
@@ -41,8 +37,106 @@ Popup {
     dim: false
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    // One tap path for the grid: the facade records the use and re-emits it on
-    // its own signal, so the owner only ever listens to facade.emojiActivated.
+    function ensureCatalog() {
+        if (!root.facade)
+            return
+        if (root.facade.categories.length > 0 || root.facade.emojis.length > 0)
+            return
+        const catalog = [
+            // Smileys
+            ["\uD83D\uDE00", "grinning smile happy", qsTr("Smileys")],
+            ["\uD83D\uDE03", "smile joy open", qsTr("Smileys")],
+            ["\uD83D\uDE04", "grin happy laugh", qsTr("Smileys")],
+            ["\uD83D\uDE01", "beam grin teeth", qsTr("Smileys")],
+            ["\uD83D\uDE02", "joy tears laugh lol", qsTr("Smileys")],
+            ["\uD83E\uDD23", "rofl laugh floor", qsTr("Smileys")],
+            ["\uD83D\uDE0A", "blush smile warm", qsTr("Smileys")],
+            ["\uD83D\uDE07", "angel halo innocent", qsTr("Smileys")],
+            ["\uD83D\uDE42", "slightly smiling", qsTr("Smileys")],
+            ["\uD83D\uDE09", "wink flirt", qsTr("Smileys")],
+            ["\uD83D\uDE0D", "heart eyes love", qsTr("Smileys")],
+            ["\uD83E\uDD70", "smiling hearts adore", qsTr("Smileys")],
+            ["\uD83D\uDE18", "kiss blowing heart", qsTr("Smileys")],
+            ["\uD83D\uDE0E", "sunglasses cool", qsTr("Smileys")],
+            ["\uD83E\uDD14", "thinking hmm wonder", qsTr("Smileys")],
+            ["\uD83E\uDD28", "raised eyebrow", qsTr("Smileys")],
+            ["\uD83D\uDE10", "neutral face", qsTr("Smileys")],
+            ["\uD83D\uDE0F", "smirk", qsTr("Smileys")],
+            ["\uD83D\uDE12", "unamused", qsTr("Smileys")],
+            ["\uD83D\uDE44", "eyeroll rolling", qsTr("Smileys")],
+            ["\uD83D\uDE14", "pensive sad", qsTr("Smileys")],
+            ["\uD83D\uDE34", "sleeping zzz", qsTr("Smileys")],
+            ["\uD83E\uDD73", "party celebrate birthday", qsTr("Smileys")],
+            ["\uD83E\uDD2F", "mind blown", qsTr("Smileys")],
+            ["\uD83D\uDE31", "scream shock", qsTr("Smileys")],
+            ["\uD83D\uDE2D", "crying sob tears", qsTr("Smileys")],
+            ["\uD83D\uDE21", "angry mad", qsTr("Smileys")],
+            ["\uD83E\uDD7A", "pleading puppy eyes", qsTr("Smileys")],
+            // Gestures
+            ["\uD83D\uDC4D", "thumbs up like yes ok", qsTr("Gestures")],
+            ["\uD83D\uDC4E", "thumbs down dislike no", qsTr("Gestures")],
+            ["\uD83D\uDC4F", "clap applause bravo", qsTr("Gestures")],
+            ["\uD83D\uDE4C", "raised hands hooray", qsTr("Gestures")],
+            ["\uD83D\uDC4B", "wave hello hi bye", qsTr("Gestures")],
+            ["\uD83E\uDD1D", "handshake deal", qsTr("Gestures")],
+            ["\uD83D\uDE4F", "pray thanks please", qsTr("Gestures")],
+            ["\uD83D\uDCAA", "muscle strong flex", qsTr("Gestures")],
+            ["\u270C\uFE0F", "peace victory", qsTr("Gestures")],
+            ["\uD83E\uDD1E", "crossed fingers luck", qsTr("Gestures")],
+            ["\uD83D\uDC4C", "ok hand perfect", qsTr("Gestures")],
+            ["\uD83E\uDEF6", "heart hands", qsTr("Gestures")],
+            // Hearts & Symbols
+            ["\u2764\uFE0F", "red heart love", qsTr("Hearts")],
+            ["\uD83E\uDDE1", "orange heart", qsTr("Hearts")],
+            ["\uD83D\uDC9B", "yellow heart", qsTr("Hearts")],
+            ["\uD83D\uDC9A", "green heart", qsTr("Hearts")],
+            ["\uD83D\uDC99", "blue heart", qsTr("Hearts")],
+            ["\uD83D\uDC9C", "purple heart", qsTr("Hearts")],
+            ["\uD83D\uDDA4", "black heart", qsTr("Hearts")],
+            ["\uD83E\uDD0D", "white heart", qsTr("Hearts")],
+            ["\uD83D\uDC94", "broken heart", qsTr("Hearts")],
+            ["\uD83D\uDC96", "sparkling heart", qsTr("Hearts")],
+            ["\uD83D\uDD25", "fire hot lit", qsTr("Symbols")],
+            ["\u2728", "sparkles magic", qsTr("Symbols")],
+            ["\u2B50", "star favorite", qsTr("Symbols")],
+            ["\uD83C\uDF1F", "glowing star", qsTr("Symbols")],
+            ["\uD83D\uDCA5", "boom collision", qsTr("Symbols")],
+            ["\uD83D\uDCAF", "100 hundred perfect", qsTr("Symbols")],
+            ["\u2705", "check done yes", qsTr("Symbols")],
+            ["\u26A1", "zap lightning fast", qsTr("Symbols")],
+            // Celebration & Objects
+            ["\uD83C\uDF89", "tada party confetti", qsTr("Objects")],
+            ["\uD83C\uDF8A", "confetti ball", qsTr("Objects")],
+            ["\uD83C\uDF81", "gift present", qsTr("Objects")],
+            ["\uD83C\uDFC6", "trophy win", qsTr("Objects")],
+            ["\uD83C\uDFB5", "music note", qsTr("Objects")],
+            ["\uD83D\uDCF7", "camera photo", qsTr("Objects")],
+            ["\uD83D\uDCBB", "laptop computer code", qsTr("Objects")],
+            ["\uD83D\uDE80", "rocket launch ship", qsTr("Objects")],
+            ["\u2615", "coffee tea cafe", qsTr("Food")],
+            ["\uD83C\uDF55", "pizza food", qsTr("Food")],
+            ["\uD83C\uDF54", "burger food", qsTr("Food")],
+            ["\uD83C\uDF70", "cake birthday dessert", qsTr("Food")],
+            ["\uD83C\uDF7B", "cheers beer", qsTr("Food")],
+            ["\uD83C\uDF4E", "apple fruit", qsTr("Food")],
+            ["\uD83C\uDF38", "cherry blossom flower", qsTr("Nature")],
+            ["\uD83C\uDF3F", "herb leaf", qsTr("Nature")],
+            ["\u2600\uFE0F", "sun bright", qsTr("Nature")],
+            ["\uD83C\uDF19", "moon night", qsTr("Nature")],
+            ["\uD83D\uDC31", "cat kitty", qsTr("Nature")],
+            ["\uD83D\uDC36", "dog puppy", qsTr("Nature")]
+        ]
+        const emojisList = []
+        const namesList = []
+        const catsList = []
+        for (let i = 0; i < catalog.length; ++i) {
+            emojisList.push(catalog[i][0])
+            namesList.push(catalog[i][1])
+            catsList.push(catalog[i][2])
+        }
+        root.facade.setCatalog(emojisList, namesList, catsList)
+    }
+
     function activate(emoji) {
         if (!root.facade || !emoji)
             return
@@ -50,34 +144,31 @@ Popup {
         root.close()
     }
 
-    // A picker always opens on the full catalog: a stale search from the last
-    // time would hide emoji the user came back for. The section selection is
-    // kept, because that is a deliberate browsing choice. The field is cleared
-    // through the facade, never by assigning text, so its binding survives.
     onOpened: {
+        root.ensureCatalog()
         if (root.facade)
             root.facade.query = ""
         searchField.forceActiveFocus()
     }
 
     background: Rectangle {
-        radius: 14
+        radius: Design.cardRadius(BeyGramAppearance.designStyle)
         color: BeyGramTheme.surface
         border.width: 1
-        border.color: BeyGramTheme.line
+        border.color: BeyGramTheme.modeName === "Amoled"
+                      ? Qt.lighter(BeyGramTheme.line, 1.35)
+                      : BeyGramTheme.line
     }
 
     contentItem: ColumnLayout {
-        spacing: 8
+        spacing: Design.space2
 
-        // Section strip. A Flickable keeps a long catalog on one line instead
-        // of squeezing every chip.
         Flickable {
             id: chipStrip
             Layout.fillWidth: true
-            Layout.leftMargin: 12
-            Layout.rightMargin: 12
-            Layout.topMargin: 10
+            Layout.leftMargin: Design.space3
+            Layout.rightMargin: Design.space3
+            Layout.topMargin: Design.space3
             Layout.preferredHeight: 32
             clip: true
             contentWidth: chipRow.width
@@ -85,12 +176,26 @@ Popup {
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
 
+            WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: (event) => {
+                    if (chipStrip.contentWidth <= chipStrip.width)
+                        return
+                    var delta = Math.abs(event.pixelDelta.x) > 0
+                                ? event.pixelDelta.x
+                                : (event.angleDelta.x !== 0 ? event.angleDelta.x / 2 : event.angleDelta.y / 2)
+                    var maxX = Math.max(0, chipStrip.contentWidth - chipStrip.width)
+                    chipStrip.contentX = Math.max(0, Math.min(maxX, chipStrip.contentX - delta))
+                    event.accepted = true
+                }
+            }
+
             Row {
                 id: chipRow
                 spacing: 6
 
                 ChoiceChip {
-                    text: "All"
+                    text: qsTr("All")
                     selected: root.categoryIndex < 0
                     onClicked: {
                         if (root.facade)
@@ -102,9 +207,10 @@ Popup {
                     model: root.categories
 
                     delegate: ChoiceChip {
-                        // Repeater over a JS array: the roles are `index` and
-                        // `modelData`, both taken from the delegate context.
-                        text: String(modelData)
+                        required property int index
+                        required property string modelData
+
+                        text: modelData
                         selected: index === root.categoryIndex
                         onClicked: {
                             if (root.facade)
@@ -115,56 +221,38 @@ Popup {
             }
         }
 
-        TextField {
+        DsSearchField {
             id: searchField
             Layout.fillWidth: true
-            Layout.leftMargin: 12
-            Layout.rightMargin: 12
-            Layout.preferredHeight: 34
-            implicitHeight: 34
-            leftPadding: 13
-            rightPadding: 13
-            placeholderText: "Search emoji"
-            placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
-            color: BeyGramTheme.text
-            font.pixelSize: 12
-            selectByMouse: true
-            selectionColor: BeyGramTheme.accent
-            selectedTextColor: BeyGramTheme.onAccent
-            // The facade trims, so the binding can hand back a shorter string
-            // than was typed; that is the facade's search contract.
+            Layout.leftMargin: Design.space3
+            Layout.rightMargin: Design.space3
+            Layout.preferredHeight: 36
+            placeholderText: qsTr("Search emoji...")
             text: root.query
             onTextEdited: {
                 if (root.facade)
                     root.facade.query = searchField.text
             }
-            Keys.onEscapePressed: (event) => {
-                // Clearing goes through the facade for the same reason as
-                // onOpened: the text property stays bound to root.query.
-                if (searchField.text.length > 0 && root.facade) {
+            onCleared: {
+                if (root.facade)
                     root.facade.query = ""
-                } else {
-                    root.close()
-                }
-                event.accepted = true
+                text = Qt.binding(function() { return root.query })
             }
-
-            background: Rectangle {
-                radius: 17
-                color: BeyGramTheme.surface2
-                border.width: 1
-                border.color: searchField.activeFocus ? BeyGramTheme.accent
-                                                      : Qt.alpha(BeyGramTheme.line, 0.9)
-                Behavior on border.color { ColorAnimation { duration: 120 } }
+            Keys.onEscapePressed: (event) => {
+                if (searchField.text.length > 0 && root.facade)
+                    root.facade.query = ""
+                else
+                    root.close()
+                event.accepted = true
             }
         }
 
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: 12
-            Layout.rightMargin: 12
-            Layout.bottomMargin: 12
+            Layout.leftMargin: Design.space3
+            Layout.rightMargin: Design.space3
+            Layout.bottomMargin: Design.space3
 
             Flickable {
                 id: scroller
@@ -186,18 +274,21 @@ Popup {
                         delegate: Rectangle {
                             id: cell
 
-                            readonly property string emoji: String(modelData)
+                            required property string modelData
+                            readonly property string emoji: modelData
 
                             width: root.cellSize
                             height: root.cellSize
-                            radius: 10
+                            radius: Design.radiusSm
                             color: cellArea.containsMouse ? BeyGramTheme.surface2
                                                           : "transparent"
 
                             Accessible.role: Accessible.Button
                             Accessible.name: cell.emoji
 
-                            Behavior on color { ColorAnimation { duration: 100 } }
+                            Behavior on color {
+                                ColorAnimation { duration: root._animFast }
+                            }
 
                             Text {
                                 anchors.centerIn: parent
@@ -222,16 +313,14 @@ Popup {
                 }
             }
 
-            // A Flow skips invisible children, so its height stays 0 while the
-            // catalog is empty or the filters hide every emoji.
             Text {
                 anchors.centerIn: parent
                 width: Math.max(0, Math.min(240, parent.width - 40))
                 visible: emojiFlow.height === 0
-                text: root.query.length > 0 ? "No emoji match your search"
-                                            : "No emoji to show"
+                text: root.query.length > 0 ? qsTr("No emoji match your search")
+                                            : qsTr("No emoji to show")
                 color: BeyGramTheme.muted
-                font.pixelSize: 12
+                font.pixelSize: Design.fontSmall
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }

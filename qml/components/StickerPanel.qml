@@ -1,11 +1,4 @@
 // Sticker panel for the message composer.
-//
-// Presentation only. The owner assigns `facade` (a StickerPanelFacade), hands
-// it the set titles and the selected set's sticker ids, and reacts to the
-// facade's stickerActivated() signal by sending the sticker. This file never
-// touches TDLib, the network or the file store: the ids are rendered as small
-// labelled placeholders, because resolving a real thumbnail belongs to the
-// owner, not to the panel.
 
 import QtQuick
 import QtQuick.Controls
@@ -15,15 +8,10 @@ import BeyGram.Theme 1.0
 Rectangle {
     id: root
 
-    /// StickerPanelFacade. Every binding below is null-safe, so the panel can
-    /// be previewed without an owner.
     property var facade: null
 
-    /// Emitted with the tapped sticker id. The handler below forwards it to the
-    /// facade, so an owner normally only connects to facade.stickerActivated.
     signal stickerActivated(string stickerId)
 
-    /// Titles of the set strip; empty when the facade has no sets.
     readonly property var titles: root.facade ? root.facade.setTitles : []
     readonly property var recentIds: root.facade ? root.facade.recentStickers : []
     readonly property var stickerIds: root.facade ? root.facade.stickers : []
@@ -41,16 +29,12 @@ Rectangle {
     border.width: 1
     border.color: BeyGramTheme.line
 
-    // A sticker without a query match is hidden, not removed from the model, so
-    // clearing the search restores the full set without a reload.
     function matchesQuery(stickerId) {
         if (root.query.length === 0)
             return true
         return String(stickerId).indexOf(root.query) !== -1
     }
 
-    // One tap path for the grid and the recent strip: tell the owner, then let
-    // the facade record the send and re-emit it on its own signal.
     function activate(stickerId) {
         root.stickerActivated(String(stickerId))
     }
@@ -60,9 +44,6 @@ Rectangle {
             root.facade.recordSent(stickerId)
     }
 
-    // Editing breaks the search field's `text` binding, so a query that changes
-    // from outside (clear(), or a search started elsewhere) is pushed back while
-    // the user is not typing, without stealing the cursor.
     Connections {
         target: root.facade
         function onChanged() {
@@ -76,8 +57,6 @@ Rectangle {
         anchors.margins: 10
         spacing: 8
 
-        // Set strip. A Flickable keeps a long list of titles on one line
-        // instead of squeezing every tab.
         Flickable {
             id: tabStrip
             Layout.fillWidth: true
@@ -98,8 +77,6 @@ Rectangle {
                     delegate: Rectangle {
                         id: tab
 
-                        // Repeater over a JS array: the roles are `index` and
-                        // `modelData`, both taken from the delegate context.
                         readonly property bool current: index === root.currentIndex
 
                         width: Math.max(56, tabLabel.implicitWidth + 22)
@@ -137,8 +114,6 @@ Rectangle {
             }
         }
 
-        // Recent strip, newest first. Hidden while there is nothing to show so
-        // the grid keeps the room.
         Flickable {
             id: recentStrip
             Layout.fillWidth: true
@@ -167,7 +142,7 @@ Rectangle {
                                                        : Qt.alpha(BeyGramTheme.surface2, 0.6)
 
                         Accessible.role: Accessible.Button
-                        Accessible.name: "Recent sticker " + String(modelData)
+                        Accessible.name: qsTr("Recent sticker %1").arg(String(modelData))
 
                         Text {
                             anchors.centerIn: parent
@@ -198,15 +173,13 @@ Rectangle {
             implicitHeight: 32
             leftPadding: 12
             rightPadding: 12
-            placeholderText: "Search stickers"
+            placeholderText: qsTr("Search stickers")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             color: BeyGramTheme.text
             font.pixelSize: 12
             selectByMouse: true
             selectionColor: BeyGramTheme.accent
             selectedTextColor: BeyGramTheme.onAccent
-            // The facade trims the text, so the binding can hand back a shorter
-            // string than was typed; that is the search controller's contract.
             text: root.query
             onTextEdited: {
                 if (root.facade)
@@ -260,8 +233,6 @@ Rectangle {
                             width: root.cellSize
                             height: root.cellSize
                             radius: 11
-                            // The Flow skips invisible children, so a filtered
-                            // sticker leaves no hole behind.
                             visible: root.matchesQuery(cell.stickerId)
                             color: cellArea.containsMouse ? BeyGramTheme.surface2
                                                           : Qt.alpha(BeyGramTheme.surface2, 0.55)
@@ -269,7 +240,7 @@ Rectangle {
                             border.color: BeyGramTheme.line
 
                             Accessible.role: Accessible.Button
-                            Accessible.name: "Sticker " + cell.stickerId
+                            Accessible.name: qsTr("Sticker %1").arg(cell.stickerId)
 
                             Behavior on color { ColorAnimation { duration: 100 } }
 
@@ -307,8 +278,8 @@ Rectangle {
                 anchors.centerIn: parent
                 width: Math.max(0, Math.min(240, parent.width - 40))
                 visible: !root.loading && stickerFlow.height === 0
-                text: root.query.length > 0 ? "No stickers match your search"
-                                            : "No stickers to show"
+                text: root.query.length > 0 ? qsTr("No stickers match your search")
+                                            : qsTr("No stickers to show")
                 color: BeyGramTheme.muted
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter

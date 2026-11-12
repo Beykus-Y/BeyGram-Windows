@@ -1,12 +1,15 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import BeyGram.App 1.0
+import BeyGram.Theme 1.0
 import "../ds/design.js" as Design
 
 /// Conversation row for the chat list.
 ///
 /// The row is drawn by DsChatRow; this component owns the application-facing
-/// API: the chat id used for navigation, the raw last-message timestamp that
-/// gets formatted here, and the avatar photo request against BeyGramApp.
+/// API: the chat id used for navigation, localized timestamp formatting via
+/// BeyGramLang.formatChatTimestamp(), and avatar photo requests against BeyGramApp.
 Item {
     id: row
 
@@ -27,39 +30,38 @@ Item {
 
     signal clicked()
 
-    implicitWidth: 320
-    implicitHeight: Design.rowHeight
+    readonly property bool compact: BeyGramAppearance.listDensity === "Compact"
 
-    /// Same provider URL the previous Avatar built: the media provider is asked
-    /// for a round bitmap and the revision busts the image cache.
+    implicitWidth: 320
+    implicitHeight: compact ? Design.rowHeightCompact : Design.rowHeight
+    height: implicitHeight
+
+    // Note: DsAvatar applies its own circular MultiEffect mask.
     readonly property string photoSource: row.photoReady && row.photoFileId > 0
                                           ? "image://beygrammedia/" + row.photoFileId
-                                            + "?v=" + row.photoRevision + "&round=1"
+                                            + "?v=" + row.photoRevision
                                           : ""
 
-    /// Kept for API compatibility; DsAvatar owns the rendering palette now.
+    /// Kept for API compatibility; DsAvatar owns the rendering palette.
     readonly property var avatarColors: [
         "#C2593F", "#5B4BC4", "#2F8A7B",
         "#A9731D", "#3A78C2", "#B0476E"
     ]
 
     function requestAvatar() {
-        if (photoFileId > 0)
-            BeyGramApp.requestChatPhoto(photoFileId)
+        if (row.photoFileId > 0)
+            BeyGramApp.requestChatPhoto(row.photoFileId)
     }
 
-    Component.onCompleted: requestAvatar()
-    onPhotoFileIdChanged: requestAvatar()
+    Component.onCompleted: row.requestAvatar()
+    onPhotoFileIdChanged: row.requestAvatar()
 
-    /// Today shows a clock time, older chats a day/month stamp.
     function timeText() {
-        if (!lastDate || lastDate <= 0)
+        var _rev = BeyGramLang.revision
+        var ts = Number(row.lastDate)
+        if (!ts || ts <= 0)
             return ""
-        const date = new Date(lastDate * 1000)
-        const now = new Date()
-        if (date.toDateString() === now.toDateString())
-            return Qt.formatTime(date, "hh:mm")
-        return Qt.formatDate(date, "dd.MM")
+        return BeyGramLang.formatChatTimestamp(ts)
     }
 
     DsChatRow {

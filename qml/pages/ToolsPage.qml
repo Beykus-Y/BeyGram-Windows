@@ -5,20 +5,27 @@ import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 import "../ds/design.js" as Design
 
-// ToolsPage — ten account utilities behind one rail.
-//
-// The page keeps the public `tab` property and the ordered panel list. The
-// ad-hoc button strip is replaced by a vertical rail inside a card, and the
-// active panel is hosted in an elevated card with its own scroll area.
+// ToolsPage — ten account utility panels behind one rail.
 Item {
     id: page
 
+    property bool showHeader: true
     property int tab: 0
 
     readonly property var tabNames: [
-        "Profile", "Appearance", "Notifications", "Privacy", "Sessions",
-        "Storage", "Network", "Shortcuts", "Statistics", "Premium"
+        qsTr("Profile"),
+        qsTr("Appearance"),
+        qsTr("Notifications"),
+        qsTr("Privacy"),
+        qsTr("Sessions"),
+        qsTr("Storage"),
+        qsTr("Network"),
+        qsTr("Shortcuts"),
+        qsTr("Statistics"),
+        qsTr("Premium")
     ]
+
+    readonly property bool isPreviewOnlyTab: page.tab >= 2
 
     ColumnLayout {
         anchors.fill: parent
@@ -26,8 +33,9 @@ Item {
 
         DsHeader {
             Layout.fillWidth: true
-            title: "Tools"
-            subtitle: "Account utilities, diagnostics and preferences, one panel at a time."
+            visible: page.showHeader
+            title: qsTr("Tools")
+            subtitle: qsTr("Account utilities, diagnostics and preferences, one panel at a time.")
         }
 
         RowLayout {
@@ -36,7 +44,6 @@ Item {
             Layout.margins: Design.space5
             spacing: Design.space4
 
-            // --- Rail ----------------------------------------------------
             DsCard {
                 Layout.preferredWidth: 200
                 Layout.fillHeight: true
@@ -51,7 +58,7 @@ Item {
                         Layout.leftMargin: Design.space2
                         Layout.topMargin: Design.space1
                         Layout.bottomMargin: Design.space1
-                        text: "Panels"
+                        text: qsTr("Panels")
                         color: BeyGramTheme.muted
                         font.pixelSize: Design.fontCaption
                         font.weight: Font.DemiBold
@@ -110,7 +117,6 @@ Item {
 
                             MouseArea {
                                 id: railMouse
-
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
@@ -121,7 +127,6 @@ Item {
                 }
             }
 
-            // --- Active panel --------------------------------------------
             DsCard {
                 id: panelHost
 
@@ -145,6 +150,37 @@ Item {
 
                         width: panelScroll.availableWidth
                         spacing: Design.space4
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            visible: page.isPreviewOnlyTab
+                            implicitHeight: previewNote.implicitHeight + Design.space3 * 2
+                            radius: Design.radiusMd
+                            color: Qt.alpha(BeyGramTheme.warnInk, 0.10)
+                            border.width: 1
+                            border.color: Qt.alpha(BeyGramTheme.warnInk, 0.28)
+
+                            RowLayout {
+                                id: previewNote
+                                anchors.fill: parent
+                                anchors.margins: Design.space3
+                                spacing: Design.space2
+
+                                DsBadge {
+                                    text: qsTr("Preview")
+                                    tone: "muted"
+                                    dot: true
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("Local preview / Backend sync in progress for this facade panel.")
+                                    color: BeyGramTheme.muted
+                                    font.pixelSize: Design.fontSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
 
                         ProfileEditor {
                             Layout.fillWidth: true

@@ -3,66 +3,142 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 import "ds/design.js" as Design
 
-// Shell — the signed-in window.
+// Shell — the signed-in desktop shell.
 //
-// A collapsible navigation rail sits left of the page stack: 76 px of glyph
-// buttons with tooltips, or 268 px with labels when railExpanded. A 1 px line
-// separates the rail from the content, and a slim DsHeader above the stack
-// names the current section. The brand mark doubles as the rail toggle so the
-// header needs no extra chrome.
+// A slim, collapsible left navigation rail (72 px collapsed by default,
+// 216 px expanded) houses the user avatar, the 4 primary destinations
+// (Chats, Search, Profile, Settings), and a quiet footer for connection state,
+// Light/Dark toggle, and rail expand/collapse. Each section page owns its own
+// contextual header; there is no redundant top bar here.
 Item {
     id: shell
 
-    property int currentSection: 0
-    property bool railExpanded: true
+    // --- Public API (kept for tst_qml_ui and callers) ----------------------
+    property int currentSection: 0 // 0=Chats, 1=Search, 2=Profile, 3=Settings
+    property bool railExpanded: false
+    readonly property int railWidth: shell.railExpanded ? 216 : 72
 
-    // Section order is also the Alt+1..8 order and the StackLayout order.
-    readonly property var sections: [
-        { key: "chats", title: "Chats", glyph: "\uE8BD" },
-        { key: "profile", title: "Profile", glyph: "\uE77B" },
-        { key: "settings", title: "Settings", glyph: "\uE713" },
-        { key: "network", title: "Network", glyph: "\uE774" },
-        { key: "logs", title: "Logs", glyph: "\uE8A5" },
-        { key: "search", title: "Search", glyph: "\uE721" },
-        { key: "tools", title: "Tools", glyph: "\uE90F" },
-        { key: "design", title: "Design", glyph: "\uE790" }
-    ]
+    signal openDiagnostics()
 
-    readonly property int railWidth: shell.railExpanded ? 268 : 76
-    readonly property string sectionTitle: shell.currentSection >= 0
-                                          && shell.currentSection < shell.sections.length
-                                          ? shell.sections[shell.currentSection].title : ""
+    property int computedUnread: 0
+    readonly property int unreadTotal: Math.max(
+                                           shell.computedUnread,
+                                           BeyGramApp.chatListControls
+                                           ? Number(BeyGramApp.chatListControls.totalUnread || 0)
+                                           : 0)
 
-    readonly property int unreadTotal: BeyGramApp.chatListControls.totalUnread
+    readonly property int _animFast: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
+    readonly property int _animNormal: Design.motion(Design.motionNormal, BeyGramAppearance.reduceMotion)
 
-    function selectSection(index) {
-        if (index >= 0 && index < shell.sections.length)
-            shell.currentSection = index
+    readonly property string accountDisplayName: BeyGramApp.accountDisplayName.length > 0
+                                                 ? BeyGramApp.accountDisplayName
+                                                 : qsTr("Telegram account")
+    readonly property string accountHandle: BeyGramApp.accountUsername.length > 0
+                                            ? "@" + BeyGramApp.accountUsername
+                                            : BeyGramApp.connectionTitle
+    readonly property string accountInitials: {
+        var parts = shell.accountDisplayName.trim().split(/\s+/)
+        var letters = ""
+        for (var i = 0; i < parts.length && letters.length < 2; ++i) {
+            if (parts[i].length > 0)
+                letters += parts[i].charAt(0)
+        }
+        return letters.length > 0 ? letters.toUpperCase() : "B"
     }
 
-    // Used by the top-bar icon: show the search page and put the caret in its
-    // field. The page is always instantiated, so callLater waits for the
-    // StackLayout to make it visible before focus is requested.
+    readonly property bool isConnected: BeyGramApp.connectionTitle === "Connected"
+    readonly property bool isConnecting: BeyGramApp.connectionTitle.toLowerCase().indexOf("connect") >= 0
+                                         || BeyGramApp.connectionTitle.toLowerCase().indexOf("updat") >= 0
+    readonly property bool accountOnline: (BeyGramApp.network && BeyGramApp.network.online)
+                                          || shell.isConnected
+
+    readonly property var sections: [
+        { key: "chats", title: qsTr("Chats"), glyph: "\uE8BD", shortcut: "Ctrl+1" },
+        { key: "search", title: qsTr("Search"), glyph: "\uE721", shortcut: "Ctrl+K" },
+        { key: "profile", title: qsTr("Profile"), glyph: "\uE77B", shortcut: "Ctrl+3" },
+        { key: "settings", title: qsTr("Settings"), glyph: "\uE713", shortcut: "Ctrl+," }
+    ]
+
+    function selectSection(index) {
+        if (index >= 0 && index < shell.sections.length) {
+            shell.currentSection = index
+            if (index === 1)
+                Qt.callLater(function() { searchPage.focusInput() })
+        }
+    }
+
     function openSearch() {
-        shell.currentSection = 5
+        shell.currentSection = 1
         Qt.callLater(function() { searchPage.focusInput() })
     }
 
-    Shortcut { sequence: "Alt+1"; onActivated: shell.selectSection(0) }
-    Shortcut { sequence: "Alt+2"; onActivated: shell.selectSection(1) }
-    Shortcut { sequence: "Alt+3"; onActivated: shell.selectSection(2) }
-    Shortcut { sequence: "Alt+4"; onActivated: shell.selectSection(3) }
-    Shortcut { sequence: "Alt+5"; onActivated: shell.selectSection(4) }
-    Shortcut { sequence: "Alt+6"; onActivated: shell.selectSection(5) }
-    Shortcut { sequence: "Alt+7"; onActivated: shell.selectSection(6) }
-    Shortcut { sequence: "Alt+8"; onActivated: shell.selectSection(7) }
+    function openDiagnosticsPage() {
+        settingsPage.openSection("diagnostics")
+        shell.currentSection = 3
+        shell.openDiagnostics()
+    }
+
+    function recomputeUnread() {
+        var total = 0
+        for (var i = 0; i < unreadInstantiator.count; ++i) {
+            var obj = unreadInstantiator.objectAt(i) as UnreadEntry
+            if (obj) {
+                var value = Number(obj.unreadCount)
+                if (value > 0)
+                    total += value
+            }
+        }
+        shell.computedUnread = total
+    }
+
+    component UnreadEntry: QtObject {
+        required property var unreadCount
+        onUnreadCountChanged: Qt.callLater(shell.recomputeUnread)
+    }
+
+    onWidthChanged: {
+        if (shell.width > 0 && shell.width < 920 && shell.railExpanded)
+            shell.railExpanded = false
+    }
+
+    // --- Real reactive unread counter over BeyGramApp.chatList --------------
+    Instantiator {
+        id: unreadInstantiator
+        model: BeyGramApp.chatList
+        delegate: UnreadEntry {}
+        onObjectAdded: Qt.callLater(shell.recomputeUnread)
+        onObjectRemoved: Qt.callLater(shell.recomputeUnread)
+    }
+
+    Connections {
+        target: BeyGramApp.chatList
+        ignoreUnknownSignals: true
+
+        function onRowsInserted() { Qt.callLater(shell.recomputeUnread) }
+        function onRowsRemoved() { Qt.callLater(shell.recomputeUnread) }
+        function onModelReset() { Qt.callLater(shell.recomputeUnread) }
+        function onLayoutChanged() { Qt.callLater(shell.recomputeUnread) }
+        function onDataChanged() { Qt.callLater(shell.recomputeUnread) }
+    }
+
+    Component.onCompleted: Qt.callLater(shell.recomputeUnread)
+
+    // --- Global desktop shortcuts -------------------------------------------
+    Shortcut { sequence: "Ctrl+K"; onActivated: shell.openSearch() }
+    Shortcut { sequence: "Ctrl+1"; onActivated: shell.selectSection(0) }
+    Shortcut { sequence: "Ctrl+2"; onActivated: shell.selectSection(1) }
+    Shortcut { sequence: "Ctrl+3"; onActivated: shell.selectSection(2) }
+    Shortcut { sequence: "Ctrl+4"; onActivated: shell.selectSection(3) }
+    Shortcut { sequence: "Ctrl+,"; onActivated: shell.selectSection(3) }
+    Shortcut { sequence: "Ctrl+D"; onActivated: BeyGramAppearance.setThemeMode(BeyGramTheme.darkMode ? "Light" : "Dark") }
 
     // ----------------------------------------------------------------------
-    // Navigation rail
+    // Slim adaptive left navigation rail
     // ----------------------------------------------------------------------
     Rectangle {
         id: rail
@@ -71,14 +147,19 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: shell.railWidth
-        color: BeyGramTheme.surface
+        color: BeyGramAppearance.designStyle === "Signature"
+               ? BeyGramTheme.bg
+               : BeyGramTheme.surface
         clip: true
 
         Behavior on width {
-            NumberAnimation { duration: Design.motionNormal; easing.type: Easing.OutCubic }
+            NumberAnimation {
+                duration: shell._animNormal
+                easing.type: Easing.OutCubic
+            }
         }
 
-        // The hairline that separates the rail from the page stack.
+        // Hairline separating the rail from the section stack.
         Rectangle {
             anchors.right: parent.right
             anchors.top: parent.top
@@ -90,265 +171,78 @@ Item {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: shell.railExpanded ? Design.space4 : Design.space3
-            anchors.rightMargin: shell.railExpanded ? Design.space4 : Design.space3
+            anchors.leftMargin: shell.railExpanded ? Design.space3 : Design.space2
+            anchors.rightMargin: shell.railExpanded ? Design.space3 : Design.space2
             anchors.topMargin: Design.space3
             anchors.bottomMargin: Design.space3
-            spacing: Design.space1
+            spacing: Design.space2
 
-            // Brand mark and wordmark. Clicking anywhere on the header folds
-            // the rail; the chevron only hints at it while labels are visible.
+            // Top: user avatar with online indicator -> opens Profile (section 2).
             AbstractButton {
-                id: brandButton
+                id: profileButton
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: 48
+                Layout.preferredHeight: shell.railExpanded ? 54 : 50
                 padding: 0
                 hoverEnabled: true
-
-                readonly property string actionText: shell.railExpanded
-                                                     ? "Collapse navigation"
-                                                     : "Expand navigation"
+                focusPolicy: Qt.StrongFocus
 
                 Accessible.role: Accessible.Button
-                Accessible.name: brandButton.actionText
+                Accessible.name: qsTr("Profile — %1").arg(shell.accountDisplayName)
 
-                onClicked: shell.railExpanded = !shell.railExpanded
+                onClicked: shell.selectSection(2)
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
 
                 DsTooltip {
-                    text: brandButton.actionText
-                    visible: brandButton.hovered
+                    text: shell.accountDisplayName + " (" + shell.accountHandle + ")"
+                    visible: !shell.railExpanded && profileButton.hovered
                 }
 
                 background: Rectangle {
-                    radius: Design.radiusMd
-                    color: brandButton.hovered
-                           ? Qt.alpha(BeyGramTheme.surface2, 0.85)
-                           : "transparent"
-                    antialiasing: true
-
-                    Behavior on color {
-                        ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
-                    }
-                }
-
-                contentItem: Item {
-                    implicitHeight: 48
-
-                    Rectangle {
-                        id: brandMark
-                        width: 40
-                        height: 40
-                        radius: Design.radiusMd
-                        color: BeyGramTheme.accent
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: shell.railExpanded ? 0 : Math.round((parent.width - width) / 2)
-                        antialiasing: true
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "B"
-                            color: BeyGramTheme.onAccent
-                            font.pixelSize: 22
-                            font.weight: Font.DemiBold
-                        }
-                    }
-
-                    Column {
-                        visible: shell.railExpanded
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: brandMark.x + brandMark.width + Design.space3
-                        spacing: 1
-
-                        Text {
-                            text: "BeyGram"
-                            color: BeyGramTheme.text
-                            font.pixelSize: Design.fontTitle
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: "Windows"
-                            color: BeyGramTheme.muted
-                            font.pixelSize: 10
-                            font.letterSpacing: 0.6
-                        }
-                    }
-
-                    DsIcon {
-                        visible: shell.railExpanded
-                        name: "\uE76B"
-                        size: 12
-                        color: BeyGramTheme.muted
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                // Same 2 px halo as DsIconButton, so keyboard focus is visible.
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: -2
-                    radius: Design.radiusMd + 2
-                    color: "transparent"
-                    border.width: 2
-                    border.color: BeyGramTheme.accent
-                    visible: brandButton.visualFocus
-                    antialiasing: true
-                    z: 3
-                }
-            }
-
-            Item { Layout.preferredHeight: Design.space2 }
-
-            Repeater {
-                model: shell.sections
-
-                delegate: Item {
-                    id: navItem
-                    required property var modelData
-                    required property int index
-
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-
-                    // Expanded: the shared NavButton keeps the labelled API
-                    // (text / selected / clicked) while that component is
-                    // migrated to the design system.
-                    NavButton {
-                        anchors.fill: parent
-                        visible: shell.railExpanded
-                        text: navItem.modelData.title
-                        selected: shell.currentSection === navItem.index
-                        onClicked: shell.selectSection(navItem.index)
-                    }
-
-                    // Collapsed: the same destination as a glyph with a
-                    // tooltip, so the rail stays 76 px wide.
-                    DsIconButton {
-                        anchors.centerIn: parent
-                        visible: !shell.railExpanded
-                        icon: navItem.modelData.glyph
-                        tooltip: navItem.modelData.title + " (Alt+" + (navItem.index + 1) + ")"
-                        selected: shell.currentSection === navItem.index
-                        badge: navItem.modelData.key === "chats" ? shell.unreadTotal : 0
-                        onClicked: shell.selectSection(navItem.index)
-                    }
-
-                    DsBadge {
-                        visible: shell.railExpanded
-                                 && navItem.modelData.key === "chats"
-                                 && shell.unreadTotal > 0
-                        anchors.right: parent.right
-                        anchors.rightMargin: Design.space3
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: BeyGramApp.chatListControls.badgeText
-                        tone: "accent"
-                        z: 1
-                    }
-                }
-            }
-
-            Item { Layout.fillHeight: true; Layout.minimumHeight: Design.space2 }
-
-            // Theme toggle kept from the old sidebar, now a glyph action.
-            RowLayout {
-                Layout.fillWidth: shell.railExpanded
-                Layout.alignment: shell.railExpanded ? Qt.AlignLeft : Qt.AlignHCenter
-                spacing: Design.space2
-
-                DsIconButton {
-                    icon: BeyGramTheme.darkMode ? "\uE706" : "\uE708"
-                    tooltip: BeyGramTheme.darkMode
-                             ? "Use light theme (Ctrl+D)"
-                             : "Use dark theme (Ctrl+D)"
-                    onClicked: BeyGramTheme.toggleDarkMode()
-                }
-
-                Text {
-                    visible: shell.railExpanded
-                    text: BeyGramTheme.darkMode ? "Dark theme" : "Light theme"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: Design.fontSmall
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                Layout.topMargin: Design.space1
-                Layout.bottomMargin: Design.space1
-                color: BeyGramTheme.line
-            }
-
-            // Account block. The avatar's presence dot is the account status:
-            // it follows the TDLib connection, not a local guess.
-            AbstractButton {
-                id: accountBlock
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: shell.railExpanded ? 58 : 48
-                padding: 0
-                hoverEnabled: true
-
-                readonly property string displayName: BeyGramApp.accountDisplayName.length > 0
-                                                      ? BeyGramApp.accountDisplayName
-                                                      : "Telegram account"
-                readonly property string secondary: BeyGramApp.accountUsername.length > 0
-                                                    ? "@" + BeyGramApp.accountUsername
-                                                    : BeyGramApp.connectionTitle
-
-                Accessible.role: Accessible.Button
-                Accessible.name: "Profile — " + accountBlock.displayName
-
-                onClicked: shell.selectSection(1)
-
-                DsTooltip {
-                    text: accountBlock.displayName
-                    visible: !shell.railExpanded && accountBlock.hovered
-                }
-
-                background: Rectangle {
-                    radius: Design.radiusMd
-                    color: shell.railExpanded
-                           ? Qt.alpha(BeyGramTheme.surface2, BeyGramTheme.darkMode ? 0.55 : 0.7)
-                           : (accountBlock.hovered
+                    radius: Design.rowRadius(BeyGramAppearance.designStyle)
+                    color: shell.currentSection === 2
+                           ? Qt.alpha(BeyGramTheme.accentSoft, 0.7)
+                           : (profileButton.hovered
                               ? Qt.alpha(BeyGramTheme.surface2, 0.85)
                               : "transparent")
                     border.width: shell.railExpanded ? 1 : 0
-                    border.color: Qt.alpha(BeyGramTheme.line, 0.9)
+                    border.color: shell.currentSection === 2
+                                  ? Qt.alpha(BeyGramTheme.accent, 0.35)
+                                  : Qt.alpha(BeyGramTheme.line, 0.85)
                     antialiasing: true
 
                     Behavior on color {
-                        ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                        ColorAnimation { duration: shell._animFast; easing.type: Easing.OutCubic }
                     }
                 }
 
                 contentItem: Item {
-                    implicitHeight: 58
+                    implicitHeight: shell.railExpanded ? 54 : 50
 
                     DsAvatar {
-                        id: accountAvatar
-                        size: 34
-                        initials: BeyGramApp.accountDisplayName.length > 0
-                                  ? BeyGramApp.accountDisplayName.charAt(0).toUpperCase()
-                                  : "T"
-                        online: BeyGramApp.network.online
+                        id: railAvatar
+                        size: shell.railExpanded ? 36 : 40
+                        initials: shell.accountInitials
+                        online: shell.accountOnline
                         anchors.verticalCenter: parent.verticalCenter
                         x: shell.railExpanded
-                           ? Design.space3
+                           ? Design.space2
                            : Math.round((parent.width - width) / 2)
                     }
 
                     ColumnLayout {
                         visible: shell.railExpanded
                         anchors.verticalCenter: parent.verticalCenter
-                        x: accountAvatar.x + accountAvatar.width + Design.space2 + 2
-                        width: parent.width - x - Design.space3
+                        x: railAvatar.x + railAvatar.width + Design.space2 + 2
+                        width: Math.max(0, parent.width - x - Design.space2)
                         spacing: 1
 
                         Text {
                             Layout.fillWidth: true
-                            text: accountBlock.displayName
+                            text: shell.accountDisplayName
                             color: BeyGramTheme.text
                             font.pixelSize: Design.fontSmall
                             font.weight: Font.DemiBold
@@ -357,7 +251,7 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: accountBlock.secondary
+                            text: shell.accountHandle
                             color: BeyGramTheme.muted
                             font.pixelSize: Design.fontCaption
                             elide: Text.ElideRight
@@ -365,24 +259,286 @@ Item {
                     }
                 }
 
-                // Same 2 px halo as DsIconButton, so keyboard focus is visible.
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: -2
-                    radius: Design.radiusMd + 2
+                    radius: Design.rowRadius(BeyGramAppearance.designStyle) + 2
                     color: "transparent"
                     border.width: 2
                     border.color: BeyGramTheme.accent
-                    visible: accountBlock.visualFocus
+                    visible: profileButton.visualFocus
                     antialiasing: true
                     z: 3
                 }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                Layout.leftMargin: Design.space1
+                Layout.rightMargin: Design.space1
+                color: Qt.alpha(BeyGramTheme.line, 0.7)
+            }
+
+            // Everyday primary destinations (Chats, Search, Profile, Settings)
+            Repeater {
+                model: shell.sections
+
+                delegate: Item {
+                    id: navItem
+                    required property var modelData
+                    required property int index
+
+                    readonly property bool selected: shell.currentSection === navItem.index
+                    readonly property int badgeCount: navItem.modelData.key === "chats"
+                                                      ? shell.unreadTotal : 0
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: shell.railExpanded ? 42 : 54
+
+                    // Expanded: labelled desktop NavButton
+                    NavButton {
+                        anchors.fill: parent
+                        visible: shell.railExpanded
+                        text: navItem.modelData.title
+                        icon: navItem.modelData.glyph
+                        selected: navItem.selected
+                        hint: navItem.modelData.shortcut
+                        badge: navItem.badgeCount
+                        onClicked: shell.selectSection(navItem.index)
+                    }
+
+                    // Collapsed: Android AdaptiveNavigationRail-inspired pill + micro label
+                    AbstractButton {
+                        id: railBtn
+                        anchors.fill: parent
+                        visible: !shell.railExpanded
+                        padding: 0
+                        hoverEnabled: true
+                        focusPolicy: Qt.StrongFocus
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: navItem.modelData.title
+                        Accessible.checked: navItem.selected
+
+                        onClicked: shell.selectSection(navItem.index)
+
+                        HoverHandler {
+                            cursorShape: Qt.PointingHandCursor
+                        }
+
+                        DsTooltip {
+                            text: navItem.modelData.title + " (" + navItem.modelData.shortcut + ")"
+                            visible: railBtn.hovered
+                        }
+
+                        background: Item {}
+
+                        contentItem: ColumnLayout {
+                            spacing: 3
+
+                            Item {
+                                Layout.alignment: Qt.AlignHCenter
+                                Layout.preferredWidth: 48
+                                Layout.preferredHeight: 32
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: BeyGramAppearance.designStyle === "Material2"
+                                            ? Design.radiusSm : Design.radiusPill
+                                    color: navItem.selected
+                                           ? BeyGramTheme.accentSoft
+                                           : (railBtn.hovered
+                                              ? Qt.alpha(BeyGramTheme.surface2, 0.9)
+                                              : "transparent")
+                                    border.width: (navItem.selected && BeyGramTheme.modeName === "Amoled")
+                                                  || railBtn.visualFocus ? 1 : 0
+                                    border.color: railBtn.visualFocus
+                                                  ? BeyGramTheme.accent
+                                                  : Qt.alpha(BeyGramTheme.accent, 0.35)
+                                    antialiasing: true
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: shell._animFast; easing.type: Easing.OutCubic }
+                                    }
+                                }
+
+                                DsIcon {
+                                    anchors.centerIn: parent
+                                    name: navItem.modelData.glyph
+                                    size: Design.iconSize
+                                    color: navItem.selected
+                                           ? BeyGramTheme.accentInk
+                                           : (railBtn.hovered ? BeyGramTheme.text : BeyGramTheme.muted)
+                                    filled: navItem.selected
+                                }
+
+                                // Real unread badge pill on Chats
+                                Rectangle {
+                                    visible: navItem.badgeCount > 0
+                                    anchors.top: parent.top
+                                    anchors.right: parent.right
+                                    anchors.topMargin: -3
+                                    anchors.rightMargin: -4
+                                    width: Math.max(18, railBadgeText.implicitWidth + 8)
+                                    height: 16
+                                    radius: 8
+                                    color: BeyGramTheme.accent
+                                    border.width: 1.5
+                                    border.color: rail.color
+                                    antialiasing: true
+
+                                    Text {
+                                        id: railBadgeText
+                                        anchors.centerIn: parent
+                                        text: navItem.badgeCount > 99 ? "99+" : String(navItem.badgeCount)
+                                        color: BeyGramTheme.onAccent
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        Accessible.ignored: true
+                                    }
+                                }
+                            }
+
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                Layout.maximumWidth: 64
+                                text: navItem.modelData.title
+                                color: navItem.selected ? BeyGramTheme.accentInk : BeyGramTheme.muted
+                                font.pixelSize: 10
+                                font.weight: navItem.selected ? Font.DemiBold : Font.Medium
+                                elide: Text.ElideRight
+                                horizontalAlignment: Text.AlignHCenter
+                                Accessible.ignored: true
+                            }
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.fillHeight: true; Layout.minimumHeight: Design.space2 }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                Layout.leftMargin: Design.space1
+                Layout.rightMargin: Design.space1
+                color: Qt.alpha(BeyGramTheme.line, 0.7)
+            }
+
+            // Footer: subtle connection status indicator (opens Settings on click)
+            AbstractButton {
+                id: statusButton
+                Layout.fillWidth: true
+                Layout.preferredHeight: 34
+                padding: 0
+                hoverEnabled: true
+                focusPolicy: Qt.StrongFocus
+
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Connection status: %1").arg(BeyGramApp.connectionTitle)
+
+                onClicked: {
+                    settingsPage.openSection("connection")
+                    shell.selectSection(3)
+                }
+
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                DsTooltip {
+                    text: qsTr("Connection: %1").arg(BeyGramApp.connectionTitle)
+                    visible: !shell.railExpanded && statusButton.hovered
+                }
+
+                background: Rectangle {
+                    radius: Design.radiusSm
+                    color: statusButton.hovered
+                           ? Qt.alpha(BeyGramTheme.surface2, 0.85)
+                           : "transparent"
+                }
+
+                contentItem: RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: shell.railExpanded ? Design.space2 : 0
+                    anchors.rightMargin: shell.railExpanded ? Design.space2 : 0
+                    spacing: Design.space2
+
+                    Item {
+                        Layout.fillWidth: !shell.railExpanded
+                        Layout.preferredWidth: shell.railExpanded ? 20 : 20
+                        Layout.preferredHeight: 20
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 9
+                            height: 9
+                            radius: width / 2
+                            color: shell.isConnected ? BeyGramTheme.okInk
+                                 : shell.isConnecting ? BeyGramTheme.warnInk
+                                 : BeyGramTheme.muted
+                            antialiasing: true
+                        }
+                    }
+
+                    Text {
+                        visible: shell.railExpanded
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        text: BeyGramApp.connectionTitle
+                        color: BeyGramTheme.muted
+                        font.pixelSize: Design.fontCaption
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
+            // Footer: quick Light/Dark toggle & rail expand/collapse toggle
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.alignment: shell.railExpanded ? Qt.AlignLeft : Qt.AlignHCenter
+                spacing: Design.space1
+
+                DsIconButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    icon: BeyGramTheme.darkMode ? "\uE706" : "\uE708"
+                    size: "md"
+                    tooltip: BeyGramTheme.darkMode
+                             ? qsTr("Switch to light theme (Ctrl+D)")
+                             : qsTr("Switch to dark theme (Ctrl+D)")
+                    onClicked: BeyGramAppearance.setThemeMode(
+                                   BeyGramTheme.darkMode ? "Light" : "Dark")
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    visible: shell.railExpanded
+                }
+
+                DsIconButton {
+                    visible: shell.railExpanded
+                    Layout.alignment: Qt.AlignVCenter
+                    icon: "\uE76B" // ChevronLeft
+                    size: "md"
+                    tooltip: qsTr("Collapse sidebar")
+                    onClicked: shell.railExpanded = false
+                }
+            }
+
+            // Expand button centered at very bottom when rail is collapsed
+            DsIconButton {
+                visible: !shell.railExpanded
+                Layout.alignment: Qt.AlignHCenter
+                icon: "\uE76C" // ChevronRight
+                size: "md"
+                tooltip: qsTr("Expand sidebar")
+                onClicked: shell.railExpanded = true
             }
         }
     }
 
     // ----------------------------------------------------------------------
-    // Content: slim section bar over the page stack
+    // Main content: section stack (each page owns its own header)
     // ----------------------------------------------------------------------
     Item {
         id: content
@@ -392,39 +548,20 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
-        DsHeader {
-            id: topBar
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            title: shell.sectionTitle
-
-            trailing: DsIconButton {
-                icon: "\uE721"
-                tooltip: "Search messages (Alt+6)"
-                selected: shell.currentSection === 5
-                onClicked: shell.openSearch()
-            }
-        }
-
         StackLayout {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: topBar.bottom
-            anchors.bottom: parent.bottom
+            anchors.fill: parent
             currentIndex: shell.currentSection
 
-            ChatsPage {}
-            OverviewPage {}
-            SettingsPage {}
-            EnvironmentPage {}
-            LogsPage {}
+            ChatsPage {
+                onGlobalSearchRequested: shell.openSearch()
+            }
+
             GlobalSearchPage {
                 id: searchPage
                 model: BeyGramApp.globalSearchResults
                 loading: BeyGramApp.globalSearchLoading
                 hasMore: BeyGramApp.globalSearchResults
-                         ? BeyGramApp.globalSearchResults.hasMore : false
+                         ? Boolean(BeyGramApp.globalSearchResults.hasMore) : false
                 onSearchRequested: (query) => {
                     if (query.length > 0)
                         BeyGramApp.searchGlobal(query)
@@ -437,13 +574,30 @@ Item {
                     shell.currentSection = 0
                 }
             }
-            ToolsPage {}
-            DesignGalleryPage {}
+
+            OverviewPage {
+                onOpenSavedMessagesRequested: {
+                    shell.openSearch()
+                    BeyGramApp.searchGlobal(qsTr("Saved Messages"))
+                }
+                onOpenAppearanceRequested: {
+                    settingsPage.openSection("appearance")
+                    shell.selectSection(3)
+                }
+                onOpenSettingsRequested: {
+                    settingsPage.openSection("appearance")
+                    shell.selectSection(3)
+                }
+                onOpenDiagnosticsRequested: shell.openDiagnosticsPage()
+            }
+
+            SettingsPage {
+                id: settingsPage
+            }
         }
     }
 
-    // Global overlays: each one is invisible until its facade says it is
-    // active, so they can live at the shell root and cover every page.
+    // Global overlays
     CallOverlay {
         anchors.fill: parent
         facade: BeyGramApp.calls
@@ -457,9 +611,11 @@ Item {
         facade: BeyGramApp.stories
     }
     PlaybackBar {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.left: content.left
+        anchors.right: content.right
+        anchors.bottom: content.bottom
+        visible: (BeyGramApp.playbackBar ? BeyGramApp.playbackBar.active : false)
+                 && shell.currentSection !== 0
         facade: BeyGramApp.playbackBar
     }
     DeepLinkPrompt {

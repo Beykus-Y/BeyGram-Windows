@@ -105,6 +105,13 @@ Item {
                 selectedTextColor: BeyGramTheme.onAccent
                 Accessible.name: qsTr("Inline query")
 
+                background: Rectangle {
+                    radius: 17
+                    color: BeyGramTheme.surface2
+                    border.width: 1
+                    border.color: queryField.activeFocus ? BeyGramTheme.accent : BeyGramTheme.line
+                }
+
                 onTextEdited: {
                     if (root.facade)
                         root.facade.setInlineQuery(text)

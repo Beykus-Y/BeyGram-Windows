@@ -1,18 +1,17 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 import "../ds/design.js" as Design
 
-// One chat message row.
+// One chat message row, modeled after Android MessageBubbleLayout.kt.
 //
-// Presentation only: the page owns the message state, editing, replying,
-// selection and playback. This component keeps the established MessageBubble
-// contract (one property per MessageListModel role plus the action signals) and
-// lays the content out with the BeyGram design system: 16 px bubble radius,
-// 4 px tail, 72% max width, a 12 px sender line, 14 px body and a compact
-// time / edited / status footer.
+// Preserves the complete MessageBubble contract (one property per
+// MessageListModel role plus all action signals), honors BubbleStyle,
+// DesignStyle, messageTextSize, AMOLED borders, and reduceMotion, and adds a
+// subtle hover quick-action bar for desktop ergonomics.
 Item {
     id: bubbleItem
 
@@ -48,7 +47,7 @@ Item {
     property bool mediaReady: false
     property int mediaRevision: 0
 
-    // --- Selection (optional; off by default) -----------------------------
+    // --- Selection --------------------------------------------------------
     property bool selectable: false
     property bool selected: false
 
@@ -57,33 +56,69 @@ Item {
     signal mediaOpenRequested(int fileId)
     signal mediaPlayRequested(int fileId)
     signal reactionRequested(string emoji)
+    signal addReactionRequested(var messageId, Item anchorItem)
     signal forwardRequested(var messageId)
     signal pollOptionSelected(int index)
     signal replyRequested(var messageId, string preview)
     signal selectionToggled(var messageId, bool isSelected)
 
-    // --- DS bubble geometry ------------------------------------------------
-    readonly property int _hPad: 10
+    // --- Geometry & style tokens ------------------------------------------
+    readonly property int _hPad: 12
     readonly property int _vPad: 8
+    readonly property int _animFast: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
+    readonly property int _bubbleRadius: Design.bubbleRadiusFor(BeyGramAppearance.bubbleStyle)
+    readonly property int _tailRadius: Design.bubbleTailRadiusFor(BeyGramAppearance.bubbleStyle)
+    readonly property bool _isLiquidGlass: BeyGramAppearance.designStyle === "LiquidGlass"
+    readonly property bool _isAmoled: BeyGramTheme.modeName === "Amoled"
+    readonly property bool _isCompact: BeyGramAppearance.listDensity === "Compact"
+    readonly property bool _stickerOnly: bubbleItem.contentType === "sticker"
+                                         && bubbleItem.replyPreview.length === 0
+                                         && bubbleItem.displayText().length === 0
+                                         && bubbleItem.linkUrl.length === 0
+                                         && bubbleItem.pollQuestion.length === 0
+                                         && (bubbleItem.outgoing || bubbleItem.senderName.length === 0)
+
     readonly property real availableWidth: ListView.view && ListView.view.width > 0
                                            ? ListView.view.width
                                            : (bubbleItem.parent && bubbleItem.parent.width > 0
-                                              ? bubbleItem.parent.width : 320)
-    readonly property real maxBubbleWidth: Math.max(72, availableWidth * Design.bubbleMaxWidthRatio)
+                                              ? bubbleItem.parent.width : 360)
+    readonly property real maxBubbleWidth: Math.max(96, availableWidth * Design.bubbleMaxWidthRatio)
     readonly property real mediaPreviewWidth: Math.min(320,
                                                        bubbleItem.mediaWidth > 0
                                                        ? bubbleItem.mediaWidth : 240)
-    // Clamp the media block to the bubble so its height always matches its
-    // width and the picture keeps its aspect ratio.
     readonly property real mediaDisplayWidth: Math.max(1,
                                                        Math.min(mediaPreviewWidth,
                                                                 maxBubbleWidth - _hPad * 2))
-    readonly property string statusGlyph: failed ? "!"
-                                          : pending ? "\u2026"
-                                          : outgoing ? "\u2713" : ""
+
+    readonly property bool canInlineMeta: {
+        const body = bubbleItem.displayText()
+        return body.length > 0
+               && body.length <= 32
+               && body.indexOf("\n") < 0
+               && bubbleItem.textHtml.length === 0
+               && (bubbleItem.outgoing || bubbleItem.senderName.length === 0)
+               && bubbleItem.replyPreview.length === 0
+               && !(bubbleItem.mediaFileId > 0 && bubbleItem.contentType !== "sticker")
+               && bubbleItem.contentType !== "sticker"
+               && bubbleItem.contentType !== "voice"
+               && bubbleItem.contentType !== "audio"
+               && bubbleItem.contentType !== "video_note"
+               && bubbleItem.linkUrl.length === 0
+               && bubbleItem.pollQuestion.length === 0
+               && !bubbleItem.failed
+    }
+
+    readonly property string statusGlyph: bubbleItem.failed ? "!"
+                                          : bubbleItem.pending ? "\u2026"
+                                          : bubbleItem.outgoing ? "\u2713" : ""
+
+    readonly property bool showQuickActions: (rowHover.hovered || quickBarHover.hovered)
+                                             && !bubbleItem.selectable
+                                             && bubbleItem.messageId > 0
 
     implicitWidth: bubble.width
-    implicitHeight: bubble.height + Design.space2
+    implicitHeight: Math.max(bubble.height, bubbleItem.selectable ? 36 : 0)
+                    + (bubbleItem._isCompact ? Design.space1 : Design.space2)
     width: ListView.view ? ListView.view.width : (parent ? parent.width : implicitWidth)
 
     Accessible.role: Accessible.ListItem
@@ -95,17 +130,17 @@ Item {
         if (body.length > 0)
             parts.push(body)
         else if (bubbleItem.contentType === "sticker")
-            parts.push("Sticker")
+            parts.push(qsTr("Sticker"))
         else if (bubbleItem.mediaFileId > 0)
-            parts.push("Media")
+            parts.push(qsTr("Media"))
         if (bubbleItem.edited)
-            parts.push("edited")
+            parts.push(qsTr("edited"))
         if (bubbleItem.timeText().length > 0)
             parts.push(bubbleItem.timeText())
         if (bubbleItem.failed)
-            parts.push("Not sent")
+            parts.push(qsTr("Not sent"))
         else if (bubbleItem.pending)
-            parts.push("Sending")
+            parts.push(qsTr("Sending"))
         return parts.join(", ")
     }
     Accessible.selected: bubbleItem.selected
@@ -163,31 +198,86 @@ Item {
         return text
     }
 
-    function mediaHeightForWidth(width) {
+    function mediaHeightForWidth(w) {
         if (mediaWidth <= 0 || mediaHeight <= 0)
-            return Math.round(width * 0.66)
-        return Math.round(width * mediaHeight / mediaWidth)
+            return Math.round(w * 0.66)
+        return Math.max(80, Math.min(340, Math.round(w * mediaHeight / mediaWidth)))
+    }
+
+    HoverHandler {
+        id: rowHover
+    }
+
+    // Selection indicator on the leading edge in selection mode
+    Rectangle {
+        visible: bubbleItem.selectable
+        width: 20
+        height: 20
+        radius: 10
+        anchors.left: parent.left
+        anchors.leftMargin: Design.space3
+        anchors.verticalCenter: bubble.verticalCenter
+        color: bubbleItem.selected ? BeyGramTheme.accent : "transparent"
+        border.width: bubbleItem.selected ? 0 : 1.5
+        border.color: BeyGramTheme.muted
+        antialiasing: true
+
+        Text {
+            anchors.centerIn: parent
+            visible: bubbleItem.selected
+            text: "\u2713"
+            color: BeyGramTheme.onAccent
+            font.pixelSize: 11
+            font.weight: Font.Bold
+        }
     }
 
     Rectangle {
         id: bubble
 
-        width: Math.min(bubbleItem.maxBubbleWidth,
-                        Math.max(72, content.implicitWidth + bubbleItem._hPad * 2))
+        width: bubbleItem._stickerOnly
+               ? Math.max(112, content.implicitWidth + bubbleItem._hPad * 2)
+               : Math.min(bubbleItem.maxBubbleWidth,
+                          Math.max(80, content.implicitWidth + bubbleItem._hPad * 2))
         height: content.implicitHeight + bubbleItem._vPad * 2
         anchors.right: bubbleItem.outgoing ? bubbleItem.right : undefined
         anchors.left: bubbleItem.outgoing ? undefined : bubbleItem.left
-        anchors.rightMargin: Design.space3
-        anchors.leftMargin: Design.space3
-        radius: Design.bubbleRadius
-        bottomRightRadius: bubbleItem.outgoing ? Design.bubbleRadiusTail
-                                               : Design.bubbleRadius
-        bottomLeftRadius: bubbleItem.outgoing ? Design.bubbleRadius
-                                              : Design.bubbleRadiusTail
-        color: bubbleItem.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface
-        border.width: bubbleItem.selected ? 1 : 0
-        border.color: BeyGramTheme.accent
-        opacity: bubbleItem.failed ? 0.85 : 1.0
+        anchors.rightMargin: Design.space4
+        anchors.leftMargin: bubbleItem.selectable ? Design.space10 : Design.space4
+        radius: bubbleItem._bubbleRadius
+        bottomRightRadius: bubbleItem.outgoing ? bubbleItem._tailRadius
+                                               : bubbleItem._bubbleRadius
+        bottomLeftRadius: bubbleItem.outgoing ? bubbleItem._bubbleRadius
+                                              : bubbleItem._tailRadius
+        color: {
+            if (bubbleItem._stickerOnly)
+                return "transparent"
+            const base = bubbleItem.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface
+            if (bubbleItem._isLiquidGlass)
+                return Qt.alpha(base, BeyGramTheme.darkMode ? 0.88 : 0.92)
+            return base
+        }
+        border.width: {
+            if (bubbleItem._stickerOnly)
+                return bubbleItem.selected ? 1 : 0
+            if (bubbleItem.selected)
+                return 1.5
+            if (!bubbleItem.outgoing || bubbleItem._isAmoled || bubbleItem._isLiquidGlass)
+                return 1
+            return 0
+        }
+        border.color: {
+            if (bubbleItem.selected)
+                return BeyGramTheme.accent
+            if (bubbleItem.outgoing)
+                return Qt.alpha(BeyGramTheme.accent, bubbleItem._isAmoled ? 0.35 : 0.22)
+            return bubbleItem._isLiquidGlass
+                   ? Qt.alpha(BeyGramTheme.darkMode ? "#FFFFFF" : BeyGramTheme.line,
+                              BeyGramTheme.darkMode ? 0.14 : 0.85)
+                   : BeyGramTheme.line
+        }
+        opacity: bubbleItem.failed ? 0.88 : 1.0
+        antialiasing: true
 
         ColumnLayout {
             id: content
@@ -197,9 +287,9 @@ Item {
             anchors.leftMargin: bubbleItem._hPad
             anchors.rightMargin: bubbleItem._hPad
             anchors.topMargin: bubbleItem._vPad
-            spacing: Design.space1
+            spacing: Design.space1 + 1
 
-            // Author line: 12 px accent ink, incoming only.
+            // Author line: incoming group/channel messages
             Text {
                 Layout.fillWidth: true
                 visible: !bubbleItem.outgoing && bubbleItem.senderName.length > 0
@@ -210,11 +300,11 @@ Item {
                 elide: Text.ElideRight
             }
 
-            // Reply quote: 3 px accent rail plus a 12 px preview.
+            // Reply quote: 3 px accent rail
             Rectangle {
                 Layout.fillWidth: true
                 visible: bubbleItem.replyPreview.length > 0
-                implicitWidth: quoteText.implicitWidth + 18
+                implicitWidth: quoteText.implicitWidth + 20
                 implicitHeight: quoteText.implicitHeight + 10
                 radius: Design.radiusXs
                 color: Qt.alpha(BeyGramTheme.accent, 0.10)
@@ -252,7 +342,7 @@ Item {
                 }
             }
 
-            // Media: 12 px frame with a 4 px matte around the picture.
+            // Media frame
             Rectangle {
                 id: mediaFrame
                 Layout.alignment: Qt.AlignLeft
@@ -263,26 +353,38 @@ Item {
                 visible: bubbleItem.mediaFileId > 0
                          && bubbleItem.contentType !== "sticker"
                 radius: Design.radiusMd
-                color: Qt.alpha(BeyGramTheme.surface2, 0.6)
+                color: Qt.alpha(BeyGramTheme.surface2, 0.7)
                 clip: true
 
-                Rectangle {
+                Image {
                     anchors.fill: parent
-                    anchors.margins: Design.space1
-                    radius: Design.radiusXs + 2
-                    clip: true
-                    color: Qt.alpha(BeyGramTheme.bg, 0.18)
+                    source: bubbleItem.mediaReady && bubbleItem.mediaFileId > 0
+                            ? "image://beygrammedia/" + bubbleItem.mediaFileId
+                              + "?v=" + bubbleItem.mediaRevision
+                            : ""
+                    cache: true
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                    visible: status === Image.Ready
+                }
 
-                    Image {
-                        anchors.fill: parent
-                        source: bubbleItem.mediaReady && bubbleItem.mediaFileId > 0
-                                ? "image://beygrammedia/" + bubbleItem.mediaFileId
-                                  + "?v=" + bubbleItem.mediaRevision
-                                : ""
-                        cache: true
-                        asynchronous: true
-                        fillMode: Image.PreserveAspectCrop
-                        visible: status === Image.Ready
+                // Play indicator badge for video/animation
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 44
+                    height: 44
+                    radius: 22
+                    color: Qt.alpha("#000000", 0.55)
+                    visible: bubbleItem.mediaReady
+                             && (bubbleItem.contentType === "video"
+                                 || bubbleItem.contentType === "animation"
+                                 || bubbleItem.contentType === "video_note")
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\u25B6"
+                        color: "white"
+                        font.pixelSize: 16
                     }
                 }
 
@@ -315,8 +417,8 @@ Item {
 
             StickerBubble {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Math.min(128, bubbleItem.mediaDisplayWidth)
-                Layout.preferredHeight: Math.min(128, bubbleItem.mediaDisplayWidth)
+                Layout.preferredWidth: Math.min(136, bubbleItem.mediaDisplayWidth)
+                Layout.preferredHeight: Math.min(136, bubbleItem.mediaDisplayWidth)
                 visible: bubbleItem.contentType === "sticker"
                 fileId: 0
                 thumbnailFileId: bubbleItem.mediaFileId
@@ -329,6 +431,7 @@ Item {
                                : bubbleItem.mediaFileId)
             }
 
+            // Voice / audio / video_note compact row
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Design.space2
@@ -336,34 +439,80 @@ Item {
                          || bubbleItem.contentType === "audio"
                          || bubbleItem.contentType === "video_note"
 
-                DsButton {
-                    text: "Play"
+                DsIconButton {
+                    icon: "\uE768" // Play
+                    tone: "accent"
                     size: "sm"
-                    tone: "secondary"
+                    tooltip: qsTr("Play")
                     enabled: bubbleItem.mediaFullFileId > 0
                     onClicked: bubbleItem.mediaPlayRequested(bubbleItem.mediaFullFileId)
                 }
 
                 Text {
                     Layout.fillWidth: true
-                    text: bubbleItem.contentType === "voice" ? "Voice message"
-                          : bubbleItem.contentType === "video_note" ? "Video message"
-                          : "Audio"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: Design.fontCaption
+                    text: bubbleItem.contentType === "voice" ? qsTr("Voice message")
+                          : bubbleItem.contentType === "video_note" ? qsTr("Video message")
+                          : qsTr("Audio")
+                    color: BeyGramTheme.text
+                    font.pixelSize: Design.fontSmall
+                    font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
             }
 
-            // Body: 14 px on a 1.35 line height.
+            // Short single-line message: inline timestamp + status beside text
+            RowLayout {
+                Layout.fillWidth: true
+                visible: bubbleItem.canInlineMeta
+                spacing: Design.space2
+
+                Text {
+                    Layout.fillWidth: true
+                    text: bubbleItem.displayText()
+                    color: BeyGramTheme.text
+                    font.pixelSize: BeyGramAppearance.messageTextSize
+                    lineHeight: Design.lineNormal
+                    textFormat: Text.PlainText
+                }
+
+                Row {
+                    Layout.alignment: Qt.AlignBottom
+                    spacing: 3
+
+                    Text {
+                        visible: bubbleItem.edited
+                        text: qsTr("edited")
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 10
+                    }
+
+                    Text {
+                        text: bubbleItem.timeText()
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 10
+                    }
+
+                    Text {
+                        visible: bubbleItem.statusGlyph.length > 0
+                        text: bubbleItem.statusGlyph
+                        color: bubbleItem.failed ? BeyGramTheme.danger
+                                                 : (bubbleItem.pending ? BeyGramTheme.muted
+                                                                       : BeyGramTheme.accentInk)
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                    }
+                }
+            }
+
+            // Standard multi-line / rich text body
             Text {
                 Layout.fillWidth: true
-                visible: bubbleItem.displayText().length > 0
+                visible: !bubbleItem.canInlineMeta && bubbleItem.displayText().length > 0
                 text: bubbleItem.textHtml.length > 0
                       ? bubbleItem.textHtml
                       : bubbleItem.displayText()
                 color: BeyGramTheme.text
-                font.pixelSize: Design.fontBody
+                font.pixelSize: BeyGramAppearance.messageTextSize
                 wrapMode: Text.Wrap
                 lineHeight: Design.lineNormal
                 textFormat: bubbleItem.textHtml.length > 0 ? Text.RichText
@@ -397,37 +546,78 @@ Item {
                 onOptionSelected: (index) => bubbleItem.pollOptionSelected(index)
             }
 
-            // Footer: edited + time + delivery glyph, right aligned.
+            // Footer for non-inline messages
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Design.space1
-                visible: bubbleItem.timeText().length > 0
-                         || bubbleItem.edited
-                         || bubbleItem.statusGlyph.length > 0
+                visible: !bubbleItem.canInlineMeta
+                         && (bubbleItem.timeText().length > 0
+                             || bubbleItem.edited
+                             || bubbleItem.statusGlyph.length > 0)
 
                 Item {
                     Layout.fillWidth: true
                 }
 
-                Text {
-                    visible: bubbleItem.edited
-                    text: "edited"
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
+                Rectangle {
+                    visible: bubbleItem._stickerOnly
+                    implicitWidth: stickerMetaRow.implicitWidth + 10
+                    implicitHeight: stickerMetaRow.implicitHeight + 4
+                    radius: height / 2
+                    color: Qt.alpha(BeyGramTheme.surface2, 0.85)
+
+                    Row {
+                        id: stickerMetaRow
+                        anchors.centerIn: parent
+                        spacing: 3
+
+                        Text {
+                            visible: bubbleItem.edited
+                            text: qsTr("edited")
+                            color: BeyGramTheme.muted
+                            font.pixelSize: 10
+                        }
+                        Text {
+                            text: bubbleItem.timeText()
+                            color: BeyGramTheme.muted
+                            font.pixelSize: 10
+                        }
+                        Text {
+                            visible: bubbleItem.statusGlyph.length > 0
+                            text: bubbleItem.statusGlyph
+                            color: bubbleItem.failed ? BeyGramTheme.danger : BeyGramTheme.accentInk
+                            font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                        }
+                    }
                 }
 
-                Text {
-                    text: bubbleItem.timeText()
-                    color: BeyGramTheme.muted
-                    font.pixelSize: 10
-                }
+                Row {
+                    visible: !bubbleItem._stickerOnly
+                    spacing: 3
 
-                Text {
-                    visible: bubbleItem.statusGlyph.length > 0
-                    text: bubbleItem.statusGlyph
-                    color: bubbleItem.failed ? BeyGramTheme.danger : BeyGramTheme.muted
-                    font.pixelSize: 10
-                    font.weight: Font.DemiBold
+                    Text {
+                        visible: bubbleItem.edited
+                        text: qsTr("edited")
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 10
+                    }
+
+                    Text {
+                        text: bubbleItem.timeText()
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 10
+                    }
+
+                    Text {
+                        visible: bubbleItem.statusGlyph.length > 0
+                        text: bubbleItem.statusGlyph
+                        color: bubbleItem.failed ? BeyGramTheme.danger
+                                                 : (bubbleItem.pending ? BeyGramTheme.muted
+                                                                       : BeyGramTheme.accentInk)
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                    }
                 }
             }
 
@@ -435,13 +625,14 @@ Item {
                 Layout.fillWidth: true
                 visible: bubbleItem.reactionList().length > 0
                 reactions: bubbleItem.reactionList()
-                canReact: false
+                canReact: !bubbleItem.selectable && bubbleItem.messageId > 0
                 onReactionToggled: (emoji) => bubbleItem.reactionRequested(emoji)
+                onAddReactionRequested: bubbleItem.addReactionRequested(
+                                            bubbleItem.messageId, bubble)
             }
         }
 
-        // Selection intercepts left clicks only while selection mode is on;
-        // otherwise media, replies and links keep their normal click paths.
+        // Selection click intercept
         MouseArea {
             anchors.fill: parent
             visible: bubbleItem.selectable
@@ -452,7 +643,7 @@ Item {
                                                    !bubbleItem.selected)
         }
 
-        // Right click opens the message actions without disturbing left clicks.
+        // Context menu on right click
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.RightButton
@@ -460,35 +651,118 @@ Item {
         }
     }
 
+    // Floating hover quick action bar
+    Rectangle {
+        id: quickBar
+        visible: opacity > 0
+        opacity: bubbleItem.showQuickActions ? 1 : 0
+        z: 5
+        y: Math.max(0, bubble.y - height / 2 + 4)
+        x: bubbleItem.outgoing
+           ? Math.max(Design.space2, bubble.x - width - Design.space1)
+           : Math.min(bubbleItem.width - width - Design.space2, bubble.x + bubble.width + Design.space1)
+        width: quickRow.implicitWidth + Design.space2
+        height: 30
+        radius: height / 2
+        color: BeyGramTheme.surface
+        border.width: 1
+        border.color: BeyGramTheme.line
+        antialiasing: true
+
+        Behavior on opacity {
+            NumberAnimation { duration: bubbleItem._animFast; easing.type: Easing.OutCubic }
+        }
+
+        HoverHandler {
+            id: quickBarHover
+        }
+
+        RowLayout {
+            id: quickRow
+            anchors.centerIn: parent
+            spacing: 0
+
+            DsIconButton {
+                icon: "\uE97A" // Reply
+                size: "sm"
+                tooltip: qsTr("Reply")
+                onClicked: bubbleItem.replyRequested(bubbleItem.messageId, bubbleItem.text)
+            }
+
+            DsIconButton {
+                icon: "\uE76E" // Emoji / React
+                size: "sm"
+                tooltip: qsTr("React")
+                onClicked: bubbleItem.addReactionRequested(bubbleItem.messageId, quickBar)
+            }
+
+            DsIconButton {
+                icon: "\uE72A" // Forward
+                size: "sm"
+                tooltip: qsTr("Forward")
+                onClicked: bubbleItem.forwardRequested(bubbleItem.messageId)
+            }
+
+            DsIconButton {
+                visible: bubbleItem.text.length > 0
+                icon: "\uE8C8" // Copy
+                size: "sm"
+                tooltip: qsTr("Copy")
+                onClicked: BeyGramApp.copyText(bubbleItem.text)
+            }
+
+            DsIconButton {
+                visible: bubbleItem.outgoing && !bubbleItem.pending && !bubbleItem.failed
+                         && bubbleItem.text.length > 0
+                icon: "\uE70F" // Edit
+                size: "sm"
+                tooltip: qsTr("Edit")
+                onClicked: bubbleItem.editRequested(bubbleItem.messageId, bubbleItem.text)
+            }
+        }
+    }
+
     DsMenu {
         id: menu
 
         DsMenuItem {
-            text: "Reply"
+            text: qsTr("Reply")
             glyph: "\u21A9"
             enabled: bubbleItem.messageId > 0
             onClicked: bubbleItem.replyRequested(bubbleItem.messageId, bubbleItem.text)
         }
         DsMenuItem {
-            text: "Forward"
+            text: qsTr("Add reaction")
+            glyph: "\u263A"
+            enabled: bubbleItem.messageId > 0
+            onClicked: bubbleItem.addReactionRequested(bubbleItem.messageId, bubble)
+        }
+        DsMenuItem {
+            text: qsTr("Forward")
             glyph: "\u21AA"
             enabled: bubbleItem.messageId > 0
             onClicked: bubbleItem.forwardRequested(bubbleItem.messageId)
         }
         DsMenuItem {
-            text: "Copy text"
+            text: qsTr("Copy text")
             glyph: "\u29C9"
             enabled: bubbleItem.text.length > 0
             onClicked: BeyGramApp.copyText(bubbleItem.text)
         }
         DsMenuItem {
-            text: "Edit"
+            text: qsTr("Edit")
             glyph: "\u270E"
             visible: bubbleItem.outgoing && !bubbleItem.pending && !bubbleItem.failed
             onClicked: bubbleItem.editRequested(bubbleItem.messageId, bubbleItem.text)
         }
         DsMenuItem {
-            text: "Delete"
+            text: bubbleItem.selected ? qsTr("Deselect") : qsTr("Select")
+            glyph: "\u2611"
+            enabled: bubbleItem.messageId > 0
+            onClicked: bubbleItem.selectionToggled(bubbleItem.messageId, !bubbleItem.selected)
+        }
+        DsMenuItem {
+            text: qsTr("Delete")
             glyph: "\u2715"
             tone: "danger"
             enabled: bubbleItem.messageId > 0

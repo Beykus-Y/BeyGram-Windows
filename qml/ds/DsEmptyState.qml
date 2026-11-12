@@ -3,9 +3,8 @@ import QtQuick.Layouts
 import BeyGram.Theme 1.0
 import "design.js" as Design
 
-// Centred empty/placeholder block: a large muted glyph, a title, a description
-// and an optional single action. Anchor it to fill the free area, or centre it
-// with `anchors.centerIn: parent`.
+// Welcoming centered empty, loading-fallback, or error state with soft badge
+// framing and primary + optional secondary actions.
 Item {
     id: root
 
@@ -13,10 +12,12 @@ Item {
     property string title: ""
     property string description: ""
     property string actionText: ""
+    property string secondaryActionText: ""
 
     signal actionRequested()
+    signal secondaryActionRequested()
 
-    implicitWidth: Design.space10 * 7 // 280: description measure
+    implicitWidth: Design.space10 * 8 // 320
     implicitHeight: column.implicitHeight
     width: implicitWidth
     height: implicitHeight
@@ -24,17 +25,26 @@ Item {
     ColumnLayout {
         id: column
         anchors.centerIn: parent
-        width: Math.min(Design.space10 * 7, root.width)
+        width: Math.min(Design.space10 * 8, Math.max(220, root.width - Design.space4))
         spacing: Design.space3
 
-        Text {
-            Layout.fillWidth: true
+        Rectangle {
+            Layout.alignment: Qt.AlignHCenter
             visible: root.glyph.length > 0
-            text: root.glyph
-            horizontalAlignment: Text.AlignHCenter
-            color: BeyGramTheme.muted
-            opacity: Design.opacitySecondary
-            font.pixelSize: Design.fontDisplay + Design.space3 // 40
+            width: 68
+            height: 68
+            radius: 22
+            color: BeyGramTheme.accentSoft
+            border.width: 1
+            border.color: Qt.alpha(BeyGramTheme.accent, 0.22)
+
+            Text {
+                anchors.centerIn: parent
+                text: root.glyph
+                horizontalAlignment: Text.AlignHCenter
+                color: BeyGramTheme.accentInk
+                font.pixelSize: 28
+            }
         }
 
         Text {
@@ -43,7 +53,7 @@ Item {
             text: root.title
             horizontalAlignment: Text.AlignHCenter
             color: BeyGramTheme.text
-            font.pixelSize: Design.fontBodyLarge
+            font.pixelSize: Design.fontTitle
             font.weight: Font.DemiBold
             lineHeight: Design.lineTight
             wrapMode: Text.WordWrap
@@ -55,41 +65,31 @@ Item {
             text: root.description
             horizontalAlignment: Text.AlignHCenter
             color: BeyGramTheme.muted
-            font.pixelSize: Design.fontSmall
+            font.pixelSize: Design.fontBody
             lineHeight: Design.lineNormal
             wrapMode: Text.WordWrap
         }
 
-        Rectangle {
-            id: action
+        RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            visible: root.actionText.length > 0
-            implicitWidth: actionLabel.implicitWidth + Design.space5 * 2
-            implicitHeight: Design.controlHeightSmall
-            radius: Design.radiusPill
-            color: actionArea.pressed ? Qt.darker(BeyGramTheme.accent, 1.12)
-                                      : (actionArea.containsMouse ? Qt.lighter(BeyGramTheme.accent, 1.06)
-                                                                  : BeyGramTheme.accent)
-            Behavior on color { ColorAnimation { duration: Design.motionFast } }
+            Layout.topMargin: Design.space1
+            spacing: Design.space2
+            visible: root.actionText.length > 0 || root.secondaryActionText.length > 0
 
-            Accessible.role: Accessible.Button
-            Accessible.name: root.actionText
-
-            Text {
-                id: actionLabel
-                anchors.centerIn: parent
+            DsButton {
+                visible: root.actionText.length > 0
                 text: root.actionText
-                color: BeyGramTheme.onAccent
-                font.pixelSize: Design.fontSmall
-                font.weight: Font.DemiBold
+                tone: "primary"
+                size: "sm"
+                onClicked: root.actionRequested()
             }
 
-            MouseArea {
-                id: actionArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.actionRequested()
+            DsButton {
+                visible: root.secondaryActionText.length > 0
+                text: root.secondaryActionText
+                tone: "secondary"
+                size: "sm"
+                onClicked: root.secondaryActionRequested()
             }
         }
     }

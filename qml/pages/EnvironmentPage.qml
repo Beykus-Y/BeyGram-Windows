@@ -5,20 +5,14 @@ import BeyGram.Theme 1.0
 import BeyGram.App 1.0
 import "../ds/design.js" as Design
 
-// EnvironmentPage — what this executable actually knows about its runtime.
-//
-// Every diagnostic the page used to show is still here, now as key/value rows
-// inside DsSection groups. Long values wrap to two lines and every row carries
-// an inline DsIconButton, so a path can be taken away without selecting text
-// by hand.
+// EnvironmentPage — runtime diagnostics, paths, TDLib, credentials and DPAPI storage.
 Item {
     id: page
 
+    property bool showHeader: true
+
     readonly property bool mediaAvailable: BeyGramApp.bgMediaTitle.indexOf("not") < 0
 
-    // One key/value diagnostic row. DsListRow owns the surface, padding and
-    // height; the label and the mono value live in its leading slot so they
-    // can use the diagnostics type scale instead of the chat-row scale.
     component DiagRow: DsListRow {
         id: row
 
@@ -47,26 +41,11 @@ Item {
         function copyValue() {
             if (row.value.length === 0)
                 return
-            var text = row.detail.length > 0 ? row.value + " — " + row.detail : row.value
-            clipboard.text = text
-            clipboard.selectAll()
-            clipboard.copy()
-        }
-
-        // TextEdit is the clipboard bridge; it stays invisible and never takes
-        // part in the row layout.
-        TextEdit {
-            id: clipboard
-            visible: false
-            width: 1
-            height: 1
-            readOnly: true
-            textFormat: TextEdit.PlainText
+            const text = row.detail.length > 0 ? row.value + " — " + row.detail : row.value
+            BeyGramApp.copyText(text)
         }
 
         leading: RowLayout {
-            // 12 px side margins, two 12 px gaps around the empty title column
-            // and the 28 px trailing copy button.
             width: Math.max(0, row.width - Design.space3 * 4 - 28)
             spacing: Design.space3
 
@@ -114,9 +93,9 @@ Item {
         }
 
         trailing: DsIconButton {
-            icon: "\uE8C8" // Segoe MDL2 Assets: Copy
+            icon: "\uE8C8"
             size: "sm"
-            tooltip: "Copy " + row.label.toLowerCase()
+            tooltip: qsTr("Copy %1").arg(row.label.toLowerCase())
             onClicked: row.copyValue()
         }
     }
@@ -127,12 +106,13 @@ Item {
 
         DsHeader {
             Layout.fillWidth: true
-            title: "Environment"
-            subtitle: "What this executable actually knows about its runtime."
+            visible: page.showHeader
+            title: qsTr("Environment")
+            subtitle: qsTr("Runtime paths, TDLib status, credentials and local storage.")
 
             trailing: DsIconButton {
-                icon: "\uE8C8" // Segoe MDL2 Assets: Copy
-                tooltip: "Copy diagnostics"
+                icon: "\uE8C8"
+                tooltip: qsTr("Copy diagnostics")
                 onClicked: BeyGramApp.copyDiagnostics()
             }
         }
@@ -152,24 +132,32 @@ Item {
 
                 DsSection {
                     Layout.fillWidth: true
-                    title: "Application"
-                    description: "The build and the folders it uses on this PC."
+                    title: qsTr("Application")
+                    description: qsTr("The build and the folders it uses on this PC.")
 
                     trailing: Row {
                         spacing: Design.space2
 
                         DsButton {
-                            text: "Open data folder"
+                            text: qsTr("Open data folder")
                             tone: "secondary"
                             size: "sm"
                             onClicked: BeyGramApp.openDataFolder()
                         }
 
                         DsButton {
-                            text: "Open log folder"
+                            text: qsTr("Open log folder")
                             tone: "secondary"
                             size: "sm"
                             onClicked: BeyGramApp.openLogFolder()
+                        }
+
+                        DsButton {
+                            text: qsTr("Copy diagnostics")
+                            tone: "secondary"
+                            size: "sm"
+                            visible: !page.showHeader
+                            onClicked: BeyGramApp.copyDiagnostics()
                         }
                     }
 
@@ -183,36 +171,36 @@ Item {
                             spacing: 0
 
                             DiagRow {
-                                label: "Version"
-                                value: "BeyGram Windows " + BeyGramApp.appVersion
+                                label: qsTr("Version")
+                                value: qsTr("BeyGram Windows %1").arg(BeyGramApp.appVersion)
                             }
 
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Build"
+                                label: qsTr("Build")
                                 value: BeyGramApp.buildInfo
                             }
 
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "TDLib path"
+                                label: qsTr("TDLib path")
                                 value: BeyGramApp.tdlibPath !== "" ? BeyGramApp.tdlibPath
-                                                                   : "not loaded"
+                                                                   : qsTr("not loaded")
                             }
 
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Data directory"
+                                label: qsTr("Data directory")
                                 value: BeyGramApp.dataDirectory
                             }
 
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Log directory"
+                                label: qsTr("Log directory")
                                 value: BeyGramApp.logDirectory
                             }
                         }
@@ -221,11 +209,8 @@ Item {
 
                 DsSection {
                     Layout.fillWidth: true
-                    title: "Telegram core"
-                    description: "Connection, credentials and transport as reported by the native "
-                                 + "session. Set BEYGRAM_PROXY (for example "
-                                 + "socks5://127.0.0.1:7897) before starting BeyGram; proxy "
-                                 + "credentials are never logged."
+                    title: qsTr("Telegram core")
+                    description: qsTr("Connection, credentials and transport reported by the native session. Set BEYGRAM_PROXY (for example socks5://127.0.0.1:7897) before starting BeyGram; proxy credentials are never logged.")
 
                     content: DsCard {
                         Layout.fillWidth: true
@@ -237,8 +222,8 @@ Item {
                             spacing: 0
 
                             DiagRow {
-                                label: "tdjson runtime"
-                                value: BeyGramApp.tdlibAvailable ? "Loaded" : "Not available"
+                                label: qsTr("tdjson runtime")
+                                value: BeyGramApp.tdlibAvailable ? qsTr("Loaded") : qsTr("Not available")
                                 detail: BeyGramApp.tdlibDetail
                                 valueColor: BeyGramApp.tdlibAvailable
                                             ? BeyGramTheme.okInk
@@ -248,11 +233,10 @@ Item {
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Credentials"
-                                value: BeyGramApp.credentialsConfigured ? "Present" : "Absent"
+                                label: qsTr("Credentials")
+                                value: BeyGramApp.credentialsConfigured ? qsTr("Present") : qsTr("Absent")
                                 detail: BeyGramApp.credentialsConfigured
-                                        ? "Read from BEYGRAM_TELEGRAM_API_ID / "
-                                          + "BEYGRAM_TELEGRAM_API_HASH."
+                                        ? qsTr("Source: %1").arg(BeyGramApp.credentialsSource)
                                         : BeyGramApp.credentialsHint
                                 valueColor: BeyGramApp.credentialsConfigured
                                             ? BeyGramTheme.okInk
@@ -262,7 +246,7 @@ Item {
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Stage"
+                                label: qsTr("Stage")
                                 value: BeyGramApp.stageName
                                 detail: BeyGramApp.stageDetail !== ""
                                         ? BeyGramApp.stageTitle + " — " + BeyGramApp.stageDetail
@@ -275,7 +259,7 @@ Item {
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Transport"
+                                label: qsTr("Transport")
                                 value: BeyGramApp.connectionTitle
                                 valueColor: BeyGramApp.running
                                             ? BeyGramTheme.accentInk
@@ -285,7 +269,7 @@ Item {
                             DsDivider { Layout.fillWidth: true; inset: Design.space3 }
 
                             DiagRow {
-                                label: "Proxy"
+                                label: qsTr("Proxy")
                                 value: BeyGramApp.proxySummary
                                 valueColor: BeyGramApp.proxySummary === "Direct connection"
                                             ? BeyGramTheme.text
@@ -297,8 +281,14 @@ Item {
 
                 DsSection {
                     Layout.fillWidth: true
-                    title: "Media core"
-                    description: "Background media support available to this build."
+                    title: qsTr("Session storage & DPAPI")
+                    description: qsTr("The TDLib database is encrypted with a key generated on this PC and wrapped by Windows DPAPI. A lock file prevents a second BeyGram process from opening the same account.")
+                }
+
+                DsSection {
+                    Layout.fillWidth: true
+                    title: qsTr("Media core")
+                    description: qsTr("Background media support available to this build.")
 
                     content: DsCard {
                         Layout.fillWidth: true
@@ -310,7 +300,7 @@ Item {
 
                             DsBadge {
                                 Layout.alignment: Qt.AlignLeft
-                                text: page.mediaAvailable ? "Available" : "Unavailable"
+                                text: page.mediaAvailable ? qsTr("Available") : qsTr("Unavailable")
                                 tone: page.mediaAvailable ? "ok" : "danger"
                                 dot: true
                             }

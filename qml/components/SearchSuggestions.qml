@@ -1,14 +1,4 @@
-// SearchSuggestions.qml — recent global-search queries and the result summary.
-//
-// Presentation only. The parent passes the C++ SearchFacade
-// (src/ui/SearchFacade.h) as `facade`; this component never talks to TDLib,
-// the network or the history file itself. Selecting a row calls
-// facade.begin(text), which records the query and emits searchRequested() for
-// the owner to run. The clear button drops the history through
-// facade.clearHistory().
-//
-// Every binding is guarded against a null facade, so the component can be
-// instantiated before the backend exists and simply stays empty.
+// SearchSuggestions.qml — recent global-search queries and localized result summary.
 
 import QtQuick
 import QtQuick.Controls
@@ -21,12 +11,22 @@ Item {
     property var facade: null
 
     readonly property var recentQueries: root.facade ? root.facade.history : []
-    readonly property string summaryText: root.facade ? root.facade.summary : ""
+    readonly property string rawSummaryText: root.facade ? root.facade.summary : ""
     readonly property bool busy: root.facade ? root.facade.loading : false
+
+    readonly property string displaySummary: {
+        const s = String(root.rawSummaryText || "").trim()
+        if (s.length === 0 || s === "0 chats, 0 messages, 0 files")
+            return ""
+        const m = s.match(/^(\d+)\s+chats?,\s*(\d+)\s+messages?,\s*(\d+)\s+files?$/)
+        if (m)
+            return qsTr("%1 chats · %2 messages · %3 files").arg(m[1]).arg(m[2]).arg(m[3])
+        return s
+    }
 
     implicitWidth: 280
     implicitHeight: column.implicitHeight
-    visible: root.recentQueries.length > 0 || root.summaryText.length > 0
+    visible: root.recentQueries.length > 0 || root.displaySummary.length > 0
 
     ColumnLayout {
         id: column
@@ -98,7 +98,6 @@ Item {
                 delegate: Item {
                     id: row
 
-                    // Repeater feeds each entry of the string list as modelData.
                     readonly property string label: modelData !== undefined
                                                      ? String(modelData) : ""
 
@@ -144,8 +143,8 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            visible: root.summaryText.length > 0
-            text: root.summaryText
+            visible: root.displaySummary.length > 0
+            text: root.displaySummary
             color: root.busy ? BeyGramTheme.muted : BeyGramTheme.accentInk
             font.pixelSize: 11
             elide: Text.ElideRight

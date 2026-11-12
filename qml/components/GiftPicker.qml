@@ -1,9 +1,4 @@
 // Gift picker panel.
-//
-// Presentation only. The parent owns the GiftsFacade and turns the facade's
-// sendRequested signal into a TDLib sendGift request. This file only calls the
-// facade's invokables and reads its properties; it never touches TDLib, the
-// network, the message store, or logging.
 
 import QtQuick
 import QtQuick.Controls
@@ -13,8 +8,6 @@ import BeyGram.Theme 1.0
 Rectangle {
     id: root
 
-    /// GiftsFacade from src/ui/GiftsFacade.h. Every action is guarded, so the
-    /// panel renders empty and disables Send while it is null.
     property var facade: null
 
     readonly property var giftTitles: root.facade ? root.facade.titles : []
@@ -29,10 +22,6 @@ Rectangle {
     border.width: 1
     border.color: BeyGramTheme.line
 
-    // The message field is filled from the facade rather than bound to it, so
-    // the controller's trimming does not rewrite the text and move the cursor
-    // while the user is typing a trailing space. The anonymous switch is
-    // synced the same way, because a user toggle replaces its binding.
     function syncFromFacade() {
         if (!root.facade)
             return
@@ -59,7 +48,7 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: "Send a gift"
+            text: qsTr("Send a gift")
             color: BeyGramTheme.text
             font.pixelSize: 14
             font.weight: Font.DemiBold
@@ -89,7 +78,7 @@ Rectangle {
                     readonly property string label: card.modelData
                                                     && String(card.modelData).length > 0
                         ? String(card.modelData)
-                        : "Gift " + (card.index + 1)
+                        : qsTr("Gift %1").arg(card.index + 1)
                     readonly property string price: card.index < root.giftPrices.length
                         ? String(root.giftPrices[card.index])
                         : ""
@@ -119,7 +108,7 @@ Rectangle {
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            text: "\uD83C\uDF81" // wrapped gift
+                            text: "\uD83C\uDF81"
                             font.pixelSize: 24
                         }
 
@@ -163,7 +152,7 @@ Rectangle {
                 anchors.centerIn: parent
                 width: Math.max(0, Math.min(280, parent.width - 40))
                 visible: root.giftTitles.length === 0
-                text: "No gifts available"
+                text: qsTr("No gifts available")
                 color: BeyGramTheme.muted
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
@@ -178,7 +167,7 @@ Rectangle {
             implicitHeight: 34
             leftPadding: 12
             rightPadding: 12
-            placeholderText: "Add a message (optional)"
+            placeholderText: qsTr("Add a message (optional)")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             color: BeyGramTheme.text
             font.pixelSize: 12
@@ -187,7 +176,7 @@ Rectangle {
             selectionColor: BeyGramTheme.accent
             selectedTextColor: BeyGramTheme.onAccent
             enabled: root.facade !== null
-            Accessible.name: "Gift message"
+            Accessible.name: qsTr("Gift message")
             onTextEdited: {
                 if (root.facade)
                     root.facade.message = text
@@ -214,12 +203,12 @@ Rectangle {
 
             CheckBox {
                 id: anonymousBox
-                text: "Send anonymously"
+                text: qsTr("Send anonymously")
                 checked: root.facade ? root.facade.anonymous : false
                 enabled: root.facade !== null
                 palette.text: BeyGramTheme.text
                 palette.windowText: BeyGramTheme.text
-                Accessible.name: "Send anonymously"
+                Accessible.name: qsTr("Send anonymously")
                 onToggled: {
                     if (root.facade)
                         root.facade.anonymous = checked
@@ -230,9 +219,9 @@ Rectangle {
 
             PrimaryButton {
                 Layout.preferredWidth: 112
-                text: "Send"
+                text: qsTr("Send")
                 enabled: root.canSend
-                Accessible.name: "Send gift"
+                Accessible.name: qsTr("Send gift")
                 onClicked: {
                     if (root.facade)
                         root.facade.send()

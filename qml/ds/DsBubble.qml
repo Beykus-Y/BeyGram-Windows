@@ -4,25 +4,22 @@ import BeyGram.Theme 1.0
 import "design.js" as Design
 
 // Presentation-only message bubble for the BeyGram design system.
-//
-// The component owns no chat state. The owner supplies the already-formatted
-// strings (`text`, `timeText`, `status`, and the optional `senderName`,
-// `replyPreview` and `reactions`) and the bubble only lays them out. Colours
-// come from BeyGramTheme so the bubble follows the active Warm/Graphite preset
-// and Light/Dark/AMOLED mode; geometry comes from design.js.
+// Respects BubbleStyle (Rounded | Soft | Square), message text scaling, and
+// Android-aligned surface border treatment in AMOLED / LiquidGlass.
 Item {
     id: root
 
     property bool outgoing: false
     property string text: ""
     property string timeText: ""
-    /// Optional author label, shown above incoming messages only.
     property string senderName: ""
     /// Delivery state: "sent", "read" or "failed".
     property string status: "sent"
     property string replyPreview: ""
-    /// Optional reaction summary, e.g. "👍 2 · ❤️ 1".
     property string reactions: ""
+
+    readonly property int radiusMain: Design.bubbleRadiusFor(BeyGramAppearance.bubbleStyle)
+    readonly property int radiusTail: Design.bubbleTailRadiusFor(BeyGramAppearance.bubbleStyle)
 
     readonly property real maxBubbleWidth: {
         const available = root.parent && root.parent.width > 0
@@ -53,16 +50,24 @@ Item {
     Rectangle {
         id: bubble
         width: Math.min(root.maxBubbleWidth,
-                        Math.max(72, content.implicitWidth + Design.space5))
-        height: content.implicitHeight + Design.space4
+                        Math.max(82, content.implicitWidth + Design.space5))
+        height: content.implicitHeight + Design.space3
         anchors.right: root.outgoing ? root.right : undefined
         anchors.left: root.outgoing ? undefined : root.left
-        radius: Design.bubbleRadius
-        bottomRightRadius: root.outgoing ? Design.bubbleRadiusTail
-                                          : Design.bubbleRadius
-        bottomLeftRadius: root.outgoing ? Design.bubbleRadius
-                                        : Design.bubbleRadiusTail
-        color: root.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface
+        radius: root.radiusMain
+        bottomRightRadius: root.outgoing ? root.radiusTail : root.radiusMain
+        bottomLeftRadius: root.outgoing ? root.radiusMain : root.radiusTail
+        color: {
+            var base = root.outgoing ? BeyGramTheme.bubbleOut : BeyGramTheme.surface
+            if (BeyGramAppearance.designStyle === "LiquidGlass")
+                return Qt.alpha(base, BeyGramTheme.darkMode ? 0.88 : 0.92)
+            return base
+        }
+        border.width: (!root.outgoing || BeyGramTheme.modeName === "Amoled"
+                       || BeyGramAppearance.designStyle === "LiquidGlass") ? 1 : 0
+        border.color: root.outgoing
+                      ? Qt.alpha(BeyGramTheme.accent, 0.24)
+                      : BeyGramTheme.line
         opacity: root.status === "failed" ? 0.85 : 1.0
 
         ColumnLayout {
@@ -70,11 +75,11 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
             anchors.topMargin: 8
             anchors.bottomMargin: 8
-            spacing: 3
+            spacing: 4
 
             Text {
                 Layout.fillWidth: true
@@ -124,7 +129,7 @@ Item {
                 visible: root.text.length > 0
                 text: root.text
                 color: BeyGramTheme.text
-                font.pixelSize: Design.fontBody
+                font.pixelSize: BeyGramAppearance.messageTextSize
                 wrapMode: Text.Wrap
                 lineHeight: Design.lineNormal
                 textFormat: Text.PlainText

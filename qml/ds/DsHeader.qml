@@ -3,28 +3,24 @@ import QtQuick.Layouts
 import BeyGram.Theme 1.0
 import "design.js" as Design
 
-// Page header used at the top of a page.
-//
-//   DsHeader {
-//       title: "Chats"
-//       subtitle: "3 unread"
-//       leading: BackButton { ... }
-//       trailing: IconButton { ... }
-//   }
+// Page header used at the top of a page or conversation pane.
 Rectangle {
     id: header
 
     property string title: ""
     property string subtitle: ""
     property bool bordered: true
+    property bool translucent: false
 
-    // Slots. Assign items directly, e.g. `leading: BackButton {}`.
     property alias leading: leadingSlot.data
     property alias trailing: trailingSlot.data
 
     implicitHeight: Design.headerHeight
     height: Design.headerHeight
-    color: "transparent"
+    color: translucent
+           ? Qt.alpha(BeyGramTheme.surface,
+                      BeyGramAppearance.designStyle === "LiquidGlass" ? 0.82 : 0.94)
+           : "transparent"
 
     Rectangle {
         anchors.left: parent.left
@@ -67,7 +63,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: header.subtitle
                 color: BeyGramTheme.muted
-                font.pixelSize: Design.fontCaption
+                font.pixelSize: Design.fontSmall
                 elide: Text.ElideRight
                 visible: text.length > 0
             }

@@ -2,26 +2,43 @@ import QtQuick
 import BeyGram.Theme 1.0
 import "design.js" as Design
 
-// DsTheme is the semantic layer between the raw theme singleton and the Ds*
-// components. It is deliberately a plain QtObject and not a singleton, so a
-// preview, a test or a sub-tree can own an isolated instance:
-//
-//     DsTheme { id: ds }
-//     Rectangle { color: ds.color.surface; radius: ds.radius.md }
-//
-// Colours come from BeyGramTheme (preset + Light/Dark/AMOLED); geometry, type
-// and motion come from design.js. Components must not hard-code a hex value, a
-// corner radius or a duration.
+// DsTheme is the semantic layer between the raw theme/appearance singletons and
+// the Ds* components. Colours follow BeyGramTheme (preset + Light/Dark/AMOLED);
+// visual surface treatment follows BeyGramAppearance (DesignStyle, BubbleStyle,
+// density, message font scale, and reduceMotion).
 QtObject {
     id: ds
 
-    // Convenience for the few places that branch on brightness (for example a
-    // specular edge that is lighter in dark mode).
     readonly property bool dark: BeyGramTheme.darkMode
+    readonly property bool amoled: BeyGramTheme.modeName === "Amoled"
+    readonly property string designStyle: BeyGramAppearance.designStyle
+    readonly property string bubbleStyle: BeyGramAppearance.bubbleStyle
+    readonly property string listDensity: BeyGramAppearance.listDensity
+    readonly property int messageTextSize: BeyGramAppearance.messageTextSize
+    readonly property bool reduceMotion: BeyGramAppearance.reduceMotion
+    readonly property bool isLiquidGlass: designStyle === "LiquidGlass"
+    readonly property bool isSignature: designStyle === "Signature"
+    readonly property bool isCompact: listDensity === "Compact"
+
+    readonly property int styleCardRadius: Design.cardRadius(designStyle)
+    readonly property int styleRowRadius: Design.rowRadius(designStyle)
+    readonly property int styleButtonRadius: Design.buttonRadius(designStyle)
+
+    readonly property color surfaceBorderColor: {
+        if (isLiquidGlass)
+            return Qt.alpha(dark ? "#FFFFFF" : BeyGramTheme.line, dark ? 0.14 : 0.85)
+        if (isSignature)
+            return Qt.alpha(BeyGramTheme.accent, dark ? 0.24 : 0.20)
+        if (amoled)
+            return Qt.lighter(BeyGramTheme.line, 1.35)
+        return BeyGramTheme.line
+    }
+
+    function motionMs(ms) {
+        return Design.motion(ms, reduceMotion)
+    }
 
     // --- Colour roles -------------------------------------------------------
-    // The names match BeyGramTokens in ThemeController.h and Color.kt, so a
-    // screen ported from Android can keep the same vocabulary.
     readonly property QtObject color: QtObject {
         readonly property color bg: BeyGramTheme.bg
         readonly property color surface: BeyGramTheme.surface
@@ -42,8 +59,6 @@ QtObject {
     }
 
     // --- Corner radii -------------------------------------------------------
-    // 12-16 px is the house range for containers; xs/sm are for controls and
-    // pills are fully rounded.
     readonly property QtObject radius: QtObject {
         readonly property int xs: Design.radiusXs
         readonly property int sm: Design.radiusSm
@@ -54,9 +69,6 @@ QtObject {
     }
 
     // --- Spacing: a strict 4 px grid ---------------------------------------
-    // s0..s10 are the grid steps. design.js names the steps the components
-    // actually use (0, 1, 2, 3, 4, 5, 6, 8, 10); s7 and s9 are derived from
-    // the same grid so a layout never has to invent 28 or 36 by hand.
     readonly property QtObject space: QtObject {
         readonly property int grid: 4
         readonly property int s0: Design.space0
@@ -73,8 +85,6 @@ QtObject {
     }
 
     // --- Typography ---------------------------------------------------------
-    // Sizes are logical pixels; compare them with Android sp at the default
-    // scale. Line heights are multipliers because QML Text has no line token.
     readonly property QtObject font: QtObject {
         readonly property int caption: Design.fontCaption
         readonly property int small: Design.fontSmall
@@ -95,12 +105,10 @@ QtObject {
     }
 
     // --- Motion -------------------------------------------------------------
-    // Durations in milliseconds. Components bind these to Behavior/Animation;
-    // the easing values are Qt enum integers, ready for Easing curves.
     readonly property QtObject motion: QtObject {
-        readonly property int fast: Design.motionFast
-        readonly property int normal: Design.motionNormal
-        readonly property int slow: Design.motionSlow
+        readonly property int fast: ds.motionMs(Design.motionFast)
+        readonly property int normal: ds.motionMs(Design.motionNormal)
+        readonly property int slow: ds.motionMs(Design.motionSlow)
 
         readonly property int easeOut: Easing.OutCubic
         readonly property int easeEmphasized: Easing.OutQuint
@@ -117,7 +125,6 @@ QtObject {
     }
 
     // --- Control sizes ------------------------------------------------------
-    // 32 is the smallest accepted target; 40 is the default desktop control.
     readonly property QtObject control: QtObject {
         readonly property int height: Design.controlHeight
         readonly property int heightSmall: Design.controlHeightSmall
@@ -132,17 +139,15 @@ QtObject {
 
     // --- Chat metrics -------------------------------------------------------
     readonly property QtObject chat: QtObject {
-        readonly property int bubbleRadius: Design.bubbleRadius
-        readonly property int tailRadius: Design.bubbleRadiusTail
+        readonly property int bubbleRadius: Design.bubbleRadiusFor(ds.bubbleStyle)
+        readonly property int tailRadius: Design.bubbleTailRadiusFor(ds.bubbleStyle)
         readonly property real maxWidthRatio: Design.bubbleMaxWidthRatio
         readonly property int composerRadius: Design.composerRadius
-        readonly property int rowHeight: Design.rowHeight
+        readonly property int rowHeight: ds.isCompact ? Design.rowHeightCompact : Design.rowHeight
         readonly property int headerHeight: Design.headerHeight
     }
 
     // --- Elevation ----------------------------------------------------------
-    // QML has no shadow token: depth is a surface step plus a hairline, never a
-    // large blur. These values select the step, not a pixel offset.
     readonly property QtObject elevation: QtObject {
         readonly property int flat: Design.elevation0
         readonly property int raised: Design.elevation1
@@ -150,9 +155,6 @@ QtObject {
     }
 
     // --- Helpers ------------------------------------------------------------
-
-    /// Returns the surface for a depth level: 0 canvas, 1 card, 2 raised
-    /// container, 3 overlay. Values outside the range are clamped.
     function surfaceFor(level) {
         var l = Math.round(Number(level))
         if (isNaN(l))
@@ -167,9 +169,6 @@ QtObject {
                     : Qt.darker(color.surface2, 1.05)
     }
 
-    /// Returns a text colour for an emphasis level: 0 primary, 1 secondary,
-    /// 2 disabled. Values outside the range are clamped. Accent text is
-    /// intentionally not part of the ladder; use color.accent directly.
     function textFor(level) {
         var l = Math.round(Number(level))
         if (isNaN(l))
@@ -181,8 +180,6 @@ QtObject {
         return alpha(color.text, opacity.disabled)
     }
 
-    /// Applies an alpha channel to any colour, clamping value to 0..1. Use it
-    /// for hover washes, dividers and status fills instead of new hex values.
     function alpha(base, value) {
         var a = Number(value)
         if (isNaN(a))

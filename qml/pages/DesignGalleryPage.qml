@@ -5,10 +5,6 @@ import BeyGram.Theme 1.0
 import "../ds/design.js" as Design
 
 // DesignGalleryPage — a living reference for the BeyGram design system.
-//
-// Every section is built from the public Ds* components. Only types that are
-// present in qml/ds are referenced; a missing component is omitted rather than
-// referenced as an undefined QML type.
 Item {
     id: page
 
@@ -38,8 +34,6 @@ Item {
         { name: "display", size: Design.fontDisplay, weight: Font.Bold }
     ]
 
-    // A heading plus a DsCard body. The inline component cannot see page-level
-    // ids, so it reads the BeyGramTheme singleton directly.
     component GallerySection: ColumnLayout {
         id: section
 
@@ -98,7 +92,6 @@ Item {
             y: Design.space6
             spacing: Design.space6
 
-            // --- Page header -------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Design.space5
@@ -109,7 +102,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: "Design gallery"
+                        text: qsTr("Design gallery")
                         color: BeyGramTheme.text
                         font.pixelSize: Design.fontDisplay
                         font.weight: Font.Bold
@@ -118,8 +111,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: "Colour, type and component states rendered from the live theme. "
-                              + "Switch the theme to see every token update in place."
+                        text: qsTr("Colour, type and component states rendered from the live theme. Switch the theme to see every token update in place.")
                         color: BeyGramTheme.muted
                         font.pixelSize: Design.fontBody
                         lineHeight: Design.lineNormal
@@ -145,7 +137,7 @@ Item {
 
                     DsButton {
                         Layout.alignment: Qt.AlignRight
-                        text: "Toggle theme"
+                        text: qsTr("Toggle theme")
                         tone: "secondary"
                         size: "sm"
                         onClicked: BeyGramTheme.toggleDarkMode()
@@ -155,10 +147,9 @@ Item {
 
             DsDivider { Layout.fillWidth: true }
 
-            // --- Colour ------------------------------------------------------
             GallerySection {
-                title: "Colour"
-                description: "Semantic roles from BeyGramTheme. They follow the Warm/Graphite preset and the Light/Dark/AMOLED mode."
+                title: qsTr("Colour")
+                description: qsTr("Semantic roles from BeyGramTheme. They follow the Warm/Graphite preset and the Light/Dark/AMOLED mode.")
 
                 Flow {
                     Layout.fillWidth: true
@@ -204,10 +195,9 @@ Item {
                 }
             }
 
-            // --- Typography --------------------------------------------------
             GallerySection {
-                title: "Typography"
-                description: "The 11–28 px ramp. Weights run from Font.Normal to Font.Bold."
+                title: qsTr("Typography")
+                description: qsTr("The 11–28 px ramp. Weights run from Font.Normal to Font.Bold.")
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -234,7 +224,7 @@ Item {
                                     font.weight: Font.DemiBold
                                 }
                                 Text {
-                                    text: typeRow.modelData.size + " px"
+                                    text: qsTr("%1 px").arg(typeRow.modelData.size)
                                     color: BeyGramTheme.muted
                                     font.pixelSize: Design.fontCaption
                                 }
@@ -242,7 +232,7 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "BeyGram keeps every conversation close."
+                                text: qsTr("BeyGram keeps every conversation close.")
                                 color: BeyGramTheme.text
                                 font.pixelSize: typeRow.modelData.size
                                 font.weight: typeRow.modelData.weight
@@ -254,10 +244,9 @@ Item {
                 }
             }
 
-            // --- Buttons -----------------------------------------------------
             GallerySection {
-                title: "Buttons"
-                description: "DsButton in every tone and size, plus the disabled and loading states."
+                title: qsTr("Buttons")
+                description: qsTr("DsButton in every tone and size, plus the disabled and loading states.")
 
                 Flow {
                     Layout.fillWidth: true
@@ -285,19 +274,19 @@ Item {
 
                                 DsButton {
                                     Layout.alignment: Qt.AlignVCenter
-                                    text: "Small"
+                                    text: qsTr("Small")
                                     tone: toneGroup.modelData
                                     size: "sm"
                                 }
                                 DsButton {
                                     Layout.alignment: Qt.AlignVCenter
-                                    text: "Medium"
+                                    text: qsTr("Medium")
                                     tone: toneGroup.modelData
                                     size: "md"
                                 }
                                 DsButton {
                                     Layout.alignment: Qt.AlignVCenter
-                                    text: "Large"
+                                    text: qsTr("Large")
                                     tone: toneGroup.modelData
                                     size: "lg"
                                 }
@@ -311,7 +300,7 @@ Item {
                     spacing: Design.space2
 
                     Text {
-                        text: "STATES"
+                        text: qsTr("STATES")
                         color: BeyGramTheme.muted
                         font.pixelSize: Design.fontCaption
                         font.weight: Font.DemiBold
@@ -323,22 +312,22 @@ Item {
                         spacing: Design.space3
 
                         DsButton {
-                            text: "Disabled"
+                            text: qsTr("Disabled")
                             tone: "primary"
                             enabled: false
                         }
                         DsButton {
-                            text: "Disabled"
+                            text: qsTr("Disabled")
                             tone: "secondary"
                             enabled: false
                         }
                         DsButton {
-                            text: "Saving"
+                            text: qsTr("Saving")
                             tone: "primary"
                             loading: true
                         }
                         DsButton {
-                            text: "Deleting"
+                            text: qsTr("Deleting")
                             tone: "danger"
                             loading: true
                         }
@@ -346,10 +335,9 @@ Item {
                 }
             }
 
-            // --- Inputs ------------------------------------------------------
             GallerySection {
-                title: "Inputs"
-                description: "Text, search, switch, slider, segmented and chip controls."
+                title: qsTr("Inputs")
+                description: qsTr("Text, search, switch, slider, segmented and chip controls.")
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -359,7 +347,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.maximumWidth: 480
                         Layout.alignment: Qt.AlignLeft
-                        label: "Email"
+                        label: qsTr("Email")
                         placeholderText: "you@example.com"
                         text: "avery@beygram.app"
                         clearable: true
@@ -369,18 +357,18 @@ Item {
                         Layout.fillWidth: true
                         Layout.maximumWidth: 480
                         Layout.alignment: Qt.AlignLeft
-                        label: "Password"
-                        placeholderText: "At least 8 characters"
+                        label: qsTr("Password")
+                        placeholderText: qsTr("At least 8 characters")
                         text: "short"
                         echoMode: TextInput.Password
-                        error: "Use at least 8 characters"
+                        error: qsTr("Use at least 8 characters")
                     }
 
                     DsSearchField {
                         Layout.fillWidth: true
                         Layout.maximumWidth: 480
                         Layout.alignment: Qt.AlignLeft
-                        placeholderText: "Search messages"
+                        placeholderText: qsTr("Search messages")
                         text: "design"
                     }
 
@@ -390,19 +378,19 @@ Item {
 
                         DsSwitch {
                             Layout.fillWidth: true
-                            text: "Read receipts"
+                            text: qsTr("Read receipts")
                             checked: true
                         }
                         DsSwitch {
                             Layout.fillWidth: true
-                            text: "Auto-download photos"
+                            text: qsTr("Auto-download photos")
                             checked: false
                         }
                     }
 
                     DsSlider {
                         Layout.fillWidth: true
-                        label: "Message text size"
+                        label: qsTr("Message text size")
                         valueText: Math.round(value) + "%"
                         from: 80
                         to: 140
@@ -415,7 +403,7 @@ Item {
                         spacing: Design.space2
 
                         Text {
-                            text: "Segmented"
+                            text: qsTr("Segmented")
                             color: BeyGramTheme.muted
                             font.pixelSize: Design.fontSmall
                             font.weight: Font.DemiBold
@@ -425,7 +413,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.maximumWidth: 420
                             Layout.alignment: Qt.AlignLeft
-                            model: ["Chats", "Shared", "Archived"]
+                            model: [qsTr("Chats"), qsTr("Shared"), qsTr("Archived")]
                             currentIndex: page.selectedSegment
                             onActivated: (index) => page.selectedSegment = index
                         }
@@ -436,7 +424,7 @@ Item {
                         spacing: Design.space2
 
                         Text {
-                            text: "Chips"
+                            text: qsTr("Chips")
                             color: BeyGramTheme.muted
                             font.pixelSize: Design.fontSmall
                             font.weight: Font.DemiBold
@@ -447,41 +435,40 @@ Item {
                             spacing: Design.space2
 
                             DsChip {
-                                text: "All"
+                                text: qsTr("All")
                                 selected: page.selectedChip === 0
                                 onClicked: page.selectedChip = 0
                             }
                             DsChip {
-                                text: "Unread"
+                                text: qsTr("Unread")
                                 selected: page.selectedChip === 1
                                 onClicked: page.selectedChip = 1
                             }
                             DsChip {
-                                text: "Groups"
+                                text: qsTr("Groups")
                                 selected: page.selectedChip === 2
                                 onClicked: page.selectedChip = 2
                             }
                             DsChip {
-                                text: "Channels"
+                                text: qsTr("Channels")
                                 selected: page.selectedChip === 3
                                 onClicked: page.selectedChip = 3
                             }
 
                             DsChip {
-                                text: "Design"
+                                text: qsTr("Design")
                                 selected: true
                                 removable: true
-                                onRemoved: galleryToast.show("Chip removed", "info")
+                                onRemoved: galleryToast.show(qsTr("Chip removed"), "info")
                             }
                         }
                     }
                 }
             }
 
-            // --- Surfaces ----------------------------------------------------
             GallerySection {
-                title: "Surfaces"
-                description: "Cards, list rows and conversation rows share the same surface steps and hairlines."
+                title: qsTr("Surfaces")
+                description: qsTr("Cards, list rows and conversation rows share the same surface steps and hairlines.")
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -497,14 +484,14 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "Weekly digest"
+                                text: qsTr("Weekly digest")
                                 color: BeyGramTheme.text
                                 font.pixelSize: Design.fontBodyLarge
                                 font.weight: Font.DemiBold
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: "Three unread messages across two conversations. Nothing else needs your attention."
+                                text: qsTr("Three unread messages across two conversations. Nothing else needs your attention.")
                                 color: BeyGramTheme.muted
                                 font.pixelSize: Design.fontSmall
                                 lineHeight: Design.lineNormal
@@ -512,7 +499,7 @@ Item {
                             }
                             DsButton {
                                 Layout.alignment: Qt.AlignLeft
-                                text: "Open chats"
+                                text: qsTr("Open chats")
                                 tone: "ghost"
                                 size: "sm"
                             }
@@ -525,10 +512,10 @@ Item {
 
                         DsListRow {
                             Layout.fillWidth: true
-                            title: "Notifications"
-                            subtitle: "Messages, groups and channels"
+                            title: qsTr("Notifications")
+                            subtitle: qsTr("Messages, groups and channels")
                             trailing: DsBadge {
-                                text: "On"
+                                text: qsTr("On")
                                 tone: "ok"
                             }
                         }
@@ -540,10 +527,10 @@ Item {
 
                         DsListRow {
                             Layout.fillWidth: true
-                            title: "Media auto-download"
-                            subtitle: "Photos and videos"
+                            title: qsTr("Media auto-download")
+                            subtitle: qsTr("Photos and videos")
                             trailing: Text {
-                                text: "Wi-Fi only"
+                                text: qsTr("Wi-Fi only")
                                 color: BeyGramTheme.muted
                                 font.pixelSize: Design.fontSmall
                             }
@@ -556,8 +543,8 @@ Item {
 
                         DsListRow {
                             Layout.fillWidth: true
-                            title: "Storage"
-                            subtitle: "Cache and local media"
+                            title: qsTr("Storage")
+                            subtitle: qsTr("Cache and local media")
                             trailing: Text {
                                 text: "1.2 GB"
                                 color: BeyGramTheme.muted
@@ -573,7 +560,7 @@ Item {
                         DsChatRow {
                             Layout.fillWidth: true
                             title: "Avery Chen"
-                            preview: "See you at 18:30"
+                            preview: qsTr("See you at 18:30")
                             timeText: "12:04"
                             unread: 2
                             initials: "AC"
@@ -588,9 +575,9 @@ Item {
 
                         DsChatRow {
                             Layout.fillWidth: true
-                            title: "Design team"
-                            preview: "Mira: The new tokens are in."
-                            timeText: "Yesterday"
+                            title: qsTr("Design team")
+                            preview: qsTr("Mira: The new tokens are in.")
+                            timeText: qsTr("Yesterday")
                             pinned: true
                             initials: "DT"
                             accentIndex: 3
@@ -599,10 +586,9 @@ Item {
                 }
             }
 
-            // --- Overlays ----------------------------------------------------
             GallerySection {
-                title: "Overlays"
-                description: "Transient feedback and modal surfaces."
+                title: qsTr("Overlays")
+                description: qsTr("Transient feedback and modal surfaces.")
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -613,33 +599,32 @@ Item {
                         spacing: Design.space3
 
                         DsButton {
-                            text: "Open dialog"
+                            text: qsTr("Open dialog")
                             tone: "secondary"
                             onClicked: confirmDialog.open()
                         }
                         DsButton {
-                            text: "Open sheet"
+                            text: qsTr("Open sheet")
                             tone: "secondary"
                             onClicked: shareSheet.open()
                         }
                         DsButton {
-                            text: "Open menu"
+                            text: qsTr("Open menu")
                             tone: "secondary"
                             onClicked: chatMenu.openAtCursor()
                         }
                         DsButton {
-                            text: "Show toast"
+                            text: qsTr("Show toast")
                             tone: "secondary"
-                            onClicked: galleryToast.show("Design tokens applied", "ok")
+                            onClicked: galleryToast.show(qsTr("Design tokens applied"), "ok")
                         }
                     }
                 }
             }
 
-            // --- Chat --------------------------------------------------------
             GallerySection {
-                title: "Chat"
-                description: "Incoming and outgoing bubbles plus the composer, with no chat state attached."
+                title: qsTr("Chat")
+                description: qsTr("Incoming and outgoing bubbles plus the composer, with no chat state attached.")
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -652,14 +637,14 @@ Item {
                         DsBubble {
                             Layout.fillWidth: true
                             senderName: "Avery"
-                            text: "Hey! Are we still on for tonight?"
+                            text: qsTr("Hey! Are we still on for tonight?")
                             timeText: "18:02"
                         }
 
                         DsBubble {
                             Layout.fillWidth: true
                             outgoing: true
-                            text: "Yes — I booked the corner table for 19:30."
+                            text: qsTr("Yes — I booked the corner table for 19:30.")
                             timeText: "18:04"
                             status: "read"
                         }
@@ -667,10 +652,10 @@ Item {
                         DsBubble {
                             Layout.fillWidth: true
                             outgoing: true
-                            text: "I'll send the address in a moment."
+                            text: qsTr("I'll send the address in a moment.")
                             timeText: "18:04"
                             status: "sent"
-                            replyPreview: "Yes — I booked the corner table for 19:30."
+                            replyPreview: qsTr("Yes — I booked the corner table for 19:30.")
                             reactions: "👍 2"
                         }
                     }
@@ -686,8 +671,8 @@ Item {
                         DsComposer {
                             id: composer
                             anchors.fill: parent
-                            placeholder: "Message Avery"
-                            text: "See you at 19:30"
+                            placeholder: qsTr("Message Avery")
+                            text: qsTr("See you at 19:30")
                         }
                     }
                 }
@@ -699,31 +684,31 @@ Item {
 
     DsDialog {
         id: confirmDialog
-        title: "Delete conversation?"
-        description: "This removes the conversation from this device. It stays on your other devices."
-        primaryText: "Delete"
-        secondaryText: "Cancel"
+        title: qsTr("Delete conversation?")
+        description: qsTr("This removes the conversation from this device. It stays on your other devices.")
+        primaryText: qsTr("Delete")
+        secondaryText: qsTr("Cancel")
         tone: "danger"
-        onAccepted: galleryToast.show("Conversation deleted", "danger")
+        onAccepted: galleryToast.show(qsTr("Conversation deleted"), "danger")
     }
 
     DsSheet {
         id: shareSheet
-        title: "Share conversation"
+        title: qsTr("Share conversation")
 
         DsListRow {
             Layout.fillWidth: true
-            title: "Copy link"
-            subtitle: "Anyone with the link can join"
+            title: qsTr("Copy link")
+            subtitle: qsTr("Anyone with the link can join")
         }
         DsListRow {
             Layout.fillWidth: true
-            title: "Forward"
-            subtitle: "Send to another chat"
+            title: qsTr("Forward")
+            subtitle: qsTr("Send to another chat")
         }
         DsButton {
             Layout.alignment: Qt.AlignRight
-            text: "Done"
+            text: qsTr("Done")
             tone: "secondary"
             size: "sm"
             onClicked: shareSheet.close()
@@ -734,20 +719,20 @@ Item {
         id: chatMenu
 
         DsMenuItem {
-            text: "Mark as read"
+            text: qsTr("Mark as read")
             glyph: "✓"
             shortcutText: "Ctrl+R"
-            onTriggered: galleryToast.show("Marked as read", "ok")
+            onTriggered: galleryToast.show(qsTr("Marked as read"), "ok")
         }
         DsMenuItem {
-            text: "Mute for 8 hours"
+            text: qsTr("Mute for 8 hours")
             glyph: "◔"
         }
         DsMenuItem {
-            text: "Delete conversation"
+            text: qsTr("Delete conversation")
             glyph: "×"
             tone: "danger"
-            onTriggered: galleryToast.show("Conversation deleted", "danger")
+            onTriggered: galleryToast.show(qsTr("Conversation deleted"), "danger")
         }
     }
 
