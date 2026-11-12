@@ -277,6 +277,40 @@ add_library(beygram_telegram STATIC
     SpeechRecognitionController.h
     SyncedLyricsModel.cpp
     SyncedLyricsModel.h
+    BackgroundCatalogModel.cpp
+    BackgroundCatalogModel.h
+    ChannelStatistics.cpp
+    ChannelStatistics.h
+    ChannelStatisticsModel.cpp
+    ChannelStatisticsModel.h
+    ChatBackgrounds.cpp
+    ChatBackgrounds.h
+    ChatExport.cpp
+    ChatExport.h
+    ChatExportWriter.cpp
+    ChatExportWriter.h
+    GlobalSearchEngine.cpp
+    GlobalSearchEngine.h
+    MediaEdgeCases.cpp
+    MediaEdgeCases.h
+    MessageThread.cpp
+    MessageThread.h
+    PaidContent.cpp
+    PaidContent.h
+    PaidReactions.cpp
+    PaidReactions.h
+    ProfileMedia.cpp
+    ProfileMedia.h
+    ProfilePhotoModel.cpp
+    ProfilePhotoModel.h
+    ProxyLatencyModel.cpp
+    ProxyLatencyModel.h
+    ThreadMessageModel.cpp
+    ThreadMessageModel.h
+    TriggerWords.cpp
+    TriggerWords.h
+    VpnModels.cpp
+    VpnModels.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
