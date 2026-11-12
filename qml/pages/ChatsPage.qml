@@ -946,36 +946,6 @@ Item {
                                 required property bool mediaReady
                                 required property int mediaRevision
 
-                                messageId: msgBubble.messageId
-                                text: msgBubble.text
-                                textHtml: msgBubble.textHtml
-                                replyPreview: msgBubble.replyPreview
-                                reactionsJson: msgBubble.reactionsJson
-                                linkUrl: msgBubble.linkUrl
-                                linkTitle: msgBubble.linkTitle
-                                linkDescription: msgBubble.linkDescription
-                                linkSite: msgBubble.linkSite
-                                linkFileId: msgBubble.linkFileId
-                                linkVideo: msgBubble.linkVideo
-                                pollQuestion: msgBubble.pollQuestion
-                                pollOptionsJson: msgBubble.pollOptionsJson
-                                pollTotal: msgBubble.pollTotal
-                                pollClosed: msgBubble.pollClosed
-                                pollQuiz: msgBubble.pollQuiz
-                                pollMultiple: msgBubble.pollMultiple
-                                outgoing: msgBubble.outgoing
-                                senderName: msgBubble.senderName
-                                date: msgBubble.date
-                                pending: msgBubble.pending
-                                failed: msgBubble.failed
-                                edited: msgBubble.edited
-                                contentType: msgBubble.contentType
-                                mediaFileId: msgBubble.mediaFileId
-                                mediaFullFileId: msgBubble.mediaFullFileId
-                                mediaWidth: msgBubble.mediaWidth
-                                mediaHeight: msgBubble.mediaHeight
-                                mediaReady: msgBubble.mediaReady
-                                mediaRevision: msgBubble.mediaRevision
                                 selectable: BeyGramApp.selection ? BeyGramApp.selection.active : false
                                 selected: page.isMessageSelected(msgBubble.messageId)
 

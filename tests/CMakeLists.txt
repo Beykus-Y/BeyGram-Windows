@@ -279,6 +279,7 @@ beygram_add_test(tst_message_special)
 beygram_add_test(tst_music_library)
 beygram_add_test(tst_share_targets)
 beygram_add_test(tst_stealth_schedule)
+beygram_add_test(tst_chat_cache)
 set_tests_properties(tst_tdlib_integration PROPERTIES TIMEOUT 180)
 
 beygram_add_test(tst_qml_ui)

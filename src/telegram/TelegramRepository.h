@@ -72,6 +72,7 @@ public:
     void loadMoreGlobal();
     void requestProfile(qint64 chatId);
     void selectFolder(qint64 folderId);
+    void setChatCachePath(const QString& path);
     void openArchive();
     void closeArchive();
     void setChatArchived(qint64 chatId, bool archived);
@@ -184,6 +185,8 @@ private:
     QThread* m_parseThread = nullptr;
     TelegramParseWorker* m_parseWorker = nullptr;
     QTimer* m_chatListRebuildTimer = nullptr;
+    QTimer* m_chatCacheSaveTimer = nullptr;
+    QString m_chatCachePath;
     quint64 m_nextParseJob = 0;
     quint64 m_historyJob = 0;
     QHash<quint64, bool> m_parseChatContext;

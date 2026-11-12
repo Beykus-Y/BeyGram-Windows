@@ -331,6 +331,8 @@ add_library(beygram_telegram STATIC
     ShareTargets.h
     StealthSchedule.cpp
     StealthSchedule.h
+    ChatCache.cpp
+    ChatCache.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

@@ -604,6 +604,9 @@ void AppController::ensureRepository()
 
     m_repository = std::make_unique<telegram::TelegramRepository>(
         m_session.get(), &m_chatListModel, &m_messageModel, &m_mediaStore, this);
+    m_repository->setChatCachePath(
+        QDir(AppPaths::dataDirectory())
+            .filePath(QStringLiteral("state/chats-cache.json")));
     m_mediaStore.setSession(m_session.get());
 
     // Facade requests -> repository actions. Each connection is scoped to the

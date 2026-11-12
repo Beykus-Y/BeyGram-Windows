@@ -58,6 +58,7 @@ This document describes the native Windows client. The Android client under
   is not directly reachable).
 - Thread-safe redacting logger with rotation and an in-app log page.
 - Warm/Graphite palettes and FollowSystem/Light/Dark/AMOLED brightness.
+- Chat list snapshot in `state/chats-cache.json`: the last known list paints immediately on launch and TDLib corrects it in place.
 - Own design system in `qml/ds/`: shared tokens (`design.js`, `DsTheme`), documented in `docs/design/DESIGN_SYSTEM.md`, and 29 components (buttons, fields, cards, rows, dialogs, sheets, menus, tabs, chips, switches, sliders, bubbles, composer, avatars, badges, toasts and more) with a live gallery at Alt+8. Every page, dialog and core component now uses the DS: two-pane chat layout, icon navigation rail, DS sections/rows, DS dialogs and empty states.
 - Qt Test suites and Windows CI.
 
@@ -258,7 +259,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 260 suites:
+`ctest` runs 261 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -285,7 +286,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **260/260 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **261/261 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

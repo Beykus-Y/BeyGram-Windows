@@ -18,6 +18,7 @@
 #include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "ArchiveChats.h"
+#include "ChatCache.h"
 #include "ChatNotificationRequests.h"
 #include "FolderChats.h"
 #include "ForwardMessages.h"
@@ -86,6 +87,20 @@ TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* 
         rebuildChatListNow();
     });
 
+    // The chat snapshot is written after the UI settles, not on every update.
+    m_chatCacheSaveTimer = new QTimer(this);
+    m_chatCacheSaveTimer->setSingleShot(true);
+    m_chatCacheSaveTimer->setInterval(1500);
+    connect(m_chatCacheSaveTimer, &QTimer::timeout, this, [this] {
+        if (m_chatCachePath.isEmpty())
+            return;
+        QVector<ChatData> chats;
+        chats.reserve(m_chats.size());
+        for (const ChatData& chat : m_chats)
+            chats.append(chat);
+        saveChatCache(m_chatCachePath, chats);
+    });
+
     // Parsing and text formatting run off the GUI thread. TDLib still receives
     // on its own thread, and the parse thread hands immutable snapshots back
     // through queued signals.
@@ -125,6 +140,13 @@ TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* 
 
 TelegramRepository::~TelegramRepository()
 {
+    if (!m_chatCachePath.isEmpty() && !m_chats.isEmpty()) {
+        QVector<ChatData> chats;
+        chats.reserve(m_chats.size());
+        for (const ChatData& chat : m_chats)
+            chats.append(chat);
+        saveChatCache(m_chatCachePath, chats);
+    }
     if (!m_parseThread)
         return;
     m_parseThread->quit();
@@ -140,9 +162,29 @@ void TelegramRepository::start()
         return;
     m_started = true;
     qCDebug(lcRepo) << "Starting chat repository";
+
+    // Paint the last known list before TDLib answers. The rows are corrected
+    // by getChat/updateChat* as soon as the real data arrives.
+    if (!m_chatCachePath.isEmpty()) {
+        const ChatCacheSnapshot snapshot = loadChatCache(m_chatCachePath);
+        for (const ChatData& chat : snapshot.chats) {
+            if (!m_chats.contains(chat.id))
+                m_chats.insert(chat.id, chat);
+        }
+        if (!snapshot.chats.isEmpty()) {
+            qCInfo(lcRepo) << "chat cache restored" << snapshot.chats.size() << "chats";
+            rebuildChatListNow();
+        }
+    }
+
     m_loadingChats = true;
     emit stateChanged();
     requestChats();
+}
+
+void TelegramRepository::setChatCachePath(const QString& path)
+{
+    m_chatCachePath = path;
 }
 
 void TelegramRepository::requestChats()
@@ -267,6 +309,11 @@ void TelegramRepository::rebuildChatListNow()
         return left.title.localeAwareCompare(right.title) < 0;
     });
     m_archiveModel.setChats(std::move(archived));
+
+    if (m_chatCacheSaveTimer && !m_chatCachePath.isEmpty()
+        && !m_chatCacheSaveTimer->isActive()) {
+        m_chatCacheSaveTimer->start();
+    }
 }
 
 void TelegramRepository::requestArchivedChats()
