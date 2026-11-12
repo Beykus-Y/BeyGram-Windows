@@ -140,6 +140,10 @@ NotificationPayload notificationForMessage(const QJsonObject& message,
     if (message.value(QStringLiteral("is_outgoing")).toBool())
         return payload;
 
+    // Protected content and secret chats must never surface in a desktop toast.
+    if (message.value(QStringLiteral("has_protected_content")).toBool())
+        return payload;
+
     // Reading the chat already, or the chat is muted: no notification.
     if (chatId == currentChatId || chatMuted)
         return payload;

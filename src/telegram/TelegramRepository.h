@@ -5,6 +5,7 @@
 #include "GlobalSearchModel.h"
 #include "MessageListModel.h"
 #include "MediaSend.h"
+#include "PollSend.h"
 #include "SearchResultModel.h"
 #include "TelegramTypes.h"
 #include "UserProfile.h"
@@ -48,12 +49,13 @@ public:
     void sendMedia(OutgoingMediaKind kind, const QString& localPath,
                    const QString& caption, qint64 replyToMessageId = 0);
     void editMessage(qint64 messageId, const QString& text);
-    void deleteMessage(qint64 messageId);
+    void deleteMessage(qint64 messageId, bool revoke = true);
     void markCurrentChatRead();
     void sendReaction(qint64 chatId, qint64 messageId, const QString& emoji);
     void forwardMessages(qint64 toChatId, qint64 fromChatId,
                          const QVector<qint64>& messageIds);
     void votePoll(qint64 chatId, qint64 messageId, int optionIndex);
+    void sendPoll(const OutgoingPoll& poll);
     void requestPinnedMessage();
     void unpinPinnedMessage();
     void sendTyping();

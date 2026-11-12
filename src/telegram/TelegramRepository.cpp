@@ -8,6 +8,7 @@
 #include "NotificationFormatter.h"
 #include "PinnedMessages.h"
 #include "PollInfo.h"
+#include "PollSend.h"
 #include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "FolderChats.h"
@@ -824,6 +825,38 @@ void TelegramRepository::votePoll(qint64 chatId, qint64 messageId, int optionInd
                 QStringLiteral("Could not vote in the poll"));
 }
 
+void TelegramRepository::sendPoll(const OutgoingPoll& poll)
+{
+    if (m_currentChatId == 0)
+        return;
+    const QJsonObject request = sendPollRequest(m_currentChatId, poll);
+    if (request.isEmpty()) {
+        setError(QStringLiteral("Poll needs a question and 2-10 options"));
+        emit stateChanged();
+        return;
+    }
+    m_error.clear();
+    sendRequest(
+        request,
+        [this, chatId = m_currentChatId](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
+                MessageData message = messageFromJson(response);
+                if (chatId == m_currentChatId) {
+                    resolveSender(message);
+                    m_messageModel->addOrUpdate(message);
+                    markCurrentChatRead();
+                }
+            } else if (response.value(QStringLiteral("@type")).toString()
+                       == QLatin1String("error")) {
+                setError(QStringLiteral("Could not send the poll: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not send the poll"));
+    emit stateChanged();
+}
+
 void TelegramRepository::editMessage(qint64 messageId, const QString& text)
 {
     if (m_currentChatId == 0 || messageId == 0)
@@ -847,13 +880,13 @@ void TelegramRepository::editMessage(qint64 messageId, const QString& text)
         QStringLiteral("Could not edit the message"));
 }
 
-void TelegramRepository::deleteMessage(qint64 messageId)
+void TelegramRepository::deleteMessage(qint64 messageId, bool revoke)
 {
     if (m_currentChatId == 0 || messageId == 0)
         return;
 
     sendRequest(
-        deleteMessagesRequest(m_currentChatId, QJsonArray{messageId}, true),
+        deleteMessagesRequest(m_currentChatId, QJsonArray{messageId}, revoke),
         [this, messageId](const QJsonObject& response) {
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
                 setError(QStringLiteral("Could not delete the message: %1")
@@ -1060,9 +1093,13 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
         const bool privateChat = chatIt != m_chats.cend()
             ? isPrivateChat(chatIt->type)
             : (message.chatId == m_currentChatId && isPrivateChat(m_currentChatType));
+        const bool secretChat = chatIt != m_chats.cend()
+            ? chatIt->type == QLatin1String("chatTypeSecret")
+            : (message.chatId == m_currentChatId
+               && m_currentChatType == QLatin1String("chatTypeSecret"));
         const NotificationPayload payload = notificationForMessage(
             object, chatTitle, privateChat, m_currentChatId, muted);
-        if (payload.shouldNotify)
+        if (!secretChat && payload.shouldNotify)
             emit notificationRequested(payload.title, payload.body);
         if (message.chatId == m_currentChatId) {
             if (isPrivateChat(m_currentChatType) && !message.outgoing)

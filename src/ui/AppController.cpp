@@ -1138,11 +1138,11 @@ void AppController::editChatMessage(qint64 messageId, const QString& text)
     emit chatStateChanged();
 }
 
-void AppController::deleteChatMessage(qint64 messageId)
+void AppController::deleteChatMessage(qint64 messageId, bool revoke)
 {
     m_chatError.clear();
     if (m_repository)
-        m_repository->deleteMessage(messageId);
+        m_repository->deleteMessage(messageId, revoke);
     emit chatStateChanged();
 }
 
@@ -1168,6 +1168,25 @@ void AppController::votePoll(qint64 chatId, qint64 messageId, int optionIndex)
     if (m_repository)
         m_repository->votePoll(chatId, messageId, optionIndex);
     emit chatStateChanged();
+}
+
+bool AppController::sendPoll(const QString& question, const QStringList& options,
+                             bool anonymous, bool multiple, bool quiz,
+                             int correctIndex, const QString& explanation)
+{
+    m_chatError.clear();
+    telegram::OutgoingPoll poll;
+    poll.question = question;
+    poll.options = QVector<QString>(options.begin(), options.end());
+    poll.anonymous = anonymous;
+    poll.multiple = multiple;
+    poll.quiz = quiz;
+    poll.correctOption = correctIndex;
+    poll.explanation = explanation;
+    if (m_repository)
+        m_repository->sendPoll(poll);
+    emit chatStateChanged();
+    return true;
 }
 
 void AppController::copyText(const QString& text)

@@ -7,6 +7,9 @@
 
 namespace beygram::telegram {
 
+/// Pure builders and parsers for TDLib reaction catalogs. They contain no
+/// logging, no secrets and no @extra; the transport adds correlation.
+
 /// One reaction offered by a reaction catalog.
 ///
 /// type uses the same short tags as MessageReactions: "emoji",

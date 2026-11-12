@@ -55,6 +55,26 @@ add_library(beygram_telegram STATIC
     ReactionCatalog.h
     PaymentRequests.cpp
     PaymentRequests.h
+    AlbumModel.cpp
+    AlbumModel.h
+    ChatArchiveController.cpp
+    ChatArchiveController.h
+    MessageSelectionController.cpp
+    MessageSelectionController.h
+    GlobalSearchController.cpp
+    GlobalSearchController.h
+    ProfileEditController.cpp
+    ProfileEditController.h
+    ChatNotificationController.cpp
+    ChatNotificationController.h
+    PrivacySettingsModel.cpp
+    PrivacySettingsModel.h
+    StickerSendController.cpp
+    StickerSendController.h
+    MessageJumpController.cpp
+    MessageJumpController.h
+    BotCommandModel.cpp
+    BotCommandModel.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

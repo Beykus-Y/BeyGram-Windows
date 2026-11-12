@@ -46,7 +46,7 @@ This document describes the native Windows client. The Android client under
 - Typing/upload status labels and a typing indicator for the open chat.
 - History merge/tombstone store, reaction-update parser, read-marker tracker, media cache policy, scheduled/notification/blocking builders, message-window jump, sticker send and typing roster.
 - A 20-part Android parity audit under `docs/parity/` with concrete gap lists and port plans.
-- Album send, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state and draft/send-option layers.
+- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump.
 - Archive, selection, profile-edit, link-preview, sticker-set, poll and contact-search modules/components.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
@@ -251,7 +251,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 96 suites:
+`ctest` runs 106 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -278,7 +278,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **96/96 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **106/106 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

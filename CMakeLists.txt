@@ -91,6 +91,7 @@ qt_add_qml_module(beygram
         qml/components/ChatNotificationSettings.qml
         qml/components/LinkPreviewCard.qml
         qml/components/PollBubble.qml
+        qml/components/PollComposerDialog.qml
         qml/components/ProfileEditDialog.qml
         qml/components/SelectionToolbar.qml
         qml/components/StickerPicker.qml

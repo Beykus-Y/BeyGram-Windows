@@ -702,6 +702,11 @@ Item {
                                 implicitHeight: 40
                                 onClicked: attachDialog.open()
                             }
+                            SecondaryButton {
+                                text: "Poll"
+                                implicitHeight: 40
+                                onClicked: pollDialog.open()
+                            }
 
                             TextArea {
                                 id: composer
@@ -943,6 +948,15 @@ Item {
         }
     }
 
+    PollComposerDialog {
+        id: pollDialog
+        onCreateRequested: (question, options, anonymous, multiple, quiz,
+                            correctIndex, explanation) => {
+            BeyGramApp.sendPoll(question, options, anonymous, multiple, quiz,
+                                correctIndex, explanation)
+        }
+    }
+
     Dialog {
         id: deleteDialog
         property var messageId: 0
@@ -956,7 +970,7 @@ Item {
             spacing: 12
             Text {
                 Layout.fillWidth: true
-                text: "Delete this message for everyone? TDLib enforces the account's delete permission."
+                text: "Choose whether to remove this message only for you or for everyone. TDLib enforces the account's delete permission."
                 color: BeyGramTheme.text
                 font.pixelSize: 12
                 wrapMode: Text.WordWrap
@@ -968,12 +982,19 @@ Item {
                     text: "Cancel"
                     onClicked: deleteDialog.close()
                 }
+                SecondaryButton {
+                    text: "Delete for me"
+                    onClicked: {
+                        deleteDialog.close()
+                        BeyGramApp.deleteChatMessage(deleteDialog.messageId, false)
+                    }
+                }
                 PrimaryButton {
-                    text: "Delete"
+                    text: "Delete for everyone"
                     tone: "danger"
                     onClicked: {
                         deleteDialog.close()
-                        BeyGramApp.deleteChatMessage(deleteDialog.messageId)
+                        BeyGramApp.deleteChatMessage(deleteDialog.messageId, true)
                     }
                 }
             }

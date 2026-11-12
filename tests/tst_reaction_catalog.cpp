@@ -587,6 +587,14 @@ void ReactionCatalogTest::ignoresPopularReactions()
     QCOMPARE(state.recentReactions.size(), 1);
     QCOMPARE(state.topReactions.at(0).emoji, QStringLiteral("👍"));
     QCOMPARE(state.recentReactions.at(0).emoji, QStringLiteral("🔥"));
+
+    const ReactionCatalogState popularOnly = reactionCatalogFromResponse(responseFromJson(R"({
+        "popular_reactions": [
+            { "type": { "@type": "reactionTypeEmoji", "emoji": "🎉" } }
+        ]
+    })"));
+    QVERIFY(popularOnly.topReactions.isEmpty());
+    QVERIFY(popularOnly.recentReactions.isEmpty());
 }
 
 void ReactionCatalogTest::prefersDirectCatalogOverNested()
