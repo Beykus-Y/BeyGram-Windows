@@ -1,9 +1,14 @@
-// Small emoji picker popup for adding a reaction to a message.
+// Compact reaction picker popup.
 //
-// Presentation only. The parent opens it next to its own add-reaction
-// affordance and turns the emitted reactionSelected(emoji) into a TDLib
-// addMessageReaction request for the message it is currently showing. Nothing
-// in this file touches TDLib, the network, the message store, or logging.
+// Presentation only. `facade` is a beygram::ui::ReactionsFacade, which owns the
+// catalog, the selection and the target message; this popup reads facade.top,
+// facade.recent, facade.selected and facade.expanded, and forwards clicks to
+// facade.toggle(), facade.setExpanded() and facade.clearSelection(). The facade
+// emits reactionRequested(chatId, messageId, emoji) for the owner to turn into a
+// TDLib addMessageReaction request (an empty emoji removes the reaction).
+//
+// Nothing in this file touches TDLib, the network, the message store, or
+// logging. A null facade leaves the popup empty and inert.
 
 import QtQuick
 import QtQuick.Controls
@@ -11,73 +16,38 @@ import QtQuick.Layouts
 import BeyGram.Theme 1.0
 
 Popup {
-    id: reactionPicker
+    id: picker
 
-    /// Emoji offered by the grid. The default is the common Telegram reaction
-    /// set; the parent may replace it with the list returned by TDLib.
-    property var emojis: [
-        "👍", "❤️", "🔥", "🥰", "👏", "😁",
-        "🤔", "🤯", "😱", "😢", "🎉", "🤩",
-        "💯", "🙏", "👌", "🫡", "😍", "🆒",
-        "💔", "🤣", "😡", "🌚", "🤝", "🥴"
-    ]
+    /// beygram::ui::ReactionsFacade instance. May be null while the owner wires
+    /// the popup up; every binding below tolerates that.
+    property var facade: null
 
-    signal reactionSelected(string emoji)
+    readonly property bool ready: picker.facade !== null && picker.facade !== undefined
+    /// Emoji offered as the primary row.
+    readonly property var topEmoji: picker.ready ? picker.facade.top : []
+    /// Recently used emoji, revealed by the more toggle.
+    readonly property var recentEmoji: picker.ready ? picker.facade.recent : []
+    /// The emoji the user has currently chosen, or an empty string.
+    readonly property string selectedEmoji: picker.ready ? picker.facade.selected : ""
+    /// Whether the recent row is shown.
+    readonly property bool showMore: picker.ready ? picker.facade.expanded : false
 
-    /// Number of emoji per row.
-    readonly property int columns: 6
     /// Edge length of one emoji button.
-    readonly property int cellSize: 36
-    /// Gap between the anchor item and the popup.
-    readonly property int anchorGap: 6
+    readonly property int cellSize: 34
+    /// Emoji per row in the primary grid.
+    readonly property int columns: 6
 
     padding: 8
     modal: false
     dim: false
+    focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    implicitWidth: grid.implicitWidth + leftPadding + rightPadding
-    implicitHeight: grid.implicitHeight + topPadding + bottomPadding
+    implicitWidth: Math.max(topGrid.implicitWidth, recentRow.implicitWidth,
+                            footer.implicitWidth) + leftPadding + rightPadding
+    implicitHeight: body.implicitHeight + topPadding + bottomPadding
 
-    // Places the popup directly under the parent item, flipping above it when
-    // the window bottom is too close, and keeps it horizontally on screen.
-    // Called from aboutToShow so open() needs no arguments from the caller.
-    function placeNearParent() {
-        const anchor = reactionPicker.parent
-        const overlay = Overlay.overlay
-        if (!anchor || !overlay)
-            return
-
-        const anchorTopLeft = anchor.mapToItem(overlay, 0, 0)
-        const anchorBottom = anchorTopLeft.y + anchor.height
-        const spaceBelow = overlay.height - anchorBottom
-        const spaceAbove = anchorTopLeft.y
-
-        let y = anchor.height + reactionPicker.anchorGap
-        if (spaceBelow < reactionPicker.height + reactionPicker.anchorGap
-                && spaceAbove > spaceBelow)
-            y = -reactionPicker.height - reactionPicker.anchorGap
-
-        // Centre on the anchor, then clamp so the popup cannot leave the window.
-        let x = Math.round((anchor.width - reactionPicker.width) / 2)
-        const minX = reactionPicker.anchorGap - anchorTopLeft.x
-        const maxX = overlay.width - anchorTopLeft.x - reactionPicker.width
-                - reactionPicker.anchorGap
-        if (maxX >= minX)
-            x = Math.min(Math.max(x, minX), maxX)
-
-        reactionPicker.x = x
-        reactionPicker.y = y
-    }
-
-    // Emits the chosen emoji and dismisses the picker.
-    function select(emoji) {
-        if (!emoji || emoji.length === 0)
-            return
-        reactionPicker.reactionSelected(emoji)
-        reactionPicker.close()
-    }
-
-    onAboutToShow: reactionPicker.placeNearParent()
+    // A dismissed popup must not leave a highlight behind for the next message.
+    onClosed: if (picker.facade) picker.facade.clearSelection()
 
     background: Rectangle {
         radius: 12
@@ -86,43 +56,161 @@ Popup {
         border.color: BeyGramTheme.line
     }
 
-    GridLayout {
-        id: grid
-        anchors.fill: parent
-        columns: reactionPicker.columns
-        rowSpacing: 2
-        columnSpacing: 2
+    contentItem: ColumnLayout {
+        id: body
+        spacing: 4
 
-        Repeater {
-            model: reactionPicker.emojis ? reactionPicker.emojis : []
+        GridLayout {
+            id: topGrid
+            columns: picker.columns
+            rowSpacing: 2
+            columnSpacing: 2
+            Layout.alignment: Qt.AlignHCenter
 
-            delegate: Rectangle {
-                id: cell
-                property string emoji: modelData
+            Repeater {
+                model: picker.topEmoji
 
-                Layout.preferredWidth: reactionPicker.cellSize
-                Layout.preferredHeight: reactionPicker.cellSize
-                radius: 10
-                color: cellArea.containsMouse ? BeyGramTheme.surface2 : "transparent"
+                delegate: Rectangle {
+                    id: topCell
+                    property string emoji: modelData
+
+                    Layout.preferredWidth: picker.cellSize
+                    Layout.preferredHeight: picker.cellSize
+                    radius: 10
+                    color: picker.selectedEmoji === topCell.emoji
+                           ? BeyGramTheme.accentSoft
+                           : (topArea.containsMouse ? BeyGramTheme.surface2 : "transparent")
+
+                    Accessible.role: Accessible.Button
+                    Accessible.name: topCell.emoji
+                    Accessible.checked: picker.selectedEmoji === topCell.emoji
+
+                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: topCell.emoji
+                        color: BeyGramTheme.text
+                        font.pixelSize: 18
+                    }
+
+                    MouseArea {
+                        id: topArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: if (picker.facade) picker.facade.toggle(topCell.emoji)
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            id: recentRow
+            spacing: 2
+            visible: picker.showMore && picker.recentEmoji.length > 0
+            Layout.alignment: Qt.AlignHCenter
+
+            Repeater {
+                model: picker.showMore ? picker.recentEmoji : []
+
+                delegate: Rectangle {
+                    id: recentCell
+                    property string emoji: modelData
+
+                    Layout.preferredWidth: picker.cellSize
+                    Layout.preferredHeight: picker.cellSize
+                    radius: 10
+                    color: picker.selectedEmoji === recentCell.emoji
+                           ? BeyGramTheme.accentSoft
+                           : (recentArea.containsMouse ? BeyGramTheme.surface2 : "transparent")
+
+                    Accessible.role: Accessible.Button
+                    Accessible.name: recentCell.emoji
+                    Accessible.checked: picker.selectedEmoji === recentCell.emoji
+
+                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: recentCell.emoji
+                        color: BeyGramTheme.text
+                        font.pixelSize: 18
+                    }
+
+                    MouseArea {
+                        id: recentArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: if (picker.facade) picker.facade.toggle(recentCell.emoji)
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            id: footer
+            spacing: 2
+            Layout.fillWidth: true
+
+            // Reveals or hides the recent row.
+            Rectangle {
+                id: moreButton
+                Layout.preferredWidth: moreLabel.implicitWidth + 12
+                Layout.preferredHeight: 22
+                radius: 11
+                color: moreArea.containsMouse ? BeyGramTheme.surface2 : "transparent"
 
                 Accessible.role: Accessible.Button
-                Accessible.name: cell.emoji
-
-                Behavior on color { ColorAnimation { duration: 100 } }
+                Accessible.name: picker.showMore ? qsTr("Fewer reactions")
+                                               : qsTr("More reactions")
+                Accessible.checked: picker.showMore
 
                 Text {
+                    id: moreLabel
                     anchors.centerIn: parent
-                    text: cell.emoji
-                    color: BeyGramTheme.text
-                    font.pixelSize: 18
+                    text: picker.showMore ? qsTr("Less") : qsTr("More")
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 11
                 }
 
                 MouseArea {
-                    id: cellArea
+                    id: moreArea
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: reactionPicker.select(cell.emoji)
+                    onClicked: if (picker.facade)
+                                   picker.facade.setExpanded(!picker.showMore)
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            // Dismisses the popup without choosing anything.
+            Rectangle {
+                id: closeButton
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                radius: 11
+                color: closeArea.containsMouse ? BeyGramTheme.surface2 : "transparent"
+
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Close reaction picker")
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u2715"
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 11
+                }
+
+                MouseArea {
+                    id: closeArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: picker.close()
                 }
             }
         }

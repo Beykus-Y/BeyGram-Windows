@@ -13,6 +13,7 @@
 #include "ui/MediaViewerController.h"
 #include "ui/MediaPlaybackController.h"
 #include "ui/NotificationSettingsStore.h"
+#include "ui/UiFacades.h"
 #include "telegram/TelegramConfig.h"
 
 #include <QAbstractItemModel>
@@ -130,6 +131,40 @@ class AppController final : public QObject {
     Q_PROPERTY(bool pinnedVisible READ pinnedVisible NOTIFY pinnedChanged)
     Q_PROPERTY(QString typingText READ typingText NOTIFY typingChanged)
 
+    // QML-facing facades. Each one is a self-contained state holder for a
+    // feature panel; request signals are forwarded to the repository by this
+    // controller. CONSTANT is correct because they live as long as the app.
+    Q_PROPERTY(QObject* stickerPanel READ stickerPanel CONSTANT)
+    Q_PROPERTY(QObject* selection READ selection CONSTANT)
+    Q_PROPERTY(QObject* privacy READ privacy CONSTANT)
+    Q_PROPERTY(QObject* sessions READ sessions CONSTANT)
+    Q_PROPERTY(QObject* calls READ calls CONSTANT)
+    Q_PROPERTY(QObject* stories READ stories CONSTANT)
+    Q_PROPERTY(QObject* gifts READ gifts CONSTANT)
+    Q_PROPERTY(QObject* stars READ stars CONSTANT)
+    Q_PROPERTY(QObject* payments READ payments CONSTANT)
+    Q_PROPERTY(QObject* premium READ premium CONSTANT)
+    Q_PROPERTY(QObject* gallery READ gallery CONSTANT)
+    Q_PROPERTY(QObject* playbackBar READ playbackBar CONSTANT)
+    Q_PROPERTY(QObject* voiceComposer READ voiceComposer CONSTANT)
+    Q_PROPERTY(QObject* search READ search CONSTANT)
+    Q_PROPERTY(QObject* chatListControls READ chatListControls CONSTANT)
+    Q_PROPERTY(QObject* folders READ folders CONSTANT)
+    Q_PROPERTY(QObject* translation READ translation CONSTANT)
+    Q_PROPERTY(QObject* emoji READ emoji CONSTANT)
+    Q_PROPERTY(QObject* reactions READ reactions CONSTANT)
+    Q_PROPERTY(QObject* bots READ bots CONSTANT)
+    Q_PROPERTY(QObject* profileEditor READ profileEditor CONSTANT)
+    Q_PROPERTY(QObject* contacts READ contacts CONSTANT)
+    Q_PROPERTY(QObject* notificationSettings READ notificationSettings CONSTANT)
+    Q_PROPERTY(QObject* storage READ storage CONSTANT)
+    Q_PROPERTY(QObject* network READ network CONSTANT)
+    Q_PROPERTY(QObject* appearance READ appearance CONSTANT)
+    Q_PROPERTY(QObject* shortcuts READ shortcuts CONSTANT)
+    Q_PROPERTY(QObject* statistics READ statistics CONSTANT)
+    Q_PROPERTY(QObject* security READ security CONSTANT)
+    Q_PROPERTY(QObject* deepLinks READ deepLinks CONSTANT)
+
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
 
@@ -226,6 +261,39 @@ public:
     [[nodiscard]] QString pinnedPreview() const;
     [[nodiscard]] bool pinnedVisible() const;
     [[nodiscard]] QString typingText() const;
+
+    // Facade accessors for QML. They never return null: UiFacades is created in
+    // the constructor and outlives every binding.
+    [[nodiscard]] QObject* stickerPanel();
+    [[nodiscard]] QObject* selection();
+    [[nodiscard]] QObject* privacy();
+    [[nodiscard]] QObject* sessions();
+    [[nodiscard]] QObject* calls();
+    [[nodiscard]] QObject* stories();
+    [[nodiscard]] QObject* gifts();
+    [[nodiscard]] QObject* stars();
+    [[nodiscard]] QObject* payments();
+    [[nodiscard]] QObject* premium();
+    [[nodiscard]] QObject* gallery();
+    [[nodiscard]] QObject* playbackBar();
+    [[nodiscard]] QObject* voiceComposer();
+    [[nodiscard]] QObject* search();
+    [[nodiscard]] QObject* chatListControls();
+    [[nodiscard]] QObject* folders();
+    [[nodiscard]] QObject* translation();
+    [[nodiscard]] QObject* emoji();
+    [[nodiscard]] QObject* reactions();
+    [[nodiscard]] QObject* bots();
+    [[nodiscard]] QObject* profileEditor();
+    [[nodiscard]] QObject* contacts();
+    [[nodiscard]] QObject* notificationSettings();
+    [[nodiscard]] QObject* storage();
+    [[nodiscard]] QObject* network();
+    [[nodiscard]] QObject* appearance();
+    [[nodiscard]] QObject* shortcuts();
+    [[nodiscard]] QObject* statistics();
+    [[nodiscard]] QObject* security();
+    [[nodiscard]] QObject* deepLinks();
     Q_INVOKABLE void unpinPinnedMessage();
     Q_INVOKABLE void notifyTyping();
     void setNotificationsEnabled(bool enabled);
@@ -346,7 +414,7 @@ private:
 
     std::unique_ptr<telegram::TelegramSession> m_session;
     std::unique_ptr<telegram::TelegramRepository> m_repository;
-    telegram::AccountRegistry m_registry;
+    std::unique_ptr<UiFacades> m_facades;    telegram::AccountRegistry m_registry;
     telegram::CredentialStore m_credentials;
     telegram::ChatListModel m_chatListModel;
     telegram::MessageListModel m_messageModel;

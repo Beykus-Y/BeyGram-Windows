@@ -52,7 +52,7 @@ This document describes the native Windows client. The Android client under
 - Typing/upload status labels and a typing indicator for the open chat.
 - History merge/tombstone store, reaction-update parser, read-marker tracker, media cache policy, scheduled/notification/blocking builders, message-window jump, sticker send and typing roster.
 - A 20-part Android parity audit under `docs/parity/` with concrete gap lists and port plans.
-- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump, plus story viewer, call state, media playlist, voice recording, scheduled send, emoji catalog, auto-download policy, spoiler reveal, connection status, translation, sticker search, chat statistics, member list, username check, session list, gift catalog, chat background, call history, notification settings, text replacements, sticker picker, media gallery, message edit, poll composer, secret-chat safety, payment checkout, download queue, message grouping, inline queries, chat sorting, unread badges, deep-link routing, story progress, waveforms, audio/video state, action bars, presence, search history, invite links, group calls, gifts, stars, payments, phone/country entry, sticker-set install, reaction picker, forward targets, contact sorting, archive settings, sounds, data usage, storage, cache cleanup, message statistics, boosts, transactions, proxy, languages, accessibility, shortcuts, web apps, privacy rule editing, poll voting, captions, story reactions, gift history, premium status, star packages, translation languages, session termination, folder editing, recent stickers, payment cards and member rights. Fixed the duplicated getChatFolderRequest definition so FolderEdit compiles again.
+- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump, plus story viewer, call state, media playlist, voice recording, scheduled send, emoji catalog, auto-download policy, spoiler reveal, connection status, translation, sticker search, chat statistics, member list, username check, session list, gift catalog, chat background, call history, notification settings, text replacements, sticker picker, media gallery, message edit, poll composer, secret-chat safety, payment checkout, download queue, message grouping, inline queries, chat sorting, unread badges, deep-link routing, story progress, waveforms, audio/video state, action bars, presence, search history, invite links, group calls, gifts, stars, payments, phone/country entry, sticker-set install, reaction picker, forward targets, contact sorting, archive settings, sounds, data usage, storage, cache cleanup, message statistics, boosts, transactions, proxy, languages, accessibility, shortcuts, web apps, privacy rule editing, poll voting, captions, story reactions, gift history, premium status, star packages, translation languages, session termination, folder editing, recent stickers, payment cards and member rights. Added 30 QML-facing facades (src/ui/*Facade) aggregated in UiFacades and exposed to QML as AppController properties, each with a matching qml/components panel. Fixed the duplicated getChatFolderRequest definition so FolderEdit compiles again.
 - Archive, selection, profile-edit, link-preview, sticker-set, poll and contact-search modules/components.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
@@ -257,7 +257,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 184 suites:
+`ctest` runs 214 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -284,7 +284,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **184/184 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **214/214 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

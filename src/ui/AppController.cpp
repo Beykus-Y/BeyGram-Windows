@@ -102,6 +102,7 @@ AppController::AppController(QObject* parent)
       m_drafts(QDir(AppPaths::dataDirectory()).filePath(QStringLiteral("state/drafts.json")))
 {
     buildConfig();
+    m_facades = std::make_unique<UiFacades>(this);
     m_drafts.load();
     m_notificationSettings.load();
 
@@ -949,6 +950,37 @@ QString AppController::typingText() const
 {
     return m_typingText;
 }
+
+QObject* AppController::stickerPanel() { return m_facades->stickerPanel(); }
+QObject* AppController::selection() { return m_facades->selection(); }
+QObject* AppController::privacy() { return m_facades->privacy(); }
+QObject* AppController::sessions() { return m_facades->sessions(); }
+QObject* AppController::calls() { return m_facades->calls(); }
+QObject* AppController::stories() { return m_facades->stories(); }
+QObject* AppController::gifts() { return m_facades->gifts(); }
+QObject* AppController::stars() { return m_facades->stars(); }
+QObject* AppController::payments() { return m_facades->payments(); }
+QObject* AppController::premium() { return m_facades->premium(); }
+QObject* AppController::gallery() { return m_facades->gallery(); }
+QObject* AppController::playbackBar() { return m_facades->playback(); }
+QObject* AppController::voiceComposer() { return m_facades->voiceComposer(); }
+QObject* AppController::search() { return m_facades->search(); }
+QObject* AppController::chatListControls() { return m_facades->chatListControls(); }
+QObject* AppController::folders() { return m_facades->folders(); }
+QObject* AppController::translation() { return m_facades->translation(); }
+QObject* AppController::emoji() { return m_facades->emoji(); }
+QObject* AppController::reactions() { return m_facades->reactions(); }
+QObject* AppController::bots() { return m_facades->bots(); }
+QObject* AppController::profileEditor() { return m_facades->profile(); }
+QObject* AppController::contacts() { return m_facades->contacts(); }
+QObject* AppController::notificationSettings() { return m_facades->notifications(); }
+QObject* AppController::storage() { return m_facades->storage(); }
+QObject* AppController::network() { return m_facades->network(); }
+QObject* AppController::appearance() { return m_facades->appearance(); }
+QObject* AppController::shortcuts() { return m_facades->shortcuts(); }
+QObject* AppController::statistics() { return m_facades->statistics(); }
+QObject* AppController::security() { return m_facades->security(); }
+QObject* AppController::deepLinks() { return m_facades->deepLinks(); }
 
 void AppController::notifyTyping()
 {

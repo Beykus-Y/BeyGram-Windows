@@ -1,60 +1,45 @@
-// SelectionToolbar — action strip shown while a message selection is active.
+// SelectionToolbar — compact action strip shown while a message selection is
+// active.
 //
-// Presentation only. The parent owns multi-select mode and the set of selected
-// message ids; it binds `selectedCount` and turns the emitted signals into
-// TDLib requests (forward / copy / delete) or leaves selection mode. Nothing in
-// this file touches TDLib, the network, the message store, or logging.
+// Presentation only. All state lives in the injected `facade`
+// (beygram::ui::SelectionFacade): the strip reads its count, asks it to open
+// the forward picker and clears the selection through it. Nothing here touches
+// TDLib, the network, the message store, or logging.
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
 
-Item {
+Rectangle {
     id: toolbar
 
-    /// Number of selected messages. Non-positive values keep the actions
-    /// disabled; the parent normally hides the toolbar in that case.
-    property int selectedCount: 0
+    /// The SelectionFacade driving this toolbar. May be null while the page is
+    /// still being constructed.
+    property var facade
 
-    signal forwardRequested()
-    signal copyRequested()
-    signal deleteRequested()
-    signal clearRequested()
+    readonly property int selectedCount: toolbar.facade ? toolbar.facade.count : 0
+    readonly property bool hasSelection: toolbar.selectedCount > 0
 
-    readonly property int count: Math.max(0, toolbar.selectedCount)
-    readonly property bool hasSelection: toolbar.count > 0
-
-    // Height is fixed. `visible` stays Item's own property (default false) so
-    // the parent can bind it to whether selection mode is active.
+    visible: toolbar.facade ? toolbar.facade.active : false
     implicitHeight: 48
     height: 48
-    visible: false
+    color: BeyGramTheme.surface2
     clip: true
 
+    // Separator against the content above, matching the muted line used by the
+    // pinned message banner.
     Rectangle {
-        id: background
-        anchors.fill: parent
-        radius: 0
-        color: BeyGramTheme.surface2
-
-        // Separator against the content above (this strip sits over the
-        // composer), matching the muted line used by the pinned banner.
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: 1
-            color: BeyGramTheme.line
-        }
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 1
+        color: BeyGramTheme.line
     }
 
-    // Compact flat action button. Declared as an inline component so the three
-    // actions share one look; instances pass their own enabled state.
+    // Compact flat action button shared by both actions.
     component ToolbarAction: Button {
         id: action
-
-        property bool destructive: false
 
         implicitHeight: 28
         implicitWidth: implicitContentWidth + leftPadding + rightPadding
@@ -69,7 +54,7 @@ Item {
 
         contentItem: Text {
             text: action.text
-            color: action.destructive ? BeyGramTheme.danger : BeyGramTheme.text
+            color: BeyGramTheme.text
             font.pixelSize: 12
             font.weight: Font.Medium
             horizontalAlignment: Text.AlignHCenter
@@ -94,15 +79,14 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 14
         anchors.rightMargin: 8
-        anchors.topMargin: 0
-        anchors.bottomMargin: 0
         spacing: 8
 
         Text {
             id: countLabel
             Layout.alignment: Qt.AlignVCenter
-            Layout.maximumWidth: Math.max(0, toolbar.width * 0.4)
-            text: qsTr("%1 selected").arg(toolbar.count)
+            Layout.fillWidth: true
+            Layout.maximumWidth: Math.max(0, toolbar.width * 0.5)
+            text: qsTr("%1 selected").arg(toolbar.selectedCount)
             color: BeyGramTheme.text
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -111,16 +95,15 @@ Item {
             wrapMode: Text.NoWrap
         }
 
-        Item {
-            Layout.fillWidth: true
-        }
-
         ToolbarAction {
             id: forwardButton
             Layout.alignment: Qt.AlignVCenter
             text: qsTr("Forward")
             enabled: toolbar.hasSelection
-            onClicked: toolbar.forwardRequested()
+            onClicked: {
+                if (toolbar.facade)
+                    toolbar.facade.beginForward();
+            }
 
             ToolTip.visible: hovered
             ToolTip.text: qsTr("Forward selected messages")
@@ -128,53 +111,13 @@ Item {
         }
 
         ToolbarAction {
-            id: copyButton
+            id: cancelButton
             Layout.alignment: Qt.AlignVCenter
-            text: qsTr("Copy")
-            enabled: toolbar.hasSelection
-            onClicked: toolbar.copyRequested()
-
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Copy selected messages")
-            ToolTip.delay: 600
-        }
-
-        ToolbarAction {
-            id: deleteButton
-            Layout.alignment: Qt.AlignVCenter
-            text: qsTr("Delete")
-            destructive: true
-            enabled: toolbar.hasSelection
-            onClicked: toolbar.deleteRequested()
-
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Delete selected messages")
-            ToolTip.delay: 600
-        }
-
-        // The close affordance stays enabled even with an empty count so the
-        // parent can always leave selection mode through it.
-        ToolButton {
-            id: closeButton
-            Layout.alignment: Qt.AlignVCenter
-            implicitWidth: 24
-            implicitHeight: 24
-            padding: 0
-            focusPolicy: Qt.NoFocus
-            onClicked: toolbar.clearRequested()
-
-            background: Rectangle {
-                radius: 12
-                color: closeButton.hovered ? Qt.alpha(BeyGramTheme.accentInk, 0.12)
-                                           : "transparent"
-            }
-
-            contentItem: Text {
-                text: "\u2715"
-                color: closeButton.hovered ? BeyGramTheme.text : BeyGramTheme.muted
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+            text: qsTr("Cancel")
+            enabled: toolbar.facade !== null
+            onClicked: {
+                if (toolbar.facade)
+                    toolbar.facade.clear();
             }
 
             ToolTip.visible: hovered

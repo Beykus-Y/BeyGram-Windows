@@ -92,6 +92,33 @@ qt_add_qml_module(beygram
         qml/components/LinkPreviewCard.qml
         qml/components/PollBubble.qml
         qml/components/PollComposerDialog.qml
+        qml/components/VoiceRecorder.qml
+        qml/components/TranslationSheet.qml
+        qml/components/StoryViewer.qml
+        qml/components/StoragePanel.qml
+        qml/components/StickerPanel.qml
+        qml/components/StatisticsPanel.qml
+        qml/components/StarsPanel.qml
+        qml/components/ShortcutsPanel.qml
+        qml/components/SessionsPanel.qml
+        qml/components/SecretChatBanner.qml
+        qml/components/SearchSuggestions.qml
+        qml/components/ProfileEditor.qml
+        qml/components/PrivacyPanel.qml
+        qml/components/PremiumCard.qml
+        qml/components/PlaybackBar.qml
+        qml/components/PaymentSheet.qml
+        qml/components/NetworkPanel.qml
+        qml/components/MediaGallery.qml
+        qml/components/GiftPicker.qml
+        qml/components/FolderEditor.qml
+        qml/components/EmojiPicker.qml
+        qml/components/DeepLinkPrompt.qml
+        qml/components/ContactsPanel.qml
+        qml/components/ChatListControls.qml
+        qml/components/CallOverlay.qml
+        qml/components/BotKeyboard.qml
+        qml/components/AppearancePanel.qml
         qml/components/ProfileEditDialog.qml
         qml/components/SelectionToolbar.qml
         qml/components/StickerPicker.qml
