@@ -144,6 +144,7 @@ qt_add_qml_module(beygram
         qml/pages/SettingsPage.qml
         qml/pages/ArchivePage.qml
         qml/pages/GlobalSearchPage.qml
+        qml/pages/ToolsPage.qml
         qml/pages/EnvironmentPage.qml
         qml/pages/LogsPage.qml
 )

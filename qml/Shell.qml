@@ -15,6 +15,7 @@ Item {
     Shortcut { sequence: "Alt+4"; onActivated: shell.currentSection = 3 }
     Shortcut { sequence: "Alt+5"; onActivated: shell.currentSection = 4 }
     Shortcut { sequence: "Alt+6"; onActivated: shell.currentSection = 5 }
+    Shortcut { sequence: "Alt+7"; onActivated: shell.currentSection = 6 }
 
     RowLayout {
         anchors.fill: parent
@@ -168,6 +169,12 @@ Item {
                     selected: shell.currentSection === 5
                     onClicked: shell.currentSection = 5
                 }
+                NavButton {
+                    Layout.fillWidth: true
+                    text: "Tools"
+                    selected: shell.currentSection === 6
+                    onClicked: shell.currentSection = 6
+                }
 
                 Item { Layout.fillHeight: true }
 
@@ -225,6 +232,34 @@ Item {
                     shell.currentSection = 0
                 }
             }
+            ToolsPage {}
         }
+    }
+
+    // Global overlays: each one is invisible until its facade says it is
+    // active, so they can live at the shell root and cover every page.
+    CallOverlay {
+        anchors.fill: parent
+        facade: BeyGramApp.calls
+    }
+    MediaGallery {
+        anchors.fill: parent
+        facade: BeyGramApp.gallery
+    }
+    StoryViewer {
+        anchors.fill: parent
+        facade: BeyGramApp.stories
+    }
+    PlaybackBar {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        facade: BeyGramApp.playbackBar
+    }
+    DeepLinkPrompt {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 24
+        facade: BeyGramApp.deepLinks
     }
 }
