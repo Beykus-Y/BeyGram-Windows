@@ -4,7 +4,8 @@
 //
 // Colours deliberately live in BeyGramTheme (they follow the Warm/Graphite
 // preset and the Light/Dark/AMOLED mode). This file owns the geometry,
-// typography and motion scale so every component agrees on the same numbers.
+// typography, Android DesignStyle/BubbleStyle adaptation, and motion scale
+// so every component agrees on the same numbers.
 
 // --- Spacing: a strict 4 px grid -------------------------------------------
 var space0 = 0;
@@ -30,7 +31,7 @@ var fontCaption = 11;
 var fontSmall = 12;
 var fontBody = 14;
 var fontBodyLarge = 15;
-var fontTitle = 17;
+var fontTitle = 18;
 var fontHeadline = 22;
 var fontDisplay = 28;
 
@@ -44,18 +45,21 @@ var controlHeightSmall = 32;
 var controlHeightLarge = 48;
 var iconSize = 18;
 var iconSizeLarge = 22;
-var avatarSmall = 32;
-var avatarMedium = 44;
+var avatarSmall = 34;
+var avatarMedium = 46;
 var avatarLarge = 56;
-var avatarXLarge = 72;
+var avatarXLarge = 76;
 
 // --- Chat -------------------------------------------------------------------
 var bubbleRadius = 16;
 var bubbleRadiusTail = 4;
 var bubbleMaxWidthRatio = 0.72;
-var composerRadius = 20;
-var rowHeight = 72;
-var headerHeight = 56;
+var composerRadius = 22;
+var rowHeight = 70;
+var rowHeightCompact = 58;
+var headerHeight = 58;
+var railWidthCollapsed = 72;
+var railWidthExpanded = 220;
 
 // --- Elevation --------------------------------------------------------------
 // QML has no shadow token, so elevation is expressed as border + surface step.
@@ -67,8 +71,6 @@ var elevation2 = 2;
 var motionFast = 120;
 var motionNormal = 180;
 var motionSlow = 260;
-// Components use Easing.OutCubic / Easing.OutQuint directly; a .pragma library
-// file cannot reference QML enum types.
 
 // --- Opacity ----------------------------------------------------------------
 var opacityDisabled = 0.45;
@@ -76,3 +78,54 @@ var opacitySecondary = 0.72;
 var opacityHover = 0.08;
 var opacityPressed = 0.14;
 var opacityScrim = 0.55;
+
+// --- DesignStyle & BubbleStyle helpers (mirroring Android DesignSystem.kt) --
+function cardRadius(style) {
+    if (style === "Material2")
+        return 10;
+    if (style === "Material3")
+        return 22;
+    if (style === "LiquidGlass" || style === "Signature")
+        return 18;
+    return radiusLg;
+}
+
+function rowRadius(style) {
+    if (style === "Material2")
+        return 8;
+    if (style === "Material3")
+        return 16;
+    if (style === "LiquidGlass" || style === "Signature")
+        return 14;
+    return radiusMd;
+}
+
+function buttonRadius(style) {
+    if (style === "Material2")
+        return 8;
+    if (style === "Material3")
+        return 20;
+    if (style === "LiquidGlass" || style === "Signature")
+        return 14;
+    return radiusSm;
+}
+
+function bubbleRadiusFor(bubbleStyle) {
+    if (bubbleStyle === "Square")
+        return 7;
+    if (bubbleStyle === "Soft")
+        return 13;
+    return 18;
+}
+
+function bubbleTailRadiusFor(bubbleStyle) {
+    if (bubbleStyle === "Square")
+        return 2;
+    if (bubbleStyle === "Soft")
+        return 4;
+    return 5;
+}
+
+function motion(ms, reduceMotion) {
+    return reduceMotion ? 0 : ms;
+}

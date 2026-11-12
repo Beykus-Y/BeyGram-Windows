@@ -4,38 +4,28 @@ import BeyGram.Theme 1.0
 import "design.js" as Design
 
 /// Generic list row used by settings, search results and pickers.
-///
-/// The row owns only the shell: hover/selection surface, padding and the
-/// title/subtitle stack. Anything visual goes into the `leading` and
-/// `trailing` slots, which are aliases for the slot items' `data` property:
-///
-///     DsListRow {
-///         title: "Privacy"
-///         leading: DsAvatar { size: Design.avatarSmall; initials: "P" }
-///         trailing: IconChevron { }
-///     }
 Item {
     id: root
 
     property string title: ""
     property string subtitle: ""
 
-    /// Slot for a leading item (avatar, icon, ...).
     property alias leading: leadingSlot.data
-    /// Slot for a trailing item (time label, chevron, switch, ...).
     property alias trailing: trailingSlot.data
 
     property bool selected: false
-    /// Unread counter; 0 hides the badge.
     property int unread: 0
     property bool muted: false
     property bool hoverEnabled: true
 
     signal clicked()
 
+    readonly property bool compact: BeyGramAppearance.listDensity === "Compact"
+    readonly property int rowHeightPx: compact ? Design.rowHeightCompact : Design.rowHeight
+
     implicitWidth: 320
-    implicitHeight: Design.rowHeight
-    height: Design.rowHeight
+    implicitHeight: rowHeightPx
+    height: rowHeightPx
 
     Accessible.role: Accessible.ListItem
     Accessible.name: root.title
@@ -44,22 +34,21 @@ Item {
     Rectangle {
         id: surface
         anchors.fill: parent
-        radius: Design.radiusMd
+        radius: Design.rowRadius(BeyGramAppearance.designStyle)
         color: root.selected
                ? BeyGramTheme.surface2
-               : (mouse.containsMouse
-                  ? Qt.alpha(BeyGramTheme.surface2, 0.6)
+               : (root.hoverEnabled && mouse.containsMouse
+                  ? Qt.alpha(BeyGramTheme.surface2, 0.70)
                   : "transparent")
 
         Behavior on color {
             ColorAnimation {
-                duration: Design.motionFast
+                duration: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
                 easing.type: Easing.OutCubic
             }
         }
     }
 
-    // Declared before the content so interactive slot items stay on top of it.
     MouseArea {
         id: mouse
         anchors.fill: parent
@@ -70,11 +59,10 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        // 12 px horizontal, 10 px vertical padding.
         anchors.leftMargin: Design.space3
         anchors.rightMargin: Design.space3
-        anchors.topMargin: 10
-        anchors.bottomMargin: 10
+        anchors.topMargin: root.compact ? 6 : 9
+        anchors.bottomMargin: root.compact ? 6 : 9
         spacing: Design.space3
 
         Item {
