@@ -1309,6 +1309,51 @@ void AppController::votePoll(qint64 chatId, qint64 messageId, int optionIndex)
     emit chatStateChanged();
 }
 
+void AppController::sendSticker(qint64 stickerId, int fileId, qint64 replyToMessageId)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->sendSticker(stickerId, fileId, replyToMessageId);
+    emit chatStateChanged();
+}
+
+void AppController::sendGift(qint64 giftId, qint64 chatId, const QString& text)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->sendGift(giftId, chatId, text);
+    emit chatStateChanged();
+}
+
+void AppController::savePrivacySetting(const QString& setting, const QString& rule)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->setPrivacySetting(setting, rule);
+    emit chatStateChanged();
+}
+
+void AppController::terminateSession(qint64 sessionId)
+{
+    if (m_repository)
+        m_repository->terminateSession(sessionId);
+    emit chatStateChanged();
+}
+
+void AppController::terminateAllOtherSessions()
+{
+    if (m_repository)
+        m_repository->terminateAllOtherSessions();
+    emit chatStateChanged();
+}
+
+void AppController::openStory(qint64 storyId)
+{
+    if (m_repository)
+        m_repository->openStory(storyId);
+    emit chatStateChanged();
+}
+
 bool AppController::sendPoll(const QString& question, const QStringList& options,
                              bool anonymous, bool multiple, bool quiz,
                              int correctIndex, const QString& explanation)

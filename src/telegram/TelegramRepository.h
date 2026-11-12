@@ -57,6 +57,12 @@ public:
                          const QVector<qint64>& messageIds);
     void votePoll(qint64 chatId, qint64 messageId, int optionIndex);
     void sendPoll(const OutgoingPoll& poll);
+    void sendSticker(qint64 stickerId, int fileId, qint64 replyToMessageId = 0);
+    void sendGift(qint64 giftId, qint64 chatId, const QString& text);
+    void setPrivacySetting(const QString& setting, const QString& rule);
+    void terminateSession(qint64 sessionId);
+    void terminateAllOtherSessions();
+    void openStory(qint64 storyId);
     void requestPinnedMessage();
     void unpinPinnedMessage();
     void sendTyping();
