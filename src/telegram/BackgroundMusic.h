@@ -65,9 +65,10 @@ struct MusicTrack {
 /// playAt() accepts only an index inside the queue. next() and previous() step
 /// through the queue in order. next() wraps from the last track to the first
 /// only when repeatAll is true; previous() wraps from the first track to the
-/// last only while the most recent next() call requested repeat-all. Without a
-/// current track next() starts at the first track and previous() at the last
-/// one.
+/// last only while the most recent next() call requested repeat-all. Replacing
+/// the queue with different tracks, or clearing it, forgets that recorded mode.
+/// Without a current track next() starts at the first track and previous() at
+/// the last one.
 ///
 /// Every mutation that changes the stored tracks or the current index emits
 /// changed(); a call that leaves both as they were stays silent.

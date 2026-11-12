@@ -316,7 +316,7 @@ void ChatActivityModelTest::setTypingStoresCount()
     QCOMPARE(spy.count(), 1);
     QCOMPARE(model.activity(7).typingCount, 2);
     QVERIFY(model.hasActivity(7));
-    QCOMPARE(model.statusText(7), kTyping);
+    QCOMPARE(model.statusText(7), kTyping + QStringLiteral(" +1"));
 }
 
 void ChatActivityModelTest::countSettersClampNegatives()
@@ -583,7 +583,7 @@ void ChatActivityModelTest::clearDraftKeepsCounts()
     QCOMPARE(stored.draftReplyTo, qint64(0));
     QCOMPARE(stored.typingCount, 2);
     QVERIFY(model.hasActivity(7));
-    QCOMPARE(model.statusText(7), kTyping);
+    QCOMPARE(model.statusText(7), kTyping + QStringLiteral(" +1"));
 }
 
 void ChatActivityModelTest::clearDraftDropsEmptyRecord()
