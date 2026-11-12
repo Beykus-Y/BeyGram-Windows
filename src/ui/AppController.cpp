@@ -605,6 +605,56 @@ void AppController::ensureRepository()
     m_repository = std::make_unique<telegram::TelegramRepository>(
         m_session.get(), &m_chatListModel, &m_messageModel, &m_mediaStore, this);
     m_mediaStore.setSession(m_session.get());
+
+    // Facade requests -> repository actions. Each connection is scoped to the
+    // repository instance, so rebuilding the session cannot fire twice.
+    connect(m_facades->selection(), &SelectionFacade::forwardRequested, this,
+            [this](const QString& toChatId, const QStringList& messageIds) {
+                if (!m_repository)
+                    return;
+                QVector<qint64> ids;
+                ids.reserve(messageIds.size());
+                for (const QString& id : messageIds)
+                    ids.append(id.toLongLong());
+                m_repository->forwardMessages(toChatId.toLongLong(), currentChatId(), ids);
+            });
+    connect(m_facades->reactions(), &ReactionsFacade::reactionRequested, this,
+            [this](const QString& chatId, const QString& messageId, const QString& emoji) {
+                if (m_repository)
+                    m_repository->sendReaction(chatId.toLongLong(), messageId.toLongLong(), emoji);
+            });
+    connect(m_facades->profile(), &ProfileFacade::saveRequested, this,
+            [this](const QString& first, const QString& last, const QString& username,
+                   const QString& bio) {
+                if (m_repository)
+                    m_repository->updateOwnProfile(first, last, username, bio);
+            });
+    connect(m_facades->search(), &SearchFacade::searchRequested, this,
+            [this](const QString& query) {
+                if (m_repository)
+                    m_repository->searchGlobal(query);
+            });
+    connect(m_facades->folders(), &FoldersFacade::folderSelected, this,
+            [this](const QString& folderId) {
+                if (m_repository)
+                    m_repository->selectFolder(folderId.toLongLong());
+            });
+    connect(m_facades->notifications(), &NotificationsFacade::chatSettingsRequested, this,
+            [this](const QString& chatId, bool muted, bool sound, bool preview) {
+                Q_UNUSED(sound)
+                Q_UNUSED(preview)
+                if (m_repository)
+                    m_repository->setChatMuted(chatId.toLongLong(), muted);
+            });
+    connect(m_facades->chatListControls(), &ChatListFacade::archiveOpenChanged, this,
+            [this](bool open) {
+                if (!m_repository)
+                    return;
+                if (open)
+                    m_repository->openArchive();
+                else
+                    m_repository->closeArchive();
+            });
     connect(m_repository.get(), &telegram::TelegramRepository::stateChanged, this,
             [this] { emit chatStateChanged(); });
     connect(m_repository.get(), &telegram::TelegramRepository::currentChatChanged, this,
