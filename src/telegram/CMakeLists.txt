@@ -115,6 +115,18 @@ add_library(beygram_telegram STATIC
     NotificationSettingsModel.h
     TextReplacementModel.cpp
     TextReplacementModel.h
+    StickerPickerController.cpp
+    StickerPickerController.h
+    MediaGalleryController.cpp
+    MediaGalleryController.h
+    MessageEditController.cpp
+    MessageEditController.h
+    PollComposerModel.cpp
+    PollComposerModel.h
+    SecretChatSafetyController.cpp
+    SecretChatSafetyController.h
+    PaymentCheckoutModel.cpp
+    PaymentCheckoutModel.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

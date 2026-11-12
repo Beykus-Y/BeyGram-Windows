@@ -33,6 +33,7 @@ This document describes the native Windows client. The Android client under
 - Persisted appearance settings (Warm/Graphite, FollowSystem/Light/Dark/AMOLED)
   with a desktop Settings page.
 - Per-chat drafts that survive restarts and restore into the composer.
+- Profile editing from Settings (name, username and bio; blank fields stay unchanged).
 - In-chat message search with TDLib `searchChatMessages` results.
 - A profile drawer for the current user, group or channel.
 - Attach photo/video/document files with an optional caption.
@@ -51,7 +52,7 @@ This document describes the native Windows client. The Android client under
 - Typing/upload status labels and a typing indicator for the open chat.
 - History merge/tombstone store, reaction-update parser, read-marker tracker, media cache policy, scheduled/notification/blocking builders, message-window jump, sticker send and typing roster.
 - A 20-part Android parity audit under `docs/parity/` with concrete gap lists and port plans.
-- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump, plus story viewer, call state, media playlist, voice recording, scheduled send, emoji catalog, auto-download policy, spoiler reveal, connection status, translation, sticker search, chat statistics, member list, username check, session list, gift catalog, chat background, call history, notification settings and text replacements.
+- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump, plus story viewer, call state, media playlist, voice recording, scheduled send, emoji catalog, auto-download policy, spoiler reveal, connection status, translation, sticker search, chat statistics, member list, username check, session list, gift catalog, chat background, call history, notification settings, text replacements, sticker picker, media gallery, message edit, poll composer, secret-chat safety and payment checkout.
 - Archive, selection, profile-edit, link-preview, sticker-set, poll and contact-search modules/components.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
@@ -256,7 +257,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 126 suites:
+`ctest` runs 132 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -283,7 +284,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **126/126 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **132/132 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

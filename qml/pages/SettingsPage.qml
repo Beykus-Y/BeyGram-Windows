@@ -104,6 +104,30 @@ Item {
                 spacing: 12
 
                 Text {
+                    text: "Profile"
+                    color: BeyGramTheme.text
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "Change the name, username and bio other people see. Leave a field empty to keep its current value."
+                    color: BeyGramTheme.muted
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.35
+                }
+                SecondaryButton {
+                    text: "Edit profile"
+                    onClicked: profileDialog.open()
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Text {
                     text: "Notifications"
                     color: BeyGramTheme.text
                     font.pixelSize: 15
@@ -198,6 +222,79 @@ Item {
             }
 
             Item { Layout.fillWidth: true; height: 8 }
+        }
+    }
+
+    Dialog {
+        id: profileDialog
+        title: "Edit profile"
+        modal: true
+        anchors.centerIn: parent
+        width: 440
+        standardButtons: Dialog.NoButton
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            Text {
+                Layout.fillWidth: true
+                text: "Leave a field empty to keep it unchanged. The first name cannot be empty."
+                color: BeyGramTheme.muted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+            TextField {
+                id: firstNameField
+                Layout.fillWidth: true
+                placeholderText: "First name"
+                font.pixelSize: 13
+            }
+            TextField {
+                id: lastNameField
+                Layout.fillWidth: true
+                placeholderText: "Last name"
+                font.pixelSize: 13
+            }
+            TextField {
+                id: usernameField
+                Layout.fillWidth: true
+                placeholderText: "Username"
+                font.pixelSize: 13
+            }
+            TextField {
+                id: bioField
+                Layout.fillWidth: true
+                placeholderText: "Bio"
+                font.pixelSize: 13
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                SecondaryButton {
+                    text: "Cancel"
+                    onClicked: profileDialog.close()
+                }
+                PrimaryButton {
+                    text: "Save"
+                    enabled: firstNameField.text.trim().length > 0
+                    onClicked: {
+                        BeyGramApp.saveOwnProfile(firstNameField.text,
+                                                  lastNameField.text,
+                                                  usernameField.text,
+                                                  bioField.text)
+                        profileDialog.close()
+                    }
+                }
+            }
+        }
+
+        onOpened: {
+            firstNameField.text = ""
+            lastNameField.text = ""
+            usernameField.text = ""
+            bioField.text = ""
         }
     }
 }

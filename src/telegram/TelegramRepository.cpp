@@ -9,6 +9,7 @@
 #include "PinnedMessages.h"
 #include "PollInfo.h"
 #include "PollSend.h"
+#include "ProfileEdit.h"
 #include "TypingStatus.h"
 #include "ChatFolders.h"
 #include "ArchiveChats.h"
@@ -400,6 +401,40 @@ void TelegramRepository::setChatMuted(qint64 chatId, bool muted)
             emit stateChanged();
         },
         QStringLiteral("Could not update notifications"));
+}
+
+void TelegramRepository::updateOwnProfile(const QString& firstName, const QString& lastName,
+                                          const QString& username, const QString& bio)
+{
+    // TDLib applies these to the current user. Blank username/bio mean "leave
+    // unchanged" so saving a name edit cannot silently clear them.
+    QVector<QJsonObject> steps;
+    steps.append(setNameRequest(firstName, lastName));
+    if (!username.trimmed().isEmpty())
+        steps.append(setUsernameRequest(username));
+    if (!bio.trimmed().isEmpty())
+        steps.append(setBioRequest(bio));
+
+    auto remaining = std::make_shared<int>(static_cast<int>(steps.size()));
+    auto failed = std::make_shared<bool>(false);
+    for (const QJsonObject& request : steps) {
+        sendRequest(
+            request,
+            [this, remaining, failed](const QJsonObject& response) {
+                if (response.value(QStringLiteral("@type")).toString()
+                    == QLatin1String("error")) {
+                    *failed = true;
+                    setError(QStringLiteral("Could not update the profile: %1")
+                                 .arg(response.value(QStringLiteral("message")).toString()));
+                }
+                if (--*remaining == 0) {
+                    if (!*failed)
+                        emit ownProfileSaved();
+                    emit stateChanged();
+                }
+            },
+            QStringLiteral("Could not update the profile"));
+    }
 }
 
 void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat,

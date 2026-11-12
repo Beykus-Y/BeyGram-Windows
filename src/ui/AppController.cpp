@@ -637,6 +637,11 @@ void AppController::ensureRepository()
                 m_typingText = label;
                 emit typingChanged();
             });
+    connect(m_repository.get(), &telegram::TelegramRepository::ownProfileSaved, this,
+            [this] {
+                emit profileChanged();
+                emit ownProfileSaved();
+            });
     m_repository->start();
 }
 
@@ -1059,6 +1064,15 @@ void AppController::setChatMuted(qint64 chatId, bool muted)
 {
     if (m_repository)
         m_repository->setChatMuted(chatId, muted);
+    emit chatStateChanged();
+}
+
+void AppController::saveOwnProfile(const QString& firstName, const QString& lastName,
+                                   const QString& username, const QString& bio)
+{
+    m_chatError.clear();
+    if (m_repository)
+        m_repository->updateOwnProfile(firstName, lastName, username, bio);
     emit chatStateChanged();
 }
 

@@ -273,6 +273,8 @@ public:
     Q_INVOKABLE void closeArchive();
     Q_INVOKABLE void setChatArchived(qint64 chatId, bool archived);
     Q_INVOKABLE void setChatMuted(qint64 chatId, bool muted);
+    Q_INVOKABLE void saveOwnProfile(const QString& firstName, const QString& lastName,
+                                    const QString& username, const QString& bio);
     Q_INVOKABLE void searchGlobal(const QString& query);
     Q_INVOKABLE void loadMoreGlobalSearch();
     Q_INVOKABLE void clearGlobalSearch();
@@ -322,6 +324,7 @@ signals:
     void chatFilterChanged();
     void replyStateChanged();
     void profileChanged();
+    void ownProfileSaved();
     void notificationSettingsChanged();
     void pinnedChanged();
     void typingChanged();

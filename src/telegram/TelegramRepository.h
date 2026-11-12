@@ -70,6 +70,8 @@ public:
     void closeArchive();
     void setChatArchived(qint64 chatId, bool archived);
     void setChatMuted(qint64 chatId, bool muted);
+    void updateOwnProfile(const QString& firstName, const QString& lastName,
+                          const QString& username, const QString& bio);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -100,6 +102,7 @@ signals:
     void profileLoaded(const UserProfile& profile);
     void pinnedMessageChanged(qint64 messageId, const QString& preview);
     void typingChanged(qint64 chatId, const QString& label);
+    void ownProfileSaved();
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
