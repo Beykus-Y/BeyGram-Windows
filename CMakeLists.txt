@@ -146,6 +146,37 @@ qt_add_qml_module(beygram
         qml/pages/ArchivePage.qml
         qml/pages/GlobalSearchPage.qml
         qml/pages/ToolsPage.qml
+        qml/pages/DesignGalleryPage.qml
+        qml/ds/DsTooltip.qml
+        qml/ds/DsToast.qml
+        qml/ds/DsTheme.qml
+        qml/ds/DsTextField.qml
+        qml/ds/DsTabs.qml
+        qml/ds/DsSwitch.qml
+        qml/ds/DsSpinner.qml
+        qml/ds/DsSlider.qml
+        qml/ds/DsSheet.qml
+        qml/ds/DsSegmented.qml
+        qml/ds/DsSection.qml
+        qml/ds/DsSearchField.qml
+        qml/ds/DsMenuItem.qml
+        qml/ds/DsMenu.qml
+        qml/ds/DsListRow.qml
+        qml/ds/DsIconButton.qml
+        qml/ds/DsIcon.qml
+        qml/ds/DsHeader.qml
+        qml/ds/DsEmptyState.qml
+        qml/ds/DsDivider.qml
+        qml/ds/DsDialog.qml
+        qml/ds/DsComposer.qml
+        qml/ds/DsChip.qml
+        qml/ds/DsChatRow.qml
+        qml/ds/DsCard.qml
+        qml/ds/DsButton.qml
+        qml/ds/DsBubble.qml
+        qml/ds/DsBadge.qml
+        qml/ds/DsAvatar.qml
+        qml/ds/design.js
         qml/pages/EnvironmentPage.qml
         qml/pages/LogsPage.qml
 )

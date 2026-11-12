@@ -33,6 +33,8 @@ struct MessageData {
     qint64 id = 0;
     qint64 chatId = 0;
     qint64 date = 0;
+    /// TDLib media_album_id: non-zero when the message belongs to an album.
+    qint64 groupedId = 0;
     qint64 senderUserId = 0;
     qint64 replyToMessageId = 0;
     qint64 replyChatId = 0;

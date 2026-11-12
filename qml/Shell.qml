@@ -1,4 +1,4 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
@@ -16,6 +16,7 @@ Item {
     Shortcut { sequence: "Alt+5"; onActivated: shell.currentSection = 4 }
     Shortcut { sequence: "Alt+6"; onActivated: shell.currentSection = 5 }
     Shortcut { sequence: "Alt+7"; onActivated: shell.currentSection = 6 }
+    Shortcut { sequence: "Alt+8"; onActivated: shell.currentSection = 7 }
 
     RowLayout {
         anchors.fill: parent
@@ -175,6 +176,12 @@ Item {
                     selected: shell.currentSection === 6
                     onClicked: shell.currentSection = 6
                 }
+                NavButton {
+                    Layout.fillWidth: true
+                    text: "Design"
+                    selected: shell.currentSection === 7
+                    onClicked: shell.currentSection = 7
+                }
 
                 Item { Layout.fillHeight: true }
 
@@ -233,6 +240,7 @@ Item {
                 }
             }
             ToolsPage {}
+            DesignGalleryPage {}
         }
     }
 

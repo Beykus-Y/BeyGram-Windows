@@ -231,6 +231,36 @@ add_library(beygram_telegram STATIC
     TranslationLanguageModel.h
     WebAppSessionController.cpp
     WebAppSessionController.h
+    AlbumRenderModel.cpp
+    AlbumRenderModel.h
+    BotKeyboardModel.cpp
+    BotKeyboardModel.h
+    CallRequests.cpp
+    CallRequests.h
+    ChatFilterEngine.cpp
+    ChatFilterEngine.h
+    ContactImportParser.cpp
+    ContactImportParser.h
+    FolderMembershipTracker.cpp
+    FolderMembershipTracker.h
+    GiftActions.cpp
+    GiftActions.h
+    GroupCallRequests.cpp
+    GroupCallRequests.h
+    MediaDownloadService.cpp
+    MediaDownloadService.h
+    MessageSendQueue.cpp
+    MessageSendQueue.h
+    NotificationDeduper.cpp
+    NotificationDeduper.h
+    QrLoginController.cpp
+    QrLoginController.h
+    StarActions.cpp
+    StarActions.h
+    StickerSetOrderModel.cpp
+    StickerSetOrderModel.h
+    StoryActions.cpp
+    StoryActions.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

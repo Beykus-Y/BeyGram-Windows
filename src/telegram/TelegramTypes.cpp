@@ -438,6 +438,7 @@ MessageData messageFromJson(const QJsonObject& message)
     data.id = jsonInt64(message.value(QStringLiteral("id")));
     data.chatId = jsonInt64(message.value(QStringLiteral("chat_id")));
     data.date = jsonInt64(message.value(QStringLiteral("date")));
+    data.groupedId = jsonInt64(message.value(QStringLiteral("media_album_id")));
     data.outgoing = message.value(QStringLiteral("is_outgoing")).toBool();
     data.edited = jsonInt64(message.value(QStringLiteral("edit_date"))) > 0;
 
