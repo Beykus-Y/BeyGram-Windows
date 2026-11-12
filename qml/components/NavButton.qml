@@ -1,56 +1,41 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
 import "../ds/design.js" as Design
 
-// NavButton — a 44 px rail item: a 36 px icon slot, a 13 px label and an
-// optional trailing hint.
-//
-// Qt marks AbstractButton.icon FINAL, so the string `icon` property lives on
-// this Item wrapper instead of the inner AbstractButton (the same pattern as
-// DsButton). When no icon is supplied, a glyph is derived from the label so
-// the rail keeps its rhythm without every caller passing a code point; labels
-// with no mapping fall back to their initial.
-//
-// selected: accentSoft pill + accentInk label + a 3 px accent bar on the left.
-// hover:    surface2 fill.
+// NavButton — compact desktop rail destination row used when the navigation
+// rail is expanded. Preserves the (text / icon / selected / hint / clicked)
+// contract while honoring DesignStyle, AMOLED contrast and reduceMotion.
 Item {
     id: root
 
     property string text: ""
-    property string icon: ""      // optional Segoe MDL2 Assets glyph, e.g. "\uE721"
+    property string icon: ""      // Segoe MDL2 Assets glyph, e.g. "\uE8BD"
     property bool selected: false
-    property string hint: ""      // optional trailing caption
+    property string hint: ""      // optional trailing shortcut / caption
+    property int badge: 0         // optional unread badge count
 
     signal clicked()
 
-    // Segoe MDL2 Assets code points for the built-in rail labels.
     readonly property string _glyph: {
         if (root.icon.length > 0)
             return root.icon
 
         var key = root.text.toLowerCase()
         if (key.indexOf("chat") === 0)
-            return "\uE8BD"   // Message
-        if (key.indexOf("profile") === 0)
-            return "\uE77B"   // Contact
-        if (key.indexOf("setting") === 0)
-            return "\uE713"   // Setting
-        if (key.indexOf("network") === 0)
-            return "\uE968"   // Network
-        if (key.indexOf("log") === 0)
-            return "\uE7C3"   // Page
+            return "\uE8BD"
         if (key.indexOf("search") === 0)
-            return "\uE721"   // Search
-        if (key.indexOf("tool") === 0)
-            return "\uE90F"   // Repair
-        if (key.indexOf("design") === 0)
-            return "\uE790"   // Color
+            return "\uE721"
+        if (key.indexOf("profile") === 0)
+            return "\uE77B"
+        if (key.indexOf("setting") === 0)
+            return "\uE713"
         return ""
     }
 
-    // Unknown labels show their initial rather than an empty slot.
     readonly property string _initial: root._glyph.length === 0 && root.text.length > 0
                                        ? root.text.charAt(0).toUpperCase() : ""
 
@@ -60,13 +45,17 @@ Item {
                                        ? BeyGramTheme.accentInk
                                        : (button.hovered || button.pressed
                                           ? BeyGramTheme.text : BeyGramTheme.muted)
+    readonly property int _radius: BeyGramAppearance.designStyle === "Material3"
+                                   ? Design.radiusPill
+                                   : Design.rowRadius(BeyGramAppearance.designStyle)
+    readonly property int _animFast: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
 
-    implicitWidth: 168
-    implicitHeight: 44
+    implicitWidth: 192
+    implicitHeight: 42
     opacity: root.enabled ? 1.0 : Design.opacityDisabled
 
     Behavior on opacity {
-        NumberAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
     }
 
     AbstractButton {
@@ -95,12 +84,11 @@ Item {
                 anchors.fill: parent
                 anchors.leftMargin: Design.space2
                 anchors.rightMargin: Design.space3
-                spacing: Design.space3
+                spacing: Design.space2 + 2
 
-                // 36 px icon slot, centred on the 44 px item.
                 Item {
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
                     Layout.alignment: Qt.AlignVCenter
 
                     Text {
@@ -115,7 +103,7 @@ Item {
                         Accessible.ignored: true
 
                         Behavior on color {
-                            ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                            ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
                         }
                     }
 
@@ -131,7 +119,7 @@ Item {
                         Accessible.ignored: true
 
                         Behavior on color {
-                            ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                            ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
                         }
                     }
                 }
@@ -147,13 +135,34 @@ Item {
                     Accessible.ignored: true
 
                     Behavior on color {
-                        ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                        ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
+                    }
+                }
+
+                Rectangle {
+                    id: badgePill
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: root.badge > 0
+                    implicitWidth: Math.max(20, badgeText.implicitWidth + 10)
+                    implicitHeight: 18
+                    radius: height / 2
+                    color: BeyGramTheme.accent
+                    antialiasing: true
+
+                    Text {
+                        id: badgeText
+                        anchors.centerIn: parent
+                        text: root.badge > 99 ? "99+" : String(root.badge)
+                        color: BeyGramTheme.onAccent
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                        Accessible.ignored: true
                     }
                 }
 
                 Text {
                     Layout.alignment: Qt.AlignVCenter
-                    visible: root.hint.length > 0
+                    visible: root.hint.length > 0 && root.badge <= 0
                     text: root.hint
                     color: BeyGramTheme.muted
                     font.pixelSize: 10
@@ -165,17 +174,18 @@ Item {
 
         background: Rectangle {
             id: surface
-            radius: Design.radiusPill
+            radius: root._radius
             color: root.selected
                    ? BeyGramTheme.accentSoft
                    : (button.hovered ? BeyGramTheme.surface2 : "transparent")
+            border.width: root.selected && BeyGramTheme.modeName === "Amoled" ? 1 : 0
+            border.color: Qt.alpha(BeyGramTheme.accent, 0.35)
             antialiasing: true
 
             Behavior on color {
-                ColorAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                ColorAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
             }
 
-            // Pressed wash, so the pill responds before the click lands.
             Rectangle {
                 anchors.fill: parent
                 radius: surface.radius
@@ -184,29 +194,27 @@ Item {
                 antialiasing: true
 
                 Behavior on opacity {
-                    NumberAnimation { duration: Design.motionFast; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: root._animFast; easing.type: Easing.OutCubic }
                 }
             }
 
-            // 3 px accent bar on the left edge of the selected pill.
             Rectangle {
                 width: 3
-                height: 20
+                height: 18
                 radius: 1.5
-                x: 0
+                x: 2
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.selected
+                visible: root.selected && BeyGramAppearance.designStyle !== "Material3"
                 color: BeyGramTheme.accent
                 antialiasing: true
             }
         }
     }
 
-    // 2 px halo just outside the pill, matching DsButton's focus treatment.
     Rectangle {
         anchors.fill: parent
         anchors.margins: -3
-        radius: Design.radiusPill
+        radius: root._radius + 3
         color: "transparent"
         border.width: 2
         border.color: BeyGramTheme.accent

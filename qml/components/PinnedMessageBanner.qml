@@ -18,7 +18,7 @@ import "../ds/design.js" as Design
 Item {
     id: banner
 
-    property string title: "Pinned message"
+    property string title: qsTr("Pinned message")
     property string preview: ""
     signal activated()
     signal unpinRequested()

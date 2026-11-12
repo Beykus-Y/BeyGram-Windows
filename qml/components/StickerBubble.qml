@@ -33,7 +33,7 @@ Item {
     implicitHeight: implicitWidth
 
     Accessible.role: Accessible.Button
-    Accessible.name: "Sticker"
+    Accessible.name: qsTr("Sticker")
     Accessible.onPressAction: root.clicked()
 
     Rectangle {
@@ -46,7 +46,7 @@ Item {
         Text {
             anchors.centerIn: parent
             width: Math.max(0, parent.width - Design.space3)
-            text: "[Sticker]"
+            text: qsTr("[Sticker]")
             color: BeyGramTheme.muted
             font.pixelSize: Design.fontCaption
             horizontalAlignment: Text.AlignHCenter
@@ -69,7 +69,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: Design.space1
-        text: "ANIM"
+        text: qsTr("ANIM")
         tone: "muted"
         visible: root.animated
     }

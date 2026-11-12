@@ -1,11 +1,4 @@
 // ProfileEditor - inline editor for the signed-in user's own profile.
-//
-// The parent owns the data layer: it assigns `facade` (a ProfileFacade) and
-// connects facade.saveRequested and facade.usernameCheckRequested to the
-// transport, then calls facade.load() with the profile the server reported.
-// This component only edits the facade's properties; it performs no network,
-// logging or C++ calls of its own, and it never decides whether a value is
-// valid - that answer comes back through usernameStatus and canSave.
 
 import QtQuick
 import QtQuick.Controls
@@ -19,21 +12,18 @@ Card {
 
     implicitWidth: 420
 
-    // The username line is worded here, not in the facade: usernameStatus is
-    // the machine-readable code ("idle", "invalid", "checking", "available",
-    // "taken") and the view is what turns it into a sentence.
     readonly property string usernameMessage: {
         if (!root.facade)
             return ""
         switch (root.facade.usernameStatus) {
         case "invalid":
-            return "5-32 characters: letters, digits and underscores, starting with a letter."
+            return qsTr("5-32 characters: letters, digits and underscores, starting with a letter.")
         case "checking":
-            return "Checking availability..."
+            return qsTr("Checking availability…")
         case "available":
-            return "Username is available."
+            return qsTr("Username is available.")
         case "taken":
-            return "Username is already taken."
+            return qsTr("Username is already taken.")
         default:
             return ""
         }
@@ -84,10 +74,6 @@ Card {
 
     Component.onCompleted: syncFromFacade()
 
-    // facade.load() (or any other facade-side change) rewrites the fields.
-    // While the user types, the field already holds the value the facade
-    // stored, so the guard above makes this a no-op and typing is not
-    // interrupted.
     Connections {
         target: root.facade
         function onChanged() {
@@ -97,7 +83,7 @@ Card {
 
     Text {
         Layout.fillWidth: true
-        text: "Edit profile"
+        text: qsTr("Edit profile")
         color: BeyGramTheme.text
         font.pixelSize: 15
         font.weight: Font.DemiBold
@@ -106,8 +92,8 @@ Card {
     AuthField {
         id: firstField
         Layout.fillWidth: true
-        label: "First name"
-        placeholderText: "First name"
+        label: qsTr("First name")
+        placeholderText: qsTr("First name")
         maximumLength: 64
         onEdited: {
             if (root.facade)
@@ -119,8 +105,8 @@ Card {
     AuthField {
         id: lastField
         Layout.fillWidth: true
-        label: "Last name"
-        placeholderText: "Last name (optional)"
+        label: qsTr("Last name")
+        placeholderText: qsTr("Last name (optional)")
         maximumLength: 64
         onEdited: {
             if (root.facade)
@@ -132,9 +118,9 @@ Card {
     AuthField {
         id: usernameField
         Layout.fillWidth: true
-        label: "Username"
-        placeholderText: "username (optional)"
-        hint: "Public @handle. Leave empty to remove it."
+        label: qsTr("Username")
+        placeholderText: qsTr("username (optional)")
+        hint: qsTr("Public @handle. Leave empty to remove it.")
         maximumLength: 32
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
         onEdited: {
@@ -159,7 +145,7 @@ Card {
         }
 
         SecondaryButton {
-            text: "Check"
+            text: qsTr("Check")
             visible: root.facade !== null && root.facade.username !== ""
                      && (root.facade.usernameStatus === "idle"
                          || root.facade.usernameStatus === "taken")
@@ -172,7 +158,7 @@ Card {
         spacing: 6
 
         Text {
-            text: "Bio"
+            text: qsTr("Bio")
             color: BeyGramTheme.muted
             font.pixelSize: 11
             font.weight: Font.DemiBold
@@ -187,7 +173,7 @@ Card {
             topPadding: 10
             bottomPadding: 10
             color: BeyGramTheme.text
-            placeholderText: "A few words about you (optional)"
+            placeholderText: qsTr("A few words about you (optional)")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             selectionColor: BeyGramTheme.accent
             selectedTextColor: BeyGramTheme.onAccent
@@ -218,8 +204,8 @@ Card {
 
         Rectangle {
             Layout.alignment: Qt.AlignVCenter
-            width: 6
-            height: 6
+            Layout.preferredWidth: 6
+            Layout.preferredHeight: 6
             radius: 3
             color: root.presenceOnline ? BeyGramTheme.ok : BeyGramTheme.muted
         }
@@ -239,14 +225,14 @@ Card {
 
         Text {
             Layout.fillWidth: true
-            text: root.facade !== null && root.facade.dirty ? "Unsaved changes" : ""
+            text: root.facade !== null && root.facade.dirty ? qsTr("Unsaved changes") : ""
             color: BeyGramTheme.muted
             font.pixelSize: 11
             elide: Text.ElideRight
         }
 
         PrimaryButton {
-            text: "Save"
+            text: qsTr("Save")
             enabled: root.facade !== null && root.facade.canSave
             onClicked: root.save()
         }

@@ -1,21 +1,6 @@
 // CallOverlay - the call screen for one private call.
-//
-// The host owns the call: it assigns `facade` (a CallsFacade) and keeps it
-// alive, and the facade is the only thing this file talks to. Nothing here
-// sends a request; the buttons call the facade's invokables and the facade
-// turns them into answerRequested()/endRequested() for the transport owner.
-//
-// The overlay is visible exactly while facade.active is true, so a call that
-// ended closes the screen on its own. The timer reads facade.elapsed, which the
-// owner pushes as the call runs; this file never starts a clock of its own, so
-// it cannot drift from the call.
-//
-// The video chip is a state, not a switch: a call's media type is fixed when it
-// starts, and CallsFacade exposes video as a read-only fact, so the chip only
-// reports whether this call carries video.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import BeyGram.Theme 1.0
 
@@ -33,8 +18,6 @@ Item {
     z: 1100
     focus: visible
 
-    // The overlay takes the keyboard when it appears so Escape declines or ends
-    // the call, and gives it back when the call is over.
     onVisibleChanged: {
         if (visible)
             overlay.forceActiveFocus()
@@ -50,11 +33,11 @@ Item {
 
     function phaseLabel() {
         if (overlay.phase === "ringing")
-            return "Incoming call"
+            return qsTr("Incoming call")
         if (overlay.phase === "connecting")
-            return "Calling..."
+            return qsTr("Calling…")
         if (overlay.phase === "active")
-            return "In call"
+            return qsTr("In call")
         return ""
     }
 
@@ -79,7 +62,6 @@ Item {
         color: Qt.alpha("#000000", 0.55)
     }
 
-    // Swallows clicks so the page behind the call cannot be used mid-call.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
@@ -100,7 +82,7 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: overlay.peer.length > 0 ? overlay.peer : "Unknown"
+            text: overlay.peer.length > 0 ? overlay.peer : qsTr("Unknown")
             color: BeyGramTheme.text
             font.pixelSize: 18
             font.weight: Font.DemiBold
@@ -133,7 +115,7 @@ Item {
 
             ChoiceChip {
                 Layout.fillWidth: true
-                text: "Mute"
+                text: qsTr("Mute")
                 selected: overlay.facade !== null && overlay.facade.muted
                 enabled: overlay.facade !== null && overlay.open
                 onClicked: overlay.facade.setMuted(!overlay.facade.muted)
@@ -141,16 +123,15 @@ Item {
 
             ChoiceChip {
                 Layout.fillWidth: true
-                text: "Speaker"
+                text: qsTr("Speaker")
                 selected: overlay.facade !== null && overlay.facade.speaker
                 enabled: overlay.facade !== null && overlay.open
                 onClicked: overlay.facade.setSpeaker(!overlay.facade.speaker)
             }
 
-            // Read-only state chip: the media type is fixed when the call starts.
             ChoiceChip {
                 Layout.fillWidth: true
-                text: "Video"
+                text: qsTr("Video")
                 selected: overlay.facade !== null && overlay.facade.video
                 enabled: false
                 opacity: 0.7
@@ -164,7 +145,7 @@ Item {
             PrimaryButton {
                 Layout.fillWidth: true
                 tone: "danger"
-                text: "Decline"
+                text: qsTr("Decline")
                 visible: overlay.phase === "ringing"
                 onClicked: overlay.facade.decline()
             }
@@ -172,7 +153,7 @@ Item {
             PrimaryButton {
                 Layout.fillWidth: true
                 tone: "ok"
-                text: "Accept"
+                text: qsTr("Accept")
                 visible: overlay.phase === "ringing"
                 onClicked: overlay.facade.accept()
             }
@@ -180,7 +161,7 @@ Item {
             PrimaryButton {
                 Layout.fillWidth: true
                 tone: "danger"
-                text: "End call"
+                text: qsTr("End call")
                 visible: overlay.phase === "connecting" || overlay.phase === "active"
                 onClicked: overlay.facade.end()
             }

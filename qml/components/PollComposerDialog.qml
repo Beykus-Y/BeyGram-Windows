@@ -1,10 +1,6 @@
-// PollComposerDialog - modal composer for a Telegram poll.
-//
-// The parent owns the action: `createRequested` carries the trimmed question,
-// the non-empty options in display order, the three flags, the index of the
-// correct option within `options` (quiz only), and the optional explanation.
-// The dialog only validates locally and never calls the backend.
+pragma ComponentBehavior: Bound
 
+// PollComposerDialog - modal composer for a Telegram poll.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -15,7 +11,6 @@ DsDialog {
     id: root
 
     property var optionFields: []
-
     property int correctIndex: 0
     property int filledCount: 0
 
@@ -26,10 +21,43 @@ DsDialog {
                            bool multiple, bool quiz, int correctIndex,
                            string explanation)
 
+    component OptionRowDelegate: RowLayout {
+        id: optionRow
+        required property string modelData
+        required property int index
+        property alias text: optionField.text
+
+        Layout.fillWidth: true
+        spacing: Design.space2
+
+        DsTextField {
+            id: optionField
+            Layout.fillWidth: true
+            text: optionRow.modelData
+            placeholderText: qsTr("Option %1").arg(optionRow.index + 1)
+            clearable: true
+            onTextChanged: {
+                if (root.optionFields && optionRow.index >= 0
+                        && optionRow.index < root.optionFields.length)
+                    root.optionFields[optionRow.index] = text
+                root.recountOptions()
+            }
+        }
+
+        DsIconButton {
+            icon: "\uE74D"
+            tooltip: qsTr("Remove option")
+            size: "sm"
+            Layout.alignment: Qt.AlignVCenter
+            enabled: optionRepeater.count > 2
+            onClicked: root.removeOptionAt(optionRow.index)
+        }
+    }
+
     function recountOptions() {
         let count = 0
         for (let i = 0; i < optionRepeater.count; ++i) {
-            const row = optionRepeater.itemAt(i)
+            const row = optionRepeater.itemAt(i) as OptionRowDelegate
             if (row && row.text && row.text.trim().length > 0)
                 ++count
         }
@@ -69,7 +97,7 @@ DsDialog {
         const values = []
         let correct = 0
         for (let i = 0; i < optionRepeater.count; ++i) {
-            const row = optionRepeater.itemAt(i)
+            const row = optionRepeater.itemAt(i) as OptionRowDelegate
             const value = row && row.text ? row.text.trim() : ""
             if (value.length === 0)
                 continue
@@ -86,8 +114,8 @@ DsDialog {
         root.close()
     }
 
-    title: "Create poll"
-    description: "Ask a question and add 2–10 answer options."
+    title: qsTr("Create poll")
+    description: qsTr("Ask a question and add 2–10 answer options.")
     width: 520
 
     onOpened: {
@@ -105,8 +133,8 @@ DsDialog {
     DsTextField {
         id: questionField
         Layout.fillWidth: true
-        label: "Question"
-        placeholderText: "Ask a question"
+        label: qsTr("Question")
+        placeholderText: qsTr("Ask a question")
         clearable: true
         onAccepted: root.submit()
     }
@@ -117,7 +145,7 @@ DsDialog {
         spacing: Design.space2
 
         Text {
-            text: "Options"
+            text: qsTr("Options")
             color: BeyGramTheme.muted
             font.pixelSize: Design.fontCaption
             font.weight: Font.DemiBold
@@ -148,39 +176,7 @@ DsDialog {
             Repeater {
                 id: optionRepeater
                 model: root.optionFields
-
-                delegate: RowLayout {
-                    id: optionRow
-                    required property string modelData
-                    required property int index
-                    property alias text: optionField.text
-
-                    Layout.fillWidth: true
-                    spacing: Design.space2
-
-                    DsTextField {
-                        id: optionField
-                        Layout.fillWidth: true
-                        text: optionRow.modelData
-                        placeholderText: "Option " + (optionRow.index + 1)
-                        clearable: true
-                        onTextChanged: {
-                            if (root.optionFields && optionRow.index >= 0
-                                    && optionRow.index < root.optionFields.length)
-                                root.optionFields[optionRow.index] = text
-                            root.recountOptions()
-                        }
-                    }
-
-                    DsIconButton {
-                        icon: "\uE74D"
-                        tooltip: "Remove option"
-                        size: "sm"
-                        Layout.alignment: Qt.AlignVCenter
-                        enabled: optionRepeater.count > 2
-                        onClicked: root.removeOptionAt(optionRow.index)
-                    }
-                }
+                delegate: OptionRowDelegate {}
             }
         }
     }
@@ -190,7 +186,7 @@ DsDialog {
         spacing: Design.space2
 
         DsButton {
-            text: "Add option"
+            text: qsTr("Add option")
             tone: "secondary"
             size: "sm"
             enabled: optionRepeater.count < 10
@@ -209,20 +205,20 @@ DsDialog {
     DsSwitch {
         id: anonymousSwitch
         Layout.fillWidth: true
-        text: "Anonymous"
+        text: qsTr("Anonymous")
         checked: true
     }
 
     DsSwitch {
         id: multipleSwitch
         Layout.fillWidth: true
-        text: "Allow multiple answers"
+        text: qsTr("Allow multiple answers")
     }
 
     DsSwitch {
         id: quizSwitch
         Layout.fillWidth: true
-        text: "Quiz mode"
+        text: qsTr("Quiz mode")
         onCheckedChanged: {
             if (quizSwitch.checked && root.correctIndex >= optionRepeater.count)
                 root.correctIndex = Math.max(0, optionRepeater.count - 1)
@@ -235,7 +231,7 @@ DsDialog {
         spacing: Design.space2
 
         Text {
-            text: "Correct answer"
+            text: qsTr("Correct answer")
             color: BeyGramTheme.muted
             font.pixelSize: Design.fontCaption
             font.weight: Font.DemiBold
@@ -257,7 +253,7 @@ DsDialog {
 
                     DsChip {
                         required property int index
-                        text: "Option " + (index + 1)
+                        text: qsTr("Option %1").arg(index + 1)
                         selected: root.correctIndex === index
                         onClicked: root.correctIndex = index
                     }
@@ -270,12 +266,10 @@ DsDialog {
         id: explanationField
         Layout.fillWidth: true
         visible: quizSwitch.checked
-        label: "Explanation"
-        placeholderText: "Optional note shown after answering"
+        label: qsTr("Explanation")
+        placeholderText: qsTr("Optional note shown after answering")
     }
 
-    // A custom footer keeps Create disabled until the question and at least
-    // two options are present, which the shared DsDialog footer cannot express.
     footer: Item {
         implicitHeight: 36 + Design.space5
 
@@ -289,13 +283,13 @@ DsDialog {
             Item { Layout.fillWidth: true }
 
             DsButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 tone: "secondary"
                 onClicked: root.close()
             }
 
             DsButton {
-                text: "Create"
+                text: qsTr("Create")
                 enabled: root.canCreate
                 onClicked: root.submit()
             }

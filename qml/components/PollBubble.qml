@@ -65,7 +65,7 @@ Item {
     }
 
     function voteSummary() {
-        return voteCount + (voteCount === 1 ? " vote" : " votes")
+        return qsTr("%n vote(s)", "", voteCount)
     }
 
     Rectangle {
@@ -249,21 +249,21 @@ Item {
             DsBadge {
                 Layout.alignment: Qt.AlignVCenter
                 visible: root.closed
-                text: "Closed"
+                text: qsTr("Closed")
                 tone: "muted"
             }
 
             DsBadge {
                 Layout.alignment: Qt.AlignVCenter
                 visible: root.quiz
-                text: "Quiz"
+                text: qsTr("Quiz")
                 tone: "accent"
             }
 
             DsBadge {
                 Layout.alignment: Qt.AlignVCenter
                 visible: root.multipleChoice
-                text: "Multiple choice"
+                text: qsTr("Multiple choice")
                 tone: "muted"
             }
         }

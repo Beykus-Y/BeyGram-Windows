@@ -71,7 +71,7 @@ Item {
                     antialiasing: true
 
                     SequentialAnimation {
-                        running: root.active
+                        running: root.active && !BeyGramAppearance.reduceMotion
                         loops: Animation.Infinite
 
                         PauseAnimation { duration: dot.index * 140 }
@@ -92,7 +92,7 @@ Item {
                         }
                         PauseAnimation { duration: 420 - dot.index * 140 }
 
-                        onStopped: dot.opacity = 0.35
+                        onStopped: dot.opacity = root.active && BeyGramAppearance.reduceMotion ? 0.85 : 0.35
                     }
                 }
             }

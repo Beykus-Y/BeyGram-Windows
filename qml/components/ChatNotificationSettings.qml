@@ -49,7 +49,7 @@ Dialog {
     padding: 0
     modal: true
     focus: true
-    title: "Notifications"
+    title: qsTr("Notifications")
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     onOpened: resetDraft()
@@ -91,7 +91,7 @@ Dialog {
             Layout.leftMargin: 18
             Layout.rightMargin: 18
             Layout.topMargin: 2
-            text: "Choose how this chat notifies you."
+            text: qsTr("Choose how this chat notifies you.")
             color: BeyGramTheme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap
@@ -103,7 +103,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12
-            text: "Mute notifications"
+            text: qsTr("Mute notifications")
             checked: root.draftMuted
             palette.text: BeyGramTheme.text
             palette.windowText: BeyGramTheme.text
@@ -117,7 +117,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12
-            text: "Play notification sound"
+            text: qsTr("Play notification sound")
             checked: root.draftSound
             enabled: !root.draftMuted
             opacity: enabled ? 1.0 : 0.5
@@ -134,7 +134,7 @@ Dialog {
             Layout.leftMargin: 12
             Layout.rightMargin: 12
             Layout.bottomMargin: 8
-            text: "Show message preview"
+            text: qsTr("Show message preview")
             checked: root.draftPreview
             enabled: !root.draftMuted
             opacity: enabled ? 1.0 : 0.5
@@ -164,12 +164,12 @@ Dialog {
             spacing: 8
 
             SecondaryButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: root.close()
             }
 
             PrimaryButton {
-                text: "Save"
+                text: qsTr("Save")
                 onClicked: root.save()
             }
         }

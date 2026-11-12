@@ -1,18 +1,6 @@
-// ForwardDialog - modal chat picker for forwarding one or more messages.
-//
-// The parent owns the data layer and the action: it assigns `model` from
-// ChatListModel (roles: chatId, title, preview, unreadCount, muted, initials,
-// photoFileId, photoReady, photoRevision, accentIndex), sets `messageCount`,
-// and performs the actual `forwardMessages` call once `chatSelected(chatId)` is
-// emitted. This file only renders the picker. Filtering is local (title
-// substring), it reads nothing but model roles, and it has no network, logging
-// or C++ calls.
-//
-// Keyboard: the search field takes focus on open. Down/Enter moves into the
-// list and selects the first match; Up/Down move the selection, Enter forwards
-// it, Escape closes. Clicking a row selects it and the footer's Forward button
-// commits, so a stray click cannot forward by accident.
+pragma ComponentBehavior: Bound
 
+// ForwardDialog - modal chat picker for forwarding one or more messages.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -28,20 +16,67 @@ DsDialog {
     signal chatSelected(var chatId)
 
     readonly property string dialogTitle: messageCount > 1
-                                          ? "Forward " + messageCount + " messages"
-                                          : "Forward message"
+                                          ? qsTr("Forward %n message(s)", "", messageCount)
+                                          : qsTr("Forward message")
 
-    // Trimmed search text; empty means "show every chat".
     readonly property string query: searchField.text.trim()
 
-    // Same avatar tints as ChatRow so a chat keeps its colour everywhere.
     readonly property var avatarColors: [
         "#C2593F", "#5B4BC4", "#2F8A7B",
         "#A9731D", "#3A78C2", "#B0476E"
     ]
 
-    // Chat chosen in the list; 0 means nothing is selected yet.
     property var _selectedChatId: 0
+
+    component ForwardChatRow: Item {
+        id: chatRow
+
+        required property var chatId
+        required property string title
+        required property string preview
+        required property int unreadCount
+        required property bool muted
+        required property string initials
+        required property int photoFileId
+        required property bool photoReady
+        required property int photoRevision
+        required property int accentIndex
+        required property int index
+
+        readonly property bool matched: root.matches(chatRow.title)
+
+        width: chatList.width
+        height: matched ? Design.rowHeight : 0
+        visible: matched
+
+        DsListRow {
+            width: parent.width
+            height: parent.height
+
+            title: chatRow.title
+            subtitle: chatRow.preview
+            unread: chatRow.unreadCount
+            muted: chatRow.muted
+            selected: root._selectedChatId === chatRow.chatId
+
+            leading: Avatar {
+                size: Design.avatarSmall
+                fileId: chatRow.photoFileId
+                ready: chatRow.photoReady
+                revision: chatRow.photoRevision
+                initials: chatRow.initials
+                tint: root.avatarColors[Math.abs(chatRow.accentIndex)
+                                        % root.avatarColors.length]
+                ink: "white"
+            }
+
+            onClicked: {
+                chatList.currentIndex = chatRow.index
+                root._selectedChatId = chatRow.chatId
+                chatList.forceActiveFocus()
+            }
+        }
+    }
 
     function matches(title) {
         if (root.query.length === 0)
@@ -65,10 +100,9 @@ DsDialog {
         }
     }
 
-    // First visible row that matches the current query.
     function firstMatchIndex() {
         for (let i = 0; i < chatList.count; ++i) {
-            const row = chatList.itemAtIndex(i)
+            const row = chatList.itemAtIndex(i) as ForwardChatRow
             if (row && row.matched)
                 return i
         }
@@ -80,7 +114,7 @@ DsDialog {
         if (index < 0)
             return false
         chatList.currentIndex = index
-        const row = chatList.itemAtIndex(index)
+        const row = chatList.itemAtIndex(index) as ForwardChatRow
         if (row)
             root._selectedChatId = row.chatId
         chatList.positionViewAtIndex(index, ListView.Contain)
@@ -97,10 +131,10 @@ DsDialog {
             next += delta
             if (next < 0 || next >= chatList.count)
                 return
-            let row = chatList.itemAtIndex(next)
+            let row = chatList.itemAtIndex(next) as ForwardChatRow
             if (!row) {
                 chatList.positionViewAtIndex(next, ListView.Contain)
-                row = chatList.itemAtIndex(next)
+                row = chatList.itemAtIndex(next) as ForwardChatRow
             }
             if (row && row.matched) {
                 chatList.currentIndex = next
@@ -113,8 +147,8 @@ DsDialog {
 
     title: root.dialogTitle
     description: root.messageCount > 1
-                 ? "Choose a chat to forward these " + root.messageCount + " messages to."
-                 : "Choose a chat to forward this message to."
+                 ? qsTr("Choose a chat to forward these %n message(s) to.", "", root.messageCount)
+                 : qsTr("Choose a chat to forward this message to.")
     width: 500
 
     onOpened: {
@@ -128,7 +162,7 @@ DsDialog {
     DsSearchField {
         id: searchField
         Layout.fillWidth: true
-        placeholderText: "Search chats"
+        placeholderText: qsTr("Search chats...")
         onTextChanged: root.resetSelection()
         onAccepted: {
             if (root.selectFirstMatch())
@@ -182,55 +216,7 @@ DsDialog {
                 event.accepted = true
             }
 
-            delegate: Item {
-                id: chatRow
-
-                required property var chatId
-                required property string title
-                required property string preview
-                required property int unreadCount
-                required property bool muted
-                required property string initials
-                required property int photoFileId
-                required property bool photoReady
-                required property int photoRevision
-                required property int accentIndex
-                required property int index
-
-                readonly property bool matched: root.matches(chatRow.title)
-
-                width: chatList.width
-                height: matched ? Design.rowHeight : 0
-                visible: matched
-
-                DsListRow {
-                    width: parent.width
-                    height: parent.height
-
-                    title: chatRow.title
-                    subtitle: chatRow.preview
-                    unread: chatRow.unreadCount
-                    muted: chatRow.muted
-                    selected: root._selectedChatId === chatRow.chatId
-
-                    leading: Avatar {
-                        size: Design.avatarSmall
-                        fileId: chatRow.photoFileId
-                        ready: chatRow.photoReady
-                        revision: chatRow.photoRevision
-                        initials: chatRow.initials
-                        tint: root.avatarColors[Math.abs(chatRow.accentIndex)
-                                                % root.avatarColors.length]
-                        ink: "white"
-                    }
-
-                    onClicked: {
-                        chatList.currentIndex = chatRow.index
-                        root._selectedChatId = chatRow.chatId
-                        chatList.forceActiveFocus()
-                    }
-                }
-            }
+            delegate: ForwardChatRow {}
         }
 
         DsEmptyState {
@@ -238,15 +224,13 @@ DsDialog {
             width: Math.min(parent.width - Design.space8, implicitWidth)
             visible: chatList.count === 0
                      || (root.query.length > 0 && chatList.contentHeight <= 0)
-            title: chatList.count === 0 ? "No chats yet" : "No matches"
+            title: chatList.count === 0 ? qsTr("No chats yet") : qsTr("No matches")
             description: chatList.count === 0
-                         ? "Your Telegram chats will appear here."
-                         : "Try a different name or clear the search."
+                         ? qsTr("Your Telegram chats will appear here.")
+                         : qsTr("Try a different name or clear the search.")
         }
     }
 
-    // DsDialog's shared footer cannot disable its primary button, so the
-    // picker owns a footer with the same geometry and a guarded Forward action.
     footer: Item {
         implicitHeight: 36 + Design.space5
 
@@ -260,13 +244,13 @@ DsDialog {
             Item { Layout.fillWidth: true }
 
             DsButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 tone: "secondary"
                 onClicked: root.close()
             }
 
             DsButton {
-                text: "Forward"
+                text: qsTr("Forward")
                 enabled: root._selectedChatId !== 0
                 onClicked: root.choose(root._selectedChatId)
             }

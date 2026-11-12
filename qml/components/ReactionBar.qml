@@ -94,7 +94,7 @@ Item {
             text: "+"
 
             Accessible.role: Accessible.Button
-            Accessible.name: "Add reaction"
+            Accessible.name: qsTr("Add reaction")
 
             onClicked: reactionBar.addReactionRequested()
         }

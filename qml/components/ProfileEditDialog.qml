@@ -45,11 +45,9 @@ DsDialog {
                            bioField.text.trim())
     }
 
-    title: "Edit profile"
-    description: "Update how others see you. The first name is required."
+    title: qsTr("Edit profile")
+    description: qsTr("Update how others see you. The first name is required.")
     busy: root.saving
-    // A form should not close because of a stray click on the scrim; Escape
-    // still dismisses it when no request is in flight.
     closePolicy: root.busy ? Popup.NoAutoClose : Popup.CloseOnEscape
 
     onOpened: {
@@ -60,8 +58,8 @@ DsDialog {
     DsTextField {
         id: firstField
         Layout.fillWidth: true
-        label: "First name"
-        placeholderText: "Required"
+        label: qsTr("First name")
+        placeholderText: qsTr("Required")
         maximumLength: 64
         clearable: true
         onAccepted: root.attemptSave()
@@ -70,8 +68,8 @@ DsDialog {
     DsTextField {
         id: lastField
         Layout.fillWidth: true
-        label: "Last name"
-        placeholderText: "Optional"
+        label: qsTr("Last name")
+        placeholderText: qsTr("Optional")
         maximumLength: 64
         clearable: true
         onAccepted: root.attemptSave()
@@ -80,8 +78,8 @@ DsDialog {
     DsTextField {
         id: usernameField
         Layout.fillWidth: true
-        label: "Username"
-        placeholderText: "Optional"
+        label: qsTr("Username")
+        placeholderText: qsTr("Optional")
         maximumLength: 32
         clearable: true
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
@@ -91,7 +89,7 @@ DsDialog {
     Text {
         Layout.fillWidth: true
         Layout.topMargin: -Design.space1
-        text: "Public @handle. Leave empty to remove it."
+        text: qsTr("Public @handle. Leave empty to remove it.")
         color: BeyGramTheme.muted
         font.pixelSize: Design.fontCaption
         wrapMode: Text.WordWrap
@@ -103,7 +101,7 @@ DsDialog {
 
         Text {
             Layout.fillWidth: true
-            text: "Bio"
+            text: qsTr("Bio")
             color: BeyGramTheme.muted
             font.pixelSize: Design.fontCaption
             font.weight: Font.DemiBold
@@ -119,7 +117,7 @@ DsDialog {
             topPadding: Design.space2
             bottomPadding: Design.space2
             color: BeyGramTheme.text
-            placeholderText: "A few words about you (optional)"
+            placeholderText: qsTr("A few words about you (optional)")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             selectionColor: BeyGramTheme.accent
             selectedTextColor: BeyGramTheme.onAccent
@@ -162,10 +160,6 @@ DsDialog {
         }
     }
 
-    // A custom footer keeps Save disabled until a first name is present and
-    // keeps the dialog open after the request, so `errorText` can be shown
-    // without losing the user's edits. DsDialog's shared footer always closes
-    // on accept and cannot express that.
     footer: Item {
         implicitHeight: 36 + Design.space5
 
@@ -188,14 +182,14 @@ DsDialog {
             }
 
             DsButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 tone: "secondary"
                 enabled: !root.saving
                 onClicked: root.close()
             }
 
             DsButton {
-                text: root.saving ? "Saving…" : "Save"
+                text: root.saving ? qsTr("Saving…") : qsTr("Save")
                 enabled: !root.saving && root.trimmedFirstName.length > 0
                 onClicked: root.attemptSave()
             }

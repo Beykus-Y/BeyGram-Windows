@@ -166,7 +166,7 @@ Rectangle {
             }
 
             BarButton {
-                text: "Prev"
+                text: qsTr("Prev")
                 onClicked: {
                     if (bar.hasFacade)
                         bar.facade.previous()
@@ -174,7 +174,7 @@ Rectangle {
             }
 
             BarButton {
-                text: "Next"
+                text: qsTr("Next")
                 enabled: bar.hasNext
                 onClicked: {
                     if (bar.hasFacade)
@@ -186,7 +186,7 @@ Rectangle {
 
             Text {
                 Layout.alignment: Qt.AlignVCenter
-                text: "Vol"
+                text: qsTr("Vol")
                 color: BeyGramTheme.muted
                 font.pixelSize: 10
                 font.weight: Font.DemiBold
@@ -215,6 +215,14 @@ Rectangle {
                 model: bar.rateLabels
                 currentIndex: bar.rateIndex
                 focusPolicy: Qt.NoFocus
+                palette.text: BeyGramTheme.text
+                palette.windowText: BeyGramTheme.text
+                palette.button: BeyGramTheme.surface2
+                palette.buttonText: BeyGramTheme.text
+                palette.base: BeyGramTheme.surface2
+                palette.window: BeyGramTheme.surface
+                palette.highlight: BeyGramTheme.accentSoft
+                palette.highlightedText: BeyGramTheme.accentInk
                 onActivated: function(index) {
                     if (bar.hasFacade)
                         bar.facade.setRate(bar.rateOptions[index])

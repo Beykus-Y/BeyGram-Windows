@@ -19,7 +19,7 @@ Item {
 
     readonly property bool secret: banner.facade ? banner.facade.secret : false
     readonly property int ttlSeconds: banner.facade ? banner.facade.ttlSeconds : 0
-    readonly property string ttlText: banner.facade ? banner.facade.ttlText : "Off"
+    readonly property string ttlText: banner.facade ? banner.facade.ttlText : qsTr("Off")
 
     // Height is fixed; `visible` is Item's own property (default overridden
     // below) so a parent can place the banner without checking the chat first.
@@ -77,7 +77,7 @@ Item {
         Text {
             id: secretGlyph
             Layout.alignment: Qt.AlignVCenter
-            text: "SECRET"
+            text: qsTr("SECRET")
             color: BeyGramTheme.accentInk
             font.pixelSize: 10
             font.weight: Font.DemiBold

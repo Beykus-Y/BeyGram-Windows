@@ -1,15 +1,4 @@
 // FolderEditor - modal card for creating, renaming and deleting a chat folder.
-//
-// The parent owns the FoldersFacade and opens this card (typically after
-// beginCreate()/beginEdit() set `editing`). The facade holds the draft, decides
-// whether Save is possible and emits createRequested/renameRequested/
-// deleteRequested for the transport; this file only forwards the user's
-// actions and performs no network, logging or C++ calls of its own.
-//
-// The name field is deliberately not two-way bound to `facade.draftTitle`:
-// the facade normalises and caps the draft, so syncing on every keystroke would
-// delete the space the user just typed. It is filled on open and whenever the
-// facade changes while the field is unfocused.
 
 import QtQuick
 import QtQuick.Controls
@@ -20,9 +9,6 @@ Dialog {
     id: root
 
     property var facade: null
-
-    // Set before Save/Cancel/Delete closes the dialog, so the close that
-    // follows does not cancel the edit a second time.
     property bool actionTaken: false
 
     readonly property bool ready: root.facade !== null
@@ -32,7 +18,6 @@ Dialog {
         const ids = root.facade.folderIds
         if (!ids || root.facade.currentIndex >= ids.length)
             return false
-        // The main chat list is numbered 0 and is not a deletable folder.
         return String(ids[root.facade.currentIndex]) !== "0"
     }
 
@@ -49,9 +34,6 @@ Dialog {
             return
         root.actionTaken = true
         if (root.facade.save()) {
-            // The card closes on success, so end the edit session with it.
-            // FoldersFacade::save() itself keeps the edit open (marked saved);
-            // that behaviour is for callers that stay on the field.
             root.facade.cancelEdit()
             root.close()
         } else {
@@ -81,7 +63,7 @@ Dialog {
     padding: 0
     modal: true
     focus: true
-    title: "Chat folder"
+    title: qsTr("Chat folder")
     closePolicy: Popup.CloseOnEscape
 
     onOpened: {
@@ -90,7 +72,6 @@ Dialog {
         titleField.forceInputFocus()
     }
 
-    // Closing without choosing an action (Escape) leaves no edit behind.
     onClosed: {
         if (!root.actionTaken && root.ready && root.facade.editing)
             root.facade.cancelEdit()
@@ -143,7 +124,7 @@ Dialog {
             Layout.leftMargin: 18
             Layout.rightMargin: 18
             Layout.topMargin: 2
-            text: "Folders group your chats. The name is shown above the chat list."
+            text: qsTr("Folders group your chats. The name is shown above the chat list.")
             color: BeyGramTheme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap
@@ -155,11 +136,9 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 18
             Layout.rightMargin: 18
-            label: "Name"
-            placeholderText: "Folder name"
-            hint: "Up to 12 characters."
-            // The facade counts code points and caps at 12; the field allows
-            // more so an emoji is not counted twice while typing.
+            label: qsTr("Name")
+            placeholderText: qsTr("Folder name")
+            hint: qsTr("Up to 12 characters.")
             maximumLength: 64
             onEdited: if (root.ready) root.facade.setDraftTitle(titleField.text)
             onAccepted: root.attemptSave()
@@ -170,7 +149,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12
-            text: "Archive and mute new chats"
+            text: qsTr("Archive and mute new chats")
             enabled: root.ready
             palette.text: BeyGramTheme.text
             palette.windowText: BeyGramTheme.text
@@ -202,10 +181,10 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
 
             SecondaryButton {
-                text: "Delete"
+                text: qsTr("Delete")
                 visible: root.canDelete
                 onClicked: root.attemptDelete()
-                Accessible.description: "Delete this folder"
+                Accessible.description: qsTr("Delete this folder")
             }
         }
 
@@ -216,12 +195,12 @@ Dialog {
             spacing: 8
 
             SecondaryButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: root.attemptCancel()
             }
 
             PrimaryButton {
-                text: "Save"
+                text: qsTr("Save")
                 enabled: root.ready && root.facade.canSave
                 onClicked: root.attemptSave()
             }

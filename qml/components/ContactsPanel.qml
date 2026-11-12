@@ -1,14 +1,4 @@
 // ContactsPanel.qml — the contact list with its search field and A-Z strip.
-//
-// Presentation only. The parent assigns `facade` (ContactsFacade) and keeps it
-// alive; this file reads names, indexLetters, query and loading, writes query
-// while the user types, and calls activate(index) for a tapped row so the id
-// that reaches the caller and the row that was on screen can never disagree.
-//
-// The panel never sorts, filters or fetches: the facade already returns the
-// visible rows in the current order, and its query is what drives the search.
-// An empty query means "show everything", so the panel only mirrors that state
-// in its empty messages.
 
 import QtQuick
 import QtQuick.Controls
@@ -18,7 +8,6 @@ import BeyGram.Theme 1.0
 Item {
     id: root
 
-    /// ContactsFacade. Not owned and not replaced by this component.
     property var facade: null
 
     implicitWidth: 360
@@ -29,16 +18,11 @@ Item {
     readonly property bool loading: root.facade ? root.facade.loading : false
     readonly property bool filtering: root.facade ? root.facade.query.length > 0 : false
 
-    // Same tints as ChatRow and ForwardDialog, so a contact keeps its colour
-    // everywhere it appears.
     readonly property var avatarColors: [
         "#C2593F", "#5B4BC4", "#2F8A7B",
         "#A9731D", "#3A78C2", "#B0476E"
     ]
 
-    // The section letter of a name. The facade's indexLetters() uses the same
-    // rule (trim, first character, uppercase), so a strip entry always finds a
-    // row here; names it skips (digits, punctuation) simply get no header.
     function initialOf(name) {
         if (!name)
             return ""
@@ -48,9 +32,6 @@ Item {
         return value.charAt(0).toUpperCase()
     }
 
-    // Pushes the typed text into the facade. The facade trims, so a difference
-    // in surrounding whitespace is not a new query and must not be written back
-    // (that would fight the text field's cursor).
     function applyQuery(text) {
         if (!root.facade)
             return
@@ -63,8 +44,6 @@ Item {
             root.facade.activate(index)
     }
 
-    // Scrolls to the first row under `letter`. The facade's order is the
-    // display order, so scanning names is enough and no sorting happens here.
     function scrollToLetter(letter) {
         const items = root.contactNames
         for (let i = 0; i < items.length; ++i) {
@@ -75,9 +54,6 @@ Item {
         }
     }
 
-    // Pull external query changes (a reset from the parent, a saved search)
-    // back into the field. textEdited is not emitted for assignments, so this
-    // cannot loop.
     Connections {
         target: root.facade
         ignoreUnknownSignals: true
@@ -105,7 +81,7 @@ Item {
             implicitHeight: 38
             leftPadding: 14
             rightPadding: 14
-            placeholderText: "Search contacts"
+            placeholderText: qsTr("Search contacts")
             placeholderTextColor: Qt.alpha(BeyGramTheme.muted, 0.75)
             color: BeyGramTheme.text
             font.pixelSize: 13
@@ -115,7 +91,6 @@ Item {
 
             onTextEdited: root.applyQuery(text)
 
-            // Escape clears the filter first and only then leaves the field.
             Keys.onEscapePressed: (event) => {
                 if (searchField.text.length > 0) {
                     searchField.text = ""
@@ -146,8 +121,6 @@ Item {
                 id: contactList
 
                 anchors.fill: parent
-                // Leave room for the index strip so a long name never slides
-                // underneath it.
                 anchors.rightMargin: root.letters.length > 0 ? 24 : 0
                 clip: true
                 model: root.contactNames
@@ -164,8 +137,6 @@ Item {
                                                          || entry.modelData === null
                                                          ? "" : String(entry.modelData)
                     readonly property string letter: root.initialOf(entry.contactName)
-                    // A header opens every letter section, so the list reads
-                    // like an address book without a second model.
                     readonly property bool showsHeader: entry.index === 0
                         || root.initialOf(root.contactNames[entry.index - 1]) !== entry.letter
 
@@ -195,7 +166,7 @@ Item {
 
                         Accessible.role: Accessible.Button
                         Accessible.name: entry.contactName.length > 0
-                                         ? entry.contactName : "Unnamed contact"
+                                         ? entry.contactName : qsTr("Unnamed contact")
 
                         Rectangle {
                             anchors.fill: parent
@@ -233,7 +204,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 text: entry.contactName.length > 0
-                                      ? entry.contactName : "Unnamed contact"
+                                      ? entry.contactName : qsTr("Unnamed contact")
                                 color: entry.contactName.length > 0 ? BeyGramTheme.text
                                                                     : BeyGramTheme.muted
                                 font.pixelSize: 13
@@ -253,8 +224,6 @@ Item {
                 }
             }
 
-            // Fast-scroll index. A Flickable so a long letter set (mixed
-            // scripts) still fits, and it only scrolls the list, never filters.
             Flickable {
                 id: strip
 
@@ -291,7 +260,7 @@ Item {
                             height: 18
 
                             Accessible.role: Accessible.Button
-                            Accessible.name: "Jump to " + letterCell.letter
+                            Accessible.name: qsTr("Jump to %1").arg(letterCell.letter)
 
                             Text {
                                 anchors.centerIn: parent
@@ -329,7 +298,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 visible: !root.loading && contactList.count === 0 && root.filtering
-                text: "No contacts match your search"
+                text: qsTr("No contacts match your search")
                 color: BeyGramTheme.muted
                 font.pixelSize: 13
             }
@@ -340,7 +309,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 visible: !root.loading && contactList.count === 0 && !root.filtering
-                text: "No contacts yet"
+                text: qsTr("No contacts yet")
                 color: BeyGramTheme.muted
                 font.pixelSize: 13
             }

@@ -64,7 +64,7 @@ Item {
             color: BeyGramTheme.danger
 
             SequentialAnimation on opacity {
-                running: root._recording && !root._paused
+                running: root._recording && !root._paused && !BeyGramAppearance.reduceMotion
                 loops: Animation.Infinite
 
                 NumberAnimation { to: 0.25; duration: 600; easing.type: Easing.InOutQuad }

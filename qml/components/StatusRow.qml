@@ -20,6 +20,10 @@ Item {
     implicitWidth: 320
     implicitHeight: layout.implicitHeight
 
+    Accessible.role: Accessible.StaticText
+    Accessible.name: row.value.length > 0 ? row.label + ": " + row.value : row.label
+    Accessible.description: row.detail
+
     /// The tone colours both the dot and the value.
     readonly property color toneColor: {
         if (row.tone === "ok")
@@ -52,16 +56,31 @@ Item {
                 radius: 4
                 color: row.toneColor
                 antialiasing: true
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
 
             trailing: Text {
                 // Keep a long value from squeezing the label out of the row.
-                width: Math.min(implicitWidth, row.width * 0.5)
+                width: row.width > 0 ? Math.min(implicitWidth, row.width * 0.5) : implicitWidth
                 text: row.value
                 color: row.toneColor
                 font.pixelSize: Design.fontSmall
                 font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Design.motion(Design.motionFast, BeyGramAppearance.reduceMotion)
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
         }
 
@@ -69,7 +88,8 @@ Item {
             Layout.fillWidth: true
             // Align with the title: 12 px padding + 8 px dot + 12 px spacing.
             Layout.leftMargin: Design.space8
-            visible: row.detail !== ""
+            Layout.rightMargin: Design.space3
+            visible: row.detail.length > 0
             text: row.detail
             color: BeyGramTheme.muted
             font.pixelSize: Design.fontSmall

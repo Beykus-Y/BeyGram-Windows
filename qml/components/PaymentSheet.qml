@@ -1,13 +1,4 @@
 // PaymentSheet - checkout sheet for one invoice.
-//
-// The parent owns the data layer: it assigns `facade` (a PaymentsFacade) and
-// opens the dialog after calling setInvoice()/setMethods(). This file only
-// renders that state: the invoice title and total, the buyer's name/email/phone,
-// the offered payment methods and a Pay button. Edits are written back through
-// the facade's setters, and Pay calls facade.pay(), which emits payRequested for
-// the parent to send. The sheet never performs a payment itself and never closes
-// on its own: the parent decides when the checkout is over and calls
-// facade.reset().
 
 import QtQuick
 import QtQuick.Controls
@@ -28,13 +19,9 @@ Dialog {
     padding: 0
     modal: true
     focus: true
-    title: "Payment"
+    title: qsTr("Payment")
     closePolicy: Popup.CloseOnEscape
 
-    // A user edit replaces the field's text binding, so the facade's values are
-    // copied in explicitly instead: on open, and whenever the facade reports a
-    // change (e.g. a trimmed value coming back). The focused field is skipped so
-    // typing is never interrupted.
     function syncFields() {
         if (!root.facade)
             return
@@ -113,7 +100,7 @@ Dialog {
                 spacing: 8
 
                 Text {
-                    text: "Total"
+                    text: qsTr("Total")
                     color: BeyGramTheme.muted
                     font.pixelSize: 12
                 }
@@ -144,8 +131,8 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 18
             Layout.rightMargin: 18
-            label: "Name"
-            placeholderText: "Full name"
+            label: qsTr("Name")
+            placeholderText: qsTr("Full name")
             maximumLength: 128
             onEdited: if (root.facade) root.facade.name = text
             onAccepted: emailField.forceInputFocus()
@@ -156,7 +143,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 18
             Layout.rightMargin: 18
-            label: "Email"
+            label: qsTr("Email")
             placeholderText: "name@example.com"
             maximumLength: 128
             inputMethodHints: Qt.ImhEmailCharactersOnly | Qt.ImhNoAutoUppercase
@@ -170,9 +157,9 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: 18
             Layout.rightMargin: 18
-            label: "Phone"
+            label: qsTr("Phone")
             placeholderText: "+1 555 0100"
-            hint: "An email or a phone number is enough."
+            hint: qsTr("An email or a phone number is enough.")
             maximumLength: 32
             inputMethodHints: Qt.ImhDialableCharactersOnly
             onEdited: if (root.facade) root.facade.phone = text
@@ -186,7 +173,7 @@ Dialog {
             visible: methodRepeater.count > 0
 
             Text {
-                text: "Payment method"
+                text: qsTr("Payment method")
                 color: BeyGramTheme.muted
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
@@ -297,12 +284,12 @@ Dialog {
             spacing: 8
 
             SecondaryButton {
-                text: "Cancel"
+                text: qsTr("Cancel")
                 onClicked: root.close()
             }
 
             PrimaryButton {
-                text: "Pay"
+                text: qsTr("Pay")
                 enabled: root.payable
                 onClicked: if (root.facade) root.facade.pay()
             }
