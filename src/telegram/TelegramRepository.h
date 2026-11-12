@@ -5,6 +5,7 @@
 #include "GlobalSearchModel.h"
 #include "MessageListModel.h"
 #include "MediaSend.h"
+#include "MessageHistoryStore.h"
 #include "PollSend.h"
 #include "SearchResultModel.h"
 #include "TelegramTypes.h"
@@ -65,6 +66,10 @@ public:
     void loadMoreGlobal();
     void requestProfile(qint64 chatId);
     void selectFolder(qint64 folderId);
+    void openArchive();
+    void closeArchive();
+    void setChatArchived(qint64 chatId, bool archived);
+    void setChatMuted(qint64 chatId, bool muted);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -80,6 +85,9 @@ public:
     [[nodiscard]] GlobalSearchModel* globalSearchModel() { return &m_globalSearchModel; }
     [[nodiscard]] bool globalSearchLoading() const { return m_globalSearchLoading; }
     [[nodiscard]] ChatFolderListModel* folderModel() { return &m_folderModel; }
+    [[nodiscard]] ChatListModel* archiveModel() { return &m_archiveModel; }
+    [[nodiscard]] bool archiveOpen() const { return m_archiveOpen; }
+    [[nodiscard]] bool archiveLoading() const { return m_archiveLoading; }
     [[nodiscard]] qint64 currentFolderId() const { return m_currentFolderId; }
     [[nodiscard]] bool searchLoading() const { return m_searchLoading; }
 
@@ -103,6 +111,7 @@ private:
     void processUpdate(const QJsonObject& update);
     void processUpdates(const QVector<QJsonObject>& updates);
     void requestChats();
+    void requestArchivedChats();
     void rebuildChatList();
     void rebuildChatListNow();
     void requestHistory(qint64 chatId, qint64 fromMessageId, bool older);
@@ -124,10 +133,15 @@ private:
     TelegramSession* m_session = nullptr;
     ChatListModel* m_chatModel = nullptr;
     MessageListModel* m_messageModel = nullptr;
+    /// Owns the merge rules for the open chat's window: it de-duplicates
+    /// history pages, orders rows and tombstones deleted ids so a late page
+    /// cannot resurrect them. The view model mirrors it for display.
+    MessageHistoryStore m_history;
     MediaFileStore* m_mediaStore = nullptr;
     SearchResultModel m_searchModel;
     GlobalSearchModel m_globalSearchModel;
     ChatFolderListModel m_folderModel;
+    ChatListModel m_archiveModel;
 
     QHash<qint64, ChatData> m_chats;
     QSet<qint64> m_requestedChats;
@@ -154,6 +168,8 @@ private:
     QString m_globalQuery;
     QString m_globalOffset;
     bool m_globalSearchLoading = false;
+    bool m_archiveOpen = false;
+    bool m_archiveLoading = false;
 
     TelegramUpdateScheduler m_scheduler;
     QThread* m_parseThread = nullptr;

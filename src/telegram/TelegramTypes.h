@@ -19,6 +19,8 @@ struct ChatData {
     bool pinned = false;
     bool muted = false;
     bool inMainList = false;
+    bool archived = false;
+    qint64 archiveOrder = 0;
     bool isChannel = false;
     int photoFileId = 0;
     bool photoReady = false;

@@ -146,16 +146,69 @@ Item {
                     Layout.rightMargin: 2
 
                     Text {
-                        text: "Chats"
+                        text: BeyGramApp.archiveOpen ? "Archive" : "Chats"
                         color: BeyGramTheme.text
                         font.pixelSize: 26
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: chatListView.count
+                        text: BeyGramApp.archiveOpen
+                              ? (BeyGramApp.archivedChats ? BeyGramApp.archivedChats.count : 0)
+                              : chatListView.count
                         color: BeyGramTheme.muted
                         font.pixelSize: 11
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: BeyGramApp.archiveOpen
+                    SecondaryButton {
+                        text: "← Back to chats"
+                        onClicked: BeyGramApp.closeArchive()
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 46
+                    radius: 10
+                    color: archiveArea.containsMouse ? BeyGramTheme.surface2 : BeyGramTheme.surface
+                    visible: !BeyGramApp.archiveOpen
+                             && BeyGramApp.archivedChats
+                             && BeyGramApp.archivedChats.count > 0
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 14
+                        spacing: 8
+                        Text {
+                            text: "🗄"
+                            font.pixelSize: 15
+                        }
+                        Text {
+                            text: "Archived chats"
+                            color: BeyGramTheme.text
+                            font.pixelSize: 13
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            text: BeyGramApp.archivedChats ? BeyGramApp.archivedChats.count : 0
+                            color: BeyGramTheme.muted
+                            font.pixelSize: 11
+                        }
+                    }
+
+                    MouseArea {
+                        id: archiveArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: BeyGramApp.openArchive()
                     }
                 }
 
@@ -216,27 +269,45 @@ Item {
                         anchors.fill: parent
                         clip: true
                         spacing: 1
-                        model: BeyGramApp.chatList
+                        model: BeyGramApp.archiveOpen && BeyGramApp.archivedChats
+                               ? BeyGramApp.archivedChats
+                               : BeyGramApp.chatList
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                        delegate: ChatRow {
+                        delegate: Item {
                             width: chatListView.width
-                            chatId: model.chatId
-                            title: model.title
-                            preview: model.preview
-                            unreadCount: model.unreadCount
-                            pinned: model.pinned
-                            muted: model.muted
-                            initials: model.initials
-                            accentIndex: model.accentIndex
-                            lastDate: model.lastDate
-                            photoFileId: model.photoFileId
-                            photoReady: model.photoReady
-                            photoRevision: model.photoRevision
-                            selected: BeyGramApp.currentChatId === model.chatId
-                            onClicked: {
-                                page.resetComposer()
-                                BeyGramApp.openChat(model.chatId)
+                            height: chatRowItem.implicitHeight
+
+                            ChatRow {
+                                id: chatRowItem
+                                width: parent.width
+                                chatId: model.chatId
+                                title: model.title
+                                preview: model.preview
+                                unreadCount: model.unreadCount
+                                pinned: model.pinned
+                                muted: model.muted
+                                initials: model.initials
+                                accentIndex: model.accentIndex
+                                lastDate: model.lastDate
+                                photoFileId: model.photoFileId
+                                photoReady: model.photoReady
+                                photoRevision: model.photoRevision
+                                selected: BeyGramApp.currentChatId === model.chatId
+                                onClicked: {
+                                    page.resetComposer()
+                                    BeyGramApp.openChat(model.chatId)
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                onClicked: {
+                                    chatMenu.chatId = chatRowItem.chatId
+                                    chatMenu.chatMuted = chatRowItem.muted
+                                    chatMenu.popup()
+                                }
                             }
                         }
                     }
@@ -998,6 +1069,22 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Menu {
+        id: chatMenu
+        property var chatId: 0
+        property bool chatMuted: false
+
+        MenuItem {
+            text: chatMenu.chatMuted ? "Unmute" : "Mute"
+            onTriggered: BeyGramApp.setChatMuted(chatMenu.chatId, !chatMenu.chatMuted)
+        }
+        MenuItem {
+            text: BeyGramApp.archiveOpen ? "Unarchive" : "Archive"
+            onTriggered: BeyGramApp.setChatArchived(chatMenu.chatId,
+                                                    !BeyGramApp.archiveOpen)
         }
     }
 }

@@ -94,6 +94,9 @@ class AppController final : public QObject {
     Q_PROPERTY(bool searchLoading READ searchLoading NOTIFY chatStateChanged)
     Q_PROPERTY(QAbstractItemModel* chatFolders READ chatFolders NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentFolderId READ currentFolderId NOTIFY chatStateChanged)
+    Q_PROPERTY(QAbstractItemModel* archivedChats READ archivedChats NOTIFY chatStateChanged)
+    Q_PROPERTY(bool archiveOpen READ archiveOpen NOTIFY chatStateChanged)
+    Q_PROPERTY(bool archiveLoading READ archiveLoading NOTIFY chatStateChanged)
     Q_PROPERTY(QAbstractItemModel* globalSearchResults READ globalSearchResults NOTIFY chatStateChanged)
     Q_PROPERTY(bool globalSearchLoading READ globalSearchLoading NOTIFY chatStateChanged)
     Q_PROPERTY(qint64 currentChatId READ currentChatId NOTIFY chatStateChanged)
@@ -188,6 +191,9 @@ public:
     [[nodiscard]] bool searchLoading() const;
     [[nodiscard]] QAbstractItemModel* chatFolders();
     [[nodiscard]] qint64 currentFolderId() const;
+    [[nodiscard]] QAbstractItemModel* archivedChats();
+    [[nodiscard]] bool archiveOpen() const;
+    [[nodiscard]] bool archiveLoading() const;
     [[nodiscard]] QAbstractItemModel* globalSearchResults();
     [[nodiscard]] bool globalSearchLoading() const;
     [[nodiscard]] qint64 currentChatId() const;
@@ -263,6 +269,10 @@ public:
     Q_INVOKABLE void searchInChat(const QString& query);
     Q_INVOKABLE void clearSearch();
     Q_INVOKABLE void selectFolder(qint64 folderId);
+    Q_INVOKABLE void openArchive();
+    Q_INVOKABLE void closeArchive();
+    Q_INVOKABLE void setChatArchived(qint64 chatId, bool archived);
+    Q_INVOKABLE void setChatMuted(qint64 chatId, bool muted);
     Q_INVOKABLE void searchGlobal(const QString& query);
     Q_INVOKABLE void loadMoreGlobalSearch();
     Q_INVOKABLE void clearGlobalSearch();

@@ -11,6 +11,8 @@
 #include "PollSend.h"
 #include "TypingStatus.h"
 #include "ChatFolders.h"
+#include "ArchiveChats.h"
+#include "ChatNotificationRequests.h"
 #include "FolderChats.h"
 #include "ForwardMessages.h"
 #include "TelegramParseWorker.h"
@@ -245,6 +247,159 @@ void TelegramRepository::rebuildChatListNow()
     });
 
     m_chatModel->setChats(std::move(chats));
+
+    QVector<ChatData> archived;
+    for (const ChatData& chat : m_chats) {
+        if (chat.archived && chat.archiveOrder != 0)
+            archived.append(chat);
+    }
+    std::sort(archived.begin(), archived.end(), [](const ChatData& left, const ChatData& right) {
+        if (left.archiveOrder != right.archiveOrder)
+            return left.archiveOrder > right.archiveOrder;
+        if (left.lastMessageDate != right.lastMessageDate)
+            return left.lastMessageDate > right.lastMessageDate;
+        return left.title.localeAwareCompare(right.title) < 0;
+    });
+    m_archiveModel.setChats(std::move(archived));
+}
+
+void TelegramRepository::requestArchivedChats()
+{
+    if (m_archiveLoading)
+        return;
+    m_archiveLoading = true;
+    emit stateChanged();
+
+    auto applyIds = [this](const QJsonObject& response) {
+        if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+            m_archiveLoading = false;
+            emit stateChanged();
+            return;
+        }
+        const QJsonArray ids = response.value(QStringLiteral("chat_ids")).toArray();
+        qCInfo(lcRepo) << "archived chat list returned" << ids.size() << "ids";
+        for (const QJsonValue& value : ids) {
+            const qint64 chatId = jsonInt64(value);
+            auto it = m_chats.find(chatId);
+            if (it == m_chats.end()) {
+                if (!m_requestedChats.contains(chatId)) {
+                    m_requestedChats.insert(chatId);
+                    sendRequest(
+                        QJsonObject{{QStringLiteral("@type"), QStringLiteral("getChat")},
+                                    {QStringLiteral("chat_id"), chatId}},
+                        [this, chatId](const QJsonObject& chatResponse) {
+                            if (chatResponse.value(QStringLiteral("@type")).toString()
+                                == QLatin1String("chat")) {
+                                enqueueChatParse(chatId, chatResponse, false);
+                            } else {
+                                m_requestedChats.remove(chatId);
+                            }
+                        },
+                        QStringLiteral("Could not read an archived chat"));
+                }
+            }
+        }
+        rebuildChatList();
+        emit stateChanged();
+    };
+
+    sendRequest(getArchivedChatsRequest(ChatPageSize), applyIds,
+                QStringLiteral("Could not read the archive"));
+    sendRequest(
+        loadArchivedChatsRequest(ChatPageSize),
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                const int code = response.value(QStringLiteral("code")).toInt();
+                if (code != 404)
+                    setError(QStringLiteral("Could not load the archive: %1")
+                                 .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            m_archiveLoading = false;
+            emit stateChanged();
+        },
+        QStringLiteral("Could not load the archive"), 180000);
+}
+
+void TelegramRepository::openArchive()
+{
+    if (m_archiveOpen)
+        return;
+    m_archiveOpen = true;
+    emit stateChanged();
+    requestArchivedChats();
+}
+
+void TelegramRepository::closeArchive()
+{
+    if (!m_archiveOpen)
+        return;
+    m_archiveOpen = false;
+    emit stateChanged();
+}
+
+void TelegramRepository::setChatArchived(qint64 chatId, bool archived)
+{
+    if (chatId == 0)
+        return;
+    sendRequest(
+        setChatArchivedRequest(chatId, archived),
+        [this, chatId, archived](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not move the chat: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+                emit stateChanged();
+                return;
+            }
+            auto it = m_chats.find(chatId);
+            if (it != m_chats.end()) {
+                it->archived = archived;
+                if (archived) {
+                    it->inMainList = false;
+                    it->order = 0;
+                    if (it->archiveOrder == 0)
+                        it->archiveOrder = it->lastMessageDate;
+                } else {
+                    it->archiveOrder = 0;
+                    it->inMainList = true;
+                    if (it->order == 0)
+                        it->order = it->lastMessageDate;
+                }
+            }
+            rebuildChatList();
+            emit stateChanged();
+        },
+        QStringLiteral("Could not move the chat"));
+}
+
+void TelegramRepository::setChatMuted(qint64 chatId, bool muted)
+{
+    if (chatId == 0)
+        return;
+
+    ChatNotificationState state;
+    state.muted = muted;
+    state.useDefaultMute = false;
+    state.sound = true;
+    state.showPreview = true;
+    state.mentionsOnly = false;
+
+    sendRequest(
+        setChatNotificationSettingsRequest(chatId, state),
+        [this, chatId, muted](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not update notifications: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+                emit stateChanged();
+                return;
+            }
+            auto it = m_chats.find(chatId);
+            if (it != m_chats.end()) {
+                it->muted = muted;
+                rebuildChatList();
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not update notifications"));
 }
 
 void TelegramRepository::enqueueChatParse(qint64 chatId, const QJsonObject& chat,
@@ -299,6 +454,7 @@ void TelegramRepository::openChat(qint64 chatId)
         m_currentChatPhotoReady = m_mediaStore->isReady(chat.photoFileId);
     }
     m_messageModel->clear();
+    m_history.clear();
     m_oldestMessageId = 0;
     m_hasMoreHistory = true;
     m_historyLoading = true;
@@ -325,6 +481,7 @@ void TelegramRepository::closeChat()
     m_currentChatPhotoReady = false;
     m_currentChatPhotoRevision = 0;
     m_messageModel->clear();
+    m_history.clear();
     m_oldestMessageId = 0;
     m_lastReadMessageId = 0;
     m_hasMoreHistory = true;
@@ -391,16 +548,24 @@ void TelegramRepository::applyHistory(quint64 jobId, qint64 chatId, bool older,
     }
 
     if (older) {
-        for (const MessageData& message : messages)
+        // The store owns the merge rules: an id already loaded keeps its live
+        // copy, a tombstoned id is ignored, so a late page cannot resurrect a
+        // deleted message.
+        m_history.mergeOlder(messages);
+        for (const MessageData& message : messages) {
+            if (!m_history.contains(message.id))
+                continue;
             m_messageModel->addOrUpdate(message);
+        }
     } else {
-        m_messageModel->setMessages(messages);
+        m_history.setMessages(messages);
+        m_messageModel->setMessages(m_history.messages());
         m_lastReadMessageId = 0;
     }
     m_messageModel->resolveReplyPreviews();
 
     if (!messages.isEmpty())
-        m_oldestMessageId = m_messageModel->firstMessageId();
+        m_oldestMessageId = m_history.firstMessageId();
     else
         m_hasMoreHistory = false;
 
@@ -670,6 +835,7 @@ void TelegramRepository::sendText(const QString& text, qint64 replyToMessageId)
                 trackMessageMedia(message);
                 if (chatId == m_currentChatId) {
                     resolveSender(message);
+                    m_history.addOrUpdate(message);
                     m_messageModel->addOrUpdate(message);
                     m_messageModel->resolveReplyPreviews();
                     markCurrentChatRead();
@@ -705,6 +871,7 @@ void TelegramRepository::sendMedia(OutgoingMediaKind kind, const QString& localP
                 trackMessageMedia(message);
                 if (chatId == m_currentChatId) {
                     resolveSender(message);
+                    m_history.addOrUpdate(message);
                     m_messageModel->addOrUpdate(message);
                     m_messageModel->resolveReplyPreviews();
                     markCurrentChatRead();
@@ -843,6 +1010,7 @@ void TelegramRepository::sendPoll(const OutgoingPoll& poll)
                 MessageData message = messageFromJson(response);
                 if (chatId == m_currentChatId) {
                     resolveSender(message);
+                    m_history.addOrUpdate(message);
                     m_messageModel->addOrUpdate(message);
                     markCurrentChatRead();
                 }
@@ -893,6 +1061,7 @@ void TelegramRepository::deleteMessage(qint64 messageId, bool revoke)
                              .arg(response.value(QStringLiteral("message")).toString()));
                 return;
             }
+            m_history.removeIds({messageId});
             m_messageModel->removeIds({messageId});
         },
         QStringLiteral("Could not delete the message"));
@@ -1105,6 +1274,7 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
             if (isPrivateChat(m_currentChatType) && !message.outgoing)
                 message.senderName = m_currentChatTitle;
             resolveSender(message);
+            m_history.addOrUpdate(message);
             m_messageModel->addOrUpdate(message);
             m_messageModel->resolveReplyPreviews();
             markCurrentChatRead();
@@ -1121,6 +1291,7 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
             MessageData message = messageFromJson(object);
             trackMessageMedia(message);
             resolveSender(message);
+            m_history.replaceId(oldId, message);
             m_messageModel->replaceId(oldId, message);
             m_messageModel->resolveReplyPreviews();
             markCurrentChatRead();
@@ -1169,6 +1340,7 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
         QVector<qint64> ids;
         for (const QJsonValue& value : update.value(QStringLiteral("message_ids")).toArray())
             ids.append(jsonInt64(value));
+        m_history.removeIds(ids);
         m_messageModel->removeIds(ids);
         return;
     }

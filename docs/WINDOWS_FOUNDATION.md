@@ -39,6 +39,11 @@ This document describes the native Windows client. The Android client under
 - Audio/video playback from downloaded TDLib files.
 - Desktop window geometry and maximized state are restored between runs.
 - Chat folder tabs backed by TDLib `updateChatFolders`, with per-folder chat loading.
+- Chat archive: an "Archived chats" banner, a dedicated archive list, and
+  archive/unarchive plus mute/unmute from a chat-row context menu.
+- The open conversation's window is merged through `MessageHistoryStore`, so
+  duplicate pages are collapsed, order is stable and a deleted id cannot be
+  resurrected by a late history page.
 - Notification settings (enable, preview) in the Settings page.
 - Parsers/builders for reactions, stickers, albums, forward origins and pinned messages (UI wiring is next).
 - A global-search page component ready for the paged `GlobalSearchModel`.
@@ -46,7 +51,7 @@ This document describes the native Windows client. The Android client under
 - Typing/upload status labels and a typing indicator for the open chat.
 - History merge/tombstone store, reaction-update parser, read-marker tracker, media cache policy, scheduled/notification/blocking builders, message-window jump, sticker send and typing roster.
 - A 20-part Android parity audit under `docs/parity/` with concrete gap lists and port plans.
-- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump.
+- Album send/model, poll send/admin/results, bot markup/commands, deep links, stories, premium, gifts, contacts, privacy/sessions, folders, permissions, payments, reactions/sticker catalogs, message properties, notification routing/grouping, unread counters, media file state, draft/send options and desktop controllers for selection/archive/search/profile/stickers/jump, plus story viewer, call state, media playlist, voice recording, scheduled send, emoji catalog, auto-download policy, spoiler reveal, connection status, translation, sticker search, chat statistics, member list, username check, session list, gift catalog, chat background, call history, notification settings and text replacements.
 - Archive, selection, profile-edit, link-preview, sticker-set, poll and contact-search modules/components.
 - Optional SOCKS5/HTTP/MTProto proxy via `BEYGRAM_PROXY` (needed where Telegram
   is not directly reachable).
@@ -251,7 +256,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 106 suites:
+`ctest` runs 126 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -278,7 +283,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
   session for the same account, close, reopen and verify restart.
 
-Local Phase 2 run with TDLib 1.8.69: **106/106 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **126/126 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited

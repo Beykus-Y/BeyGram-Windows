@@ -11,6 +11,8 @@ class TelegramTypesTest final : public QObject {
 private slots:
     void parsesAChat();
     void appliesChatPositionRemoval();
+    void parsesArchivedChat();
+    void appliesArchivePositionRemoval();
     void buildsPreviews();
     void parsesMessages();
     void parsesPhotoMedia();
@@ -73,6 +75,42 @@ void TelegramTypesTest::appliesChatPositionRemoval()
                             });
     QVERIFY(!chat.inMainList);
     QCOMPARE(chat.order, qint64(0));
+}
+
+void TelegramTypesTest::parsesArchivedChat()
+{
+    const QJsonObject chat = QJsonDocument::fromJson(R"({
+        "id": 43,
+        "title": "Archived",
+        "type": {"@type": "chatTypePrivate"},
+        "positions": [{
+            "list": {"@type": "chatListArchive"},
+            "order": 700,
+            "is_pinned": false
+        }]
+    })")
+                                  .object();
+
+    const ChatData data = chatFromJson(chat);
+    QVERIFY(data.archived);
+    QCOMPARE(data.archiveOrder, qint64(700));
+    QVERIFY(!data.inMainList);
+    QCOMPARE(data.order, qint64(0));
+}
+
+void TelegramTypesTest::appliesArchivePositionRemoval()
+{
+    ChatData chat;
+    chat.archived = true;
+    chat.archiveOrder = 10;
+    applyChatPosition(chat, QJsonObject{
+                                {QStringLiteral("list"),
+                                 QJsonObject{{QStringLiteral("@type"),
+                                              QStringLiteral("chatListArchive")}}},
+                                {QStringLiteral("order"), 0},
+                            });
+    QVERIFY(!chat.archived);
+    QCOMPARE(chat.archiveOrder, qint64(0));
 }
 
 void TelegramTypesTest::buildsPreviews()

@@ -706,6 +706,21 @@ qint64 AppController::currentFolderId() const
     return m_repository ? m_repository->currentFolderId() : 0;
 }
 
+QAbstractItemModel* AppController::archivedChats()
+{
+    return m_repository ? m_repository->archiveModel() : nullptr;
+}
+
+bool AppController::archiveOpen() const
+{
+    return m_repository && m_repository->archiveOpen();
+}
+
+bool AppController::archiveLoading() const
+{
+    return m_repository && m_repository->archiveLoading();
+}
+
 QAbstractItemModel* AppController::globalSearchResults()
 {
     return m_repository ? m_repository->globalSearchModel() : nullptr;
@@ -1016,6 +1031,34 @@ void AppController::selectFolder(qint64 folderId)
 {
     if (m_repository)
         m_repository->selectFolder(folderId);
+    emit chatStateChanged();
+}
+
+void AppController::openArchive()
+{
+    if (m_repository)
+        m_repository->openArchive();
+    emit chatStateChanged();
+}
+
+void AppController::closeArchive()
+{
+    if (m_repository)
+        m_repository->closeArchive();
+    emit chatStateChanged();
+}
+
+void AppController::setChatArchived(qint64 chatId, bool archived)
+{
+    if (m_repository)
+        m_repository->setChatArchived(chatId, archived);
+    emit chatStateChanged();
+}
+
+void AppController::setChatMuted(qint64 chatId, bool muted)
+{
+    if (m_repository)
+        m_repository->setChatMuted(chatId, muted);
     emit chatStateChanged();
 }
 

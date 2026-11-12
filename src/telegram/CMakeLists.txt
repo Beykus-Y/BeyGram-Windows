@@ -75,6 +75,46 @@ add_library(beygram_telegram STATIC
     MessageJumpController.h
     BotCommandModel.cpp
     BotCommandModel.h
+    StoryViewerController.cpp
+    StoryViewerController.h
+    CallController.cpp
+    CallController.h
+    MediaPlaylistModel.cpp
+    MediaPlaylistModel.h
+    VoiceRecordingController.cpp
+    VoiceRecordingController.h
+    ScheduleSendController.cpp
+    ScheduleSendController.h
+    EmojiCatalogModel.cpp
+    EmojiCatalogModel.h
+    AutoDownloadPolicy.cpp
+    AutoDownloadPolicy.h
+    SpoilerRevealModel.cpp
+    SpoilerRevealModel.h
+    ConnectionStatusController.cpp
+    ConnectionStatusController.h
+    TranslationController.cpp
+    TranslationController.h
+    StickerSearchController.cpp
+    StickerSearchController.h
+    ChatStatisticsModel.cpp
+    ChatStatisticsModel.h
+    ChatMemberListModel.cpp
+    ChatMemberListModel.h
+    UsernameCheckController.cpp
+    UsernameCheckController.h
+    SessionListModel.cpp
+    SessionListModel.h
+    GiftCatalogModel.cpp
+    GiftCatalogModel.h
+    ChatBackgroundController.cpp
+    ChatBackgroundController.h
+    CallHistoryModel.cpp
+    CallHistoryModel.h
+    NotificationSettingsModel.cpp
+    NotificationSettingsModel.h
+    TextReplacementModel.cpp
+    TextReplacementModel.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h

@@ -405,16 +405,8 @@ ChatData chatFromJson(const QJsonObject& chat)
     }
 
     const QJsonArray positions = chat.value(QStringLiteral("positions")).toArray();
-    for (const QJsonValue& value : positions) {
-        const QJsonObject position = value.toObject();
-        if (position.value(QStringLiteral("list"))
-                .toObject()
-                .value(QStringLiteral("@type"))
-                .toString()
-            == QLatin1String("chatListMain")) {
-            applyChatPosition(data, position);
-        }
-    }
+    for (const QJsonValue& value : positions)
+        applyChatPosition(data, value.toObject());
 
     data.initials = initialsForTitle(data.title);
     data.accentIndex = accentIndexForId(data.id);
@@ -427,13 +419,17 @@ void applyChatPosition(ChatData& chat, const QJsonObject& position)
                                  .toObject()
                                  .value(QStringLiteral("@type"))
                                  .toString();
-    if (listType != QLatin1String("chatListMain"))
-        return;
-
     const qint64 order = jsonInt64(position.value(QStringLiteral("order")));
-    chat.order = order;
-    chat.pinned = position.value(QStringLiteral("is_pinned")).toBool();
-    chat.inMainList = order != 0;
+    if (listType == QLatin1String("chatListMain")) {
+        chat.order = order;
+        chat.pinned = position.value(QStringLiteral("is_pinned")).toBool();
+        chat.inMainList = order != 0;
+        return;
+    }
+    if (listType == QLatin1String("chatListArchive")) {
+        chat.archiveOrder = order;
+        chat.archived = order != 0;
+    }
 }
 
 MessageData messageFromJson(const QJsonObject& message)
