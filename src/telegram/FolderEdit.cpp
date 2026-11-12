@@ -120,12 +120,4 @@ QJsonObject deleteChatFolderRequest(qint64 folderId)
     };
 }
 
-QJsonObject getChatFolderRequest(qint64 folderId)
-{
-    return QJsonObject{
-        {QStringLiteral("@type"), QStringLiteral("getChatFolder")},
-        {QStringLiteral("chat_folder_id"), folderId},
-    };
-}
-
 } // namespace beygram::telegram

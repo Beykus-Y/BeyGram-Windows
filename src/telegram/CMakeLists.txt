@@ -203,6 +203,34 @@ add_library(beygram_telegram STATIC
     VideoPlayerState.h
     VoiceWaveformModel.cpp
     VoiceWaveformModel.h
+    ChatFolderEditController.cpp
+    ChatFolderEditController.h
+    ChatMemberPermissionsModel.cpp
+    ChatMemberPermissionsModel.h
+    GiftHistoryModel.cpp
+    GiftHistoryModel.h
+    MediaCaptionModel.cpp
+    MediaCaptionModel.h
+    PaymentCardModel.cpp
+    PaymentCardModel.h
+    PollVoteModel.cpp
+    PollVoteModel.h
+    PremiumStatusModel.cpp
+    PremiumStatusModel.h
+    PrivacyRuleEditorModel.cpp
+    PrivacyRuleEditorModel.h
+    RecentStickerModel.cpp
+    RecentStickerModel.h
+    SessionTerminationController.cpp
+    SessionTerminationController.h
+    StarPurchaseModel.cpp
+    StarPurchaseModel.h
+    StoryReactionModel.cpp
+    StoryReactionModel.h
+    TranslationLanguageModel.cpp
+    TranslationLanguageModel.h
+    WebAppSessionController.cpp
+    WebAppSessionController.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
