@@ -25,6 +25,36 @@ add_library(beygram_telegram STATIC
     DeepLinks.h
     StoryRequests.cpp
     StoryRequests.h
+    BotCommands.cpp
+    BotCommands.h
+    ChatFolderFilters.cpp
+    ChatFolderFilters.h
+    ChatListMembership.cpp
+    ChatListMembership.h
+    ChatThemeState.cpp
+    ChatThemeState.h
+    DraftSync.cpp
+    DraftSync.h
+    MessageSendOptions.cpp
+    MessageSendOptions.h
+    NotificationGrouping.cpp
+    NotificationGrouping.h
+    PollResults.cpp
+    PollResults.h
+    PrivacyRules.cpp
+    PrivacyRules.h
+    StickerCatalog.cpp
+    StickerCatalog.h
+    UnreadCounter.cpp
+    UnreadCounter.h
+    WebAppInfo.cpp
+    WebAppInfo.h
+    ChatMembers.cpp
+    ChatMembers.h
+    ReactionCatalog.cpp
+    ReactionCatalog.h
+    PaymentRequests.cpp
+    PaymentRequests.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
