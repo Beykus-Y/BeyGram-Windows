@@ -311,6 +311,26 @@ add_library(beygram_telegram STATIC
     TriggerWords.h
     VpnModels.cpp
     VpnModels.h
+    AccountSecurity.cpp
+    AccountSecurity.h
+    BackgroundMusic.cpp
+    BackgroundMusic.h
+    ChatActivityModel.cpp
+    ChatActivityModel.h
+    ChatMemory.cpp
+    ChatMemory.h
+    InteractionPolicy.cpp
+    InteractionPolicy.h
+    MessageReports.cpp
+    MessageReports.h
+    MessageSpecial.cpp
+    MessageSpecial.h
+    MusicLibrary.cpp
+    MusicLibrary.h
+    ShareTargets.cpp
+    ShareTargets.h
+    StealthSchedule.cpp
+    StealthSchedule.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
