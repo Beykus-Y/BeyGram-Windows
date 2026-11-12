@@ -17,6 +17,14 @@ add_library(beygram_telegram STATIC
     ChatBlocking.h
     ChatNotificationRequests.cpp
     ChatNotificationRequests.h
+    ChatPermissions.cpp
+    ChatPermissions.h
+    ContactRequests.cpp
+    ContactRequests.h
+    DeepLinks.cpp
+    DeepLinks.h
+    StoryRequests.cpp
+    StoryRequests.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
@@ -108,6 +116,34 @@ add_library(beygram_telegram STATIC
     PollInfo.cpp
     PollInfo.h
     PinnedMessages.h
+    AlbumSend.cpp
+    AlbumSend.h
+    BotMarkup.cpp
+    BotMarkup.h
+    CallHistory.cpp
+    CallHistory.h
+    ChatListActions.cpp
+    ChatListActions.h
+    MediaFileState.cpp
+    MediaFileState.h
+    MessageProperties.cpp
+    MessageProperties.h
+    NotificationRouter.cpp
+    NotificationRouter.h
+    PollAdmin.cpp
+    PollAdmin.h
+    PollSend.cpp
+    PollSend.h
+    PremiumRequests.cpp
+    PremiumRequests.h
+    PresenceRequests.cpp
+    PresenceRequests.h
+    SearchFilters.cpp
+    SearchFilters.h
+    SessionRequests.cpp
+    SessionRequests.h
+    GiftRequests.cpp
+    GiftRequests.h
 )
 
 target_include_directories(beygram_telegram PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
