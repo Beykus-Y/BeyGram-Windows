@@ -387,6 +387,38 @@ add_library(beygram_telegram STATIC
     music/MusicSearch.h
     music/MusicSmartCollections.cpp
     music/MusicSmartCollections.h
+    AlbumSendPlanner.cpp
+    AlbumSendPlanner.h
+    ChatSearchIndex.cpp
+    ChatSearchIndex.h
+    ForwardBatch.cpp
+    ForwardBatch.h
+    MessageActionAvailability.cpp
+    MessageActionAvailability.h
+    MessageFormatter.cpp
+    MessageFormatter.h
+    NotificationScopes.cpp
+    NotificationScopes.h
+    PrefetchPlanner.cpp
+    PrefetchPlanner.h
+    ReplyPreviewBuilder.cpp
+    ReplyPreviewBuilder.h
+    SavedMessages.cpp
+    SavedMessages.h
+    UnreadSync.cpp
+    UnreadSync.h
+    music/MusicBotTracks.cpp
+    music/MusicBotTracks.h
+    music/MusicSearchHistory.cpp
+    music/MusicSearchHistory.h
+    music/MusicSession.cpp
+    music/MusicSession.h
+    music/MusicWaves.cpp
+    music/MusicWaves.h
+    music/PlaybackSettings.cpp
+    music/PlaybackSettings.h
+    music/SilenceEdges.cpp
+    music/SilenceEdges.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
