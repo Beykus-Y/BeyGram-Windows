@@ -556,6 +556,7 @@ Item {
             currentIndex: shell.currentSection
 
             ChatsPage {
+                id: chatsPage
                 onGlobalSearchRequested: shell.openSearch()
             }
 
@@ -575,6 +576,7 @@ Item {
                 onResultActivated: (chatId, messageId) => {
                     BeyGramApp.openChat(chatId)
                     shell.currentSection = 0
+                    chatsPage.jumpToMessage(messageId)
                 }
             }
 
@@ -599,7 +601,10 @@ Item {
             }
 
             MusicLibraryPage {
+                id: musicLibraryPage
                 facade: BeyGramApp.musicLibrary
+                onPlayRequested: (trackId) => BeyGramApp.playMusicTrack(trackId)
+                onPlaylistPlayRequested: (playlistId) => BeyGramApp.playMusicPlaylist(playlistId)
             }
         }
     }

@@ -13,6 +13,7 @@
 #include "PrivacyRequests.h"
 #include "SessionRequests.h"
 #include "StickerSend.h"
+#include "StoryActions.h"
 #include "StoryRequests.h"
 #include "ProfileEdit.h"
 #include "TypingStatus.h"
@@ -63,6 +64,76 @@ QString chatTypeLabel(const QString& type)
     if (type == QLatin1String("chatTypeBasicGroup")) return QStringLiteral("Group");
     if (type == QLatin1String("chatTypeSupergroup")) return QStringLiteral("Group");
     return QStringLiteral("Telegram");
+}
+
+/// Display name of a TDLib FileType in the storage breakdown.
+QString storageKindName(const QString& fileType)
+{
+    if (fileType == QLatin1String("fileTypePhoto")) return QStringLiteral("Photos");
+    if (fileType == QLatin1String("fileTypeProfilePhoto")) return QStringLiteral("Avatars");
+    if (fileType == QLatin1String("fileTypeVideo")) return QStringLiteral("Videos");
+    if (fileType == QLatin1String("fileTypeVideoNote")) return QStringLiteral("Video messages");
+    if (fileType == QLatin1String("fileTypeAnimation")) return QStringLiteral("GIFs");
+    if (fileType == QLatin1String("fileTypeAudio")) return QStringLiteral("Music");
+    if (fileType == QLatin1String("fileTypeVoiceNote")) return QStringLiteral("Voice");
+    if (fileType == QLatin1String("fileTypeDocument")) return QStringLiteral("Documents");
+    if (fileType == QLatin1String("fileTypeSticker")) return QStringLiteral("Stickers");
+    if (fileType == QLatin1String("fileTypeThumbnail")) return QStringLiteral("Thumbnails");
+    if (fileType == QLatin1String("fileTypeWallpaper")) return QStringLiteral("Wallpapers");
+    return QStringLiteral("Other");
+}
+
+/// Maps one breakdown kind back to the TDLib FileType used by optimizeStorage.
+/// Unknown kinds contribute no filter, so they never make the request broader
+/// than the user asked for.
+QString storageFileType(const QString& kind)
+{
+    const QString k = kind.trimmed().toLower();
+    if (k.contains(QLatin1String("avatar")) || k.contains(QLatin1String("profile")))
+        return QStringLiteral("fileTypeProfilePhoto");
+    if (k.contains(QLatin1String("photo")) || k.contains(QLatin1String("image")))
+        return QStringLiteral("fileTypePhoto");
+    if (k.contains(QLatin1String("video message")) || k.contains(QLatin1String("video note")))
+        return QStringLiteral("fileTypeVideoNote");
+    if (k.contains(QLatin1String("video")))
+        return QStringLiteral("fileTypeVideo");
+    if (k.contains(QLatin1String("gif")) || k.contains(QLatin1String("animation")))
+        return QStringLiteral("fileTypeAnimation");
+    if (k.contains(QLatin1String("music")) || k.contains(QLatin1String("audio")))
+        return QStringLiteral("fileTypeAudio");
+    if (k.contains(QLatin1String("voice")))
+        return QStringLiteral("fileTypeVoiceNote");
+    if (k.contains(QLatin1String("sticker")))
+        return QStringLiteral("fileTypeSticker");
+    if (k.contains(QLatin1String("thumbnail")))
+        return QStringLiteral("fileTypeThumbnail");
+    if (k.contains(QLatin1String("wallpaper")))
+        return QStringLiteral("fileTypeWallpaper");
+    if (k.contains(QLatin1String("document")) || k.contains(QLatin1String("file")))
+        return QStringLiteral("fileTypeDocument");
+    return {};
+}
+
+QVector<StorageRow> storageRowsFromResponse(const QJsonObject& response)
+{
+    QVector<StorageRow> rows;
+    const QJsonArray byType = response.value(QStringLiteral("files_by_type")).toArray();
+    rows.reserve(byType.size());
+    for (const QJsonValue& value : byType) {
+        const QJsonObject entry = value.toObject();
+        const QString kind = storageKindName(
+            entry.value(QStringLiteral("file_type")).toObject()
+                .value(QStringLiteral("@type")).toString());
+        StorageRow row;
+        row.kind = kind;
+        row.fileCount = static_cast<int>(jsonInt64(entry.value(QStringLiteral("count"))));
+        row.bytes = jsonInt64(entry.value(QStringLiteral("size")));
+        rows.append(row);
+    }
+    std::sort(rows.begin(), rows.end(), [](const StorageRow& lhs, const StorageRow& rhs) {
+        return lhs.bytes > rhs.bytes;
+    });
+    return rows;
 }
 } // namespace
 
@@ -135,6 +206,9 @@ TelegramRepository::TelegramRepository(TelegramSession* session, ChatListModel* 
                 emit currentChatChanged();
             }
             emit stateChanged();
+        });
+        connect(m_mediaStore, &MediaFileStore::fileFailed, this, [this](int fileId) {
+            m_messageModel->markMediaFailed(fileId);
         });
     }
 }
@@ -432,14 +506,20 @@ void TelegramRepository::setChatArchived(qint64 chatId, bool archived)
 
 void TelegramRepository::setChatMuted(qint64 chatId, bool muted)
 {
+    setChatNotificationSettings(chatId, muted, true, true);
+}
+
+void TelegramRepository::setChatNotificationSettings(qint64 chatId, bool muted, bool sound,
+                                                     bool showPreview)
+{
     if (chatId == 0)
         return;
 
     ChatNotificationState state;
     state.muted = muted;
     state.useDefaultMute = false;
-    state.sound = true;
-    state.showPreview = true;
+    state.sound = sound;
+    state.showPreview = showPreview;
     state.mentionsOnly = false;
 
     sendRequest(
@@ -541,6 +621,113 @@ void TelegramRepository::sendGift(qint64 giftId, qint64 chatId, const QString& t
     emit stateChanged();
 }
 
+void TelegramRepository::applyProxy(const QString& type, const QString& host, int port,
+                                    const QString& user, const QString& password)
+{
+    TelegramProxySettings settings;
+    settings.type = type.trimmed().toLower();
+    settings.server = host.trimmed();
+    settings.port = port;
+    settings.username = user;
+    settings.password = password;
+    if (!settings.isValid()) {
+        setError(QStringLiteral("Proxy settings are incomplete"));
+        emit stateChanged();
+        return;
+    }
+
+    m_error.clear();
+    m_session->applyProxy(settings);
+    emit stateChanged();
+}
+
+void TelegramRepository::reactToStory(qint64 posterChatId, qint64 storyId, const QString& emoji)
+{
+    if (storyId <= 0 || posterChatId == 0)
+        return;
+
+    QJsonObject request = reactStoryRequest(storyId, emoji);
+    if (request.isEmpty()) {
+        setError(QStringLiteral("Could not react to the story: invalid story id"));
+        emit stateChanged();
+        return;
+    }
+    // TDLib addresses a story by (poster chat id, story id); the viewer knows
+    // the poster, which is not always the currently open chat.
+    request.insert(QStringLiteral("story_poster_chat_id"), posterChatId);
+
+    m_error.clear();
+    sendRequest(
+        request,
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not react to the story: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            }
+            emit stateChanged();
+        },
+        QStringLiteral("Could not react to the story"));
+    emit stateChanged();
+}
+
+void TelegramRepository::requestStorageStatistics()
+{
+    sendRequest(
+        QJsonObject{{QStringLiteral("@type"), QStringLiteral("getStorageStatistics")},
+                    {QStringLiteral("chat_limit"), 0}},
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error"))
+                return;
+            emit storageStatisticsLoaded(storageRowsFromResponse(response));
+        },
+        QStringLiteral("Could not read the storage statistics"));
+}
+
+void TelegramRepository::cleanStorageCache(const QStringList& kinds)
+{
+    QJsonArray fileTypes;
+    QSet<QString> seen;
+    for (const QString& kind : kinds) {
+        const QString fileType = storageFileType(kind);
+        if (fileType.isEmpty() || seen.contains(fileType))
+            continue;
+        seen.insert(fileType);
+        fileTypes.append(QJsonObject{{QStringLiteral("@type"), fileType}});
+    }
+
+    // optimizeStorage deletes files by cache criteria; size 1 byte asks it to
+    // free everything it may, ttl 1 restricts that to files untouched for at
+    // least a second, and the immunity delay keeps media in active use.
+    QJsonObject request{
+        {QStringLiteral("@type"), QStringLiteral("optimizeStorage")},
+        {QStringLiteral("size"), 1},
+        {QStringLiteral("ttl"), 1},
+        {QStringLiteral("count"), 0},
+        {QStringLiteral("immunity_delay"), 60},
+        {QStringLiteral("chat_ids"), QJsonArray{}},
+        {QStringLiteral("exclude_chat_ids"), QJsonArray{}},
+        {QStringLiteral("return_deleted_file_statistics"), false},
+        {QStringLiteral("chat_limit"), 0},
+        {QStringLiteral("file_types"), fileTypes},
+    };
+
+    m_error.clear();
+    sendRequest(
+        request,
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                setError(QStringLiteral("Could not clean the cache: %1")
+                             .arg(response.value(QStringLiteral("message")).toString()));
+            } else {
+                emit storageStatisticsLoaded(storageRowsFromResponse(response));
+            }
+            emit storageCleanupFinished();
+            emit stateChanged();
+        },
+        QStringLiteral("Could not clean the cache"));
+    emit stateChanged();
+}
+
 void TelegramRepository::setPrivacySetting(const QString& setting, const QString& rule)
 {
     const QJsonObject request = setPrivacySettingRequest(setting, rule);
@@ -599,10 +786,15 @@ void TelegramRepository::terminateAllOtherSessions()
 
 void TelegramRepository::openStory(qint64 storyId)
 {
-    if (m_currentChatId == 0 || storyId <= 0)
+    openStoryForChat(m_currentChatId, storyId);
+}
+
+void TelegramRepository::openStoryForChat(qint64 posterChatId, qint64 storyId)
+{
+    if (posterChatId == 0 || storyId <= 0)
         return;
     sendRequest(
-        openStoryRequest(m_currentChatId, static_cast<int>(storyId)),
+        openStoryRequest(posterChatId, static_cast<int>(storyId)),
         [this](const QJsonObject& response) {
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
                 setError(QStringLiteral("Could not open the story: %1")
@@ -647,8 +839,10 @@ void TelegramRepository::openChat(qint64 chatId)
 {
     if (chatId == 0)
         return;
-    if (chatId == m_currentChatId && m_messageModel->count() > 0)
+    if (chatId == m_currentChatId && m_messageModel->count() > 0 && m_error.isEmpty()
+        && !m_historyLoading) {
         return;
+    }
     if (chatId != m_currentChatId)
         m_lastReadMessageId = 0;
 
@@ -790,6 +984,10 @@ void TelegramRepository::applyHistory(quint64 jobId, qint64 chatId, bool older,
         m_history.mergeOlder(messages);
         for (const MessageData& message : messages) {
             if (!m_history.contains(message.id))
+                continue;
+            // A message already on screen keeps its live copy; the older page
+            // must not roll an edit or a downloaded file back.
+            if (m_messageModel->contains(message.id))
                 continue;
             m_messageModel->addOrUpdate(message);
         }
@@ -1275,6 +1473,7 @@ void TelegramRepository::editMessage(qint64 messageId, const QString& text)
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("message")) {
                 m_messageModel->updateContent(
                     messageId, response.value(QStringLiteral("content")).toObject(), true);
+                trackMessageMediaById(messageId);
             } else if (response.value(QStringLiteral("@type")).toString()
                        == QLatin1String("error")) {
                 setError(QStringLiteral("Could not edit the message: %1")
@@ -1305,7 +1504,7 @@ void TelegramRepository::deleteMessage(qint64 messageId, bool revoke)
 
 void TelegramRepository::markCurrentChatRead()
 {
-    if (m_currentChatId == 0 || m_lastReadMessageId == 0)
+    if (m_currentChatId == 0)
         return;
     const qint64 newest = m_messageModel->lastMessageId();
     if (newest == 0 || newest <= m_lastReadMessageId)
@@ -1559,6 +1758,7 @@ void TelegramRepository::processUpdate(const QJsonObject& update)
         m_messageModel->updateContent(jsonInt64(update.value(QStringLiteral("message_id"))),
                                       update.value(QStringLiteral("new_content")).toObject(),
                                       false);
+        trackMessageMediaById(jsonInt64(update.value(QStringLiteral("message_id"))));
         return;
     }
 
@@ -1610,6 +1810,21 @@ void TelegramRepository::trackMessageMedia(MessageData& message)
         return;
     m_mediaStore->trackFileId(message.mediaFileId, 16);
     message.mediaReady = m_mediaStore->isReady(message.mediaFileId);
+    message.mediaFailed = m_mediaStore->isFailed(message.mediaFileId);
+}
+
+void TelegramRepository::trackMessageMediaById(qint64 messageId)
+{
+    if (!m_mediaStore)
+        return;
+    const int fileId = m_messageModel->mediaFileIdFor(messageId);
+    if (fileId == 0)
+        return;
+    m_mediaStore->trackFileId(fileId, 16);
+    if (m_mediaStore->isReady(fileId))
+        m_messageModel->markMediaReady(fileId);
+    else if (m_mediaStore->isFailed(fileId))
+        m_messageModel->markMediaFailed(fileId);
 }
 
 void TelegramRepository::resolveSender(MessageData& message)

@@ -108,6 +108,15 @@ QVector<Draft> DraftStore::drafts() const
     return sortedDrafts(m_drafts);
 }
 
+void DraftStore::switchTo(const QString& filePath)
+{
+    if (m_filePath == filePath)
+        return;
+    m_filePath = filePath;
+    m_drafts.clear();
+    load();
+}
+
 void DraftStore::load()
 {
     m_drafts.clear();

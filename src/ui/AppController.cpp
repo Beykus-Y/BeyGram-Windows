@@ -605,12 +605,15 @@ void AppController::ensureRepository()
     m_repository = std::make_unique<telegram::TelegramRepository>(
         m_session.get(), &m_chatListModel, &m_messageModel, &m_mediaStore, this);
     m_repository->setChatCachePath(
-        QDir(AppPaths::dataDirectory())
+        QDir(m_registry.accountDirectory(m_accountId))
             .filePath(QStringLiteral("state/chats-cache.json")));
     m_repository->setMessageCachePath(
-        QDir(AppPaths::dataDirectory())
+        QDir(m_registry.accountDirectory(m_accountId))
             .filePath(QStringLiteral("state/messages")));
     m_mediaStore.setSession(m_session.get());
+    m_drafts.switchTo(
+        QDir(m_registry.accountDirectory(m_accountId))
+            .filePath(QStringLiteral("state/drafts.json")));
 
     // Facade requests -> repository actions. Each connection is scoped to the
     // repository instance, so rebuilding the session cannot fire twice.
@@ -647,10 +650,9 @@ void AppController::ensureRepository()
             });
     connect(m_facades->notifications(), &NotificationsFacade::chatSettingsRequested, this,
             [this](const QString& chatId, bool muted, bool sound, bool preview) {
-                Q_UNUSED(sound)
-                Q_UNUSED(preview)
                 if (m_repository)
-                    m_repository->setChatMuted(chatId.toLongLong(), muted);
+                    m_repository->setChatNotificationSettings(chatId.toLongLong(), muted,
+                                                              sound, preview);
             });
     connect(m_facades->chatListControls(), &ChatListFacade::archiveOpenChanged, this,
             [this](bool open) {
@@ -661,6 +663,74 @@ void AppController::ensureRepository()
                 else
                     m_repository->closeArchive();
             });
+    connect(m_facades->gifts(), &GiftsFacade::sendRequested, this,
+            [this](const QString& giftId, const QString& chatId, const QString& userId,
+                   const QString& message, bool anonymous) {
+                Q_UNUSED(anonymous)
+                if (!m_repository)
+                    return;
+                const qint64 owner = chatId.toLongLong() != 0 ? chatId.toLongLong()
+                                                              : userId.toLongLong();
+                m_repository->sendGift(giftId.toLongLong(), owner, message);
+            });
+    connect(m_facades->privacy(), &PrivacyFacade::saveRequested, this,
+            [this](const QString& setting, const QString& value) {
+                if (m_repository)
+                    m_repository->setPrivacySetting(setting, value);
+            });
+    connect(m_facades->sessions(), &SessionsFacade::terminateRequested, this,
+            [this](const QString& sessionId) {
+                if (!m_repository)
+                    return;
+                if (sessionId.isEmpty())
+                    m_repository->terminateAllOtherSessions();
+                else
+                    m_repository->terminateSession(sessionId.toLongLong());
+            });
+    connect(m_facades->network(), &NetworkFacade::proxyApplyRequested, this,
+            [this](const QString& type, const QString& host, int port,
+                   const QString& user, const QString& password) {
+                if (m_repository)
+                    m_repository->applyProxy(type, host, port, user, password);
+            });
+    connect(m_facades->stories(), &StoriesFacade::seen, this,
+            [this](const QString& storyId) {
+                if (m_repository)
+                    m_repository->openStoryForChat(
+                        m_facades->stories()->chatId().toLongLong(), storyId.toLongLong());
+            });
+    connect(m_facades->stories(), &StoriesFacade::reactionRequested, this,
+            [this](const QString& storyId, const QString& emoji) {
+                if (m_repository)
+                    m_repository->reactToStory(
+                        m_facades->stories()->chatId().toLongLong(), storyId.toLongLong(),
+                        emoji);
+            });
+    connect(m_facades->storage(), &StorageFacade::cleanRequested, this,
+            [this](const QStringList& kinds) {
+                if (m_repository)
+                    m_repository->cleanStorageCache(kinds);
+                else
+                    m_facades->storage()->setRunning(false);
+            });
+    connect(m_repository.get(), &telegram::TelegramRepository::storageStatisticsLoaded,
+            this, [this](const QVector<telegram::StorageRow>& rows) {
+                QStringList kinds;
+                QStringList counts;
+                QStringList bytes;
+                kinds.reserve(rows.size());
+                counts.reserve(rows.size());
+                bytes.reserve(rows.size());
+                for (const telegram::StorageRow& row : rows) {
+                    kinds.append(row.kind);
+                    counts.append(QString::number(row.fileCount));
+                    bytes.append(QString::number(row.bytes));
+                }
+                m_facades->storage()->setStorage(kinds, counts, bytes);
+            });
+    connect(m_repository.get(), &telegram::TelegramRepository::storageCleanupFinished,
+            this, [this] { m_facades->storage()->setRunning(false); });
+    m_repository->requestStorageStatistics();
     connect(m_repository.get(), &telegram::TelegramRepository::stateChanged, this,
             [this] { emit chatStateChanged(); });
     connect(m_repository.get(), &telegram::TelegramRepository::currentChatChanged, this,
@@ -862,6 +932,7 @@ void AppController::openMediaPlayback(int fileId, const QString& title)
         return;
 
     m_mediaStore.trackFileId(fileId, 32);
+    m_pendingPlaybackFileId = fileId;
     const QString path = m_mediaStore.path(fileId);
     if (!path.isEmpty()) {
         m_playback.open(QUrl::fromLocalFile(path), title);
@@ -875,6 +946,8 @@ void AppController::openMediaPlayback(int fileId, const QString& title)
             if (readyId != fileId)
                 return;
             QObject::disconnect(*connection);
+            if (m_pendingPlaybackFileId != fileId)
+                return;
             const QString readyPath = m_mediaStore.path(fileId);
             if (!readyPath.isEmpty())
                 m_playback.open(QUrl::fromLocalFile(readyPath), title);
@@ -884,6 +957,105 @@ void AppController::openMediaPlayback(int fileId, const QString& title)
 bool AppController::saveOpenMediaAs(const QUrl& target)
 {
     return m_mediaViewer.saveAs(target.toLocalFile());
+}
+
+void AppController::playMusicTrack(const QString& trackId)
+{
+    const QString cleanId = trackId.trimmed();
+    if (cleanId.isEmpty())
+        return;
+
+    MusicLibraryFacade* library = m_facades->musicLibrary();
+    MusicPlayerFacade* player = m_facades->musicPlayer();
+
+    QStringList ids;
+    QStringList titles;
+    QHash<QString, QVariantMap> rowsById;
+    const QVariantList rows = library->tracks();
+    ids.reserve(rows.size());
+    titles.reserve(rows.size());
+    for (const QVariant& value : rows) {
+        const QVariantMap row = value.toMap();
+        const QString id = row.value(QStringLiteral("id")).toString();
+        if (id.isEmpty())
+            continue;
+        ids.append(id);
+        titles.append(row.value(QStringLiteral("title")).toString());
+        rowsById.insert(id, row);
+    }
+
+    // A track opened from a chat may not be in the library yet; keep it in the
+    // queue so the transport still reflects what the user started.
+    if (!rowsById.contains(cleanId)) {
+        ids.append(cleanId);
+        titles.append(cleanId);
+    }
+
+    for (auto it = rowsById.cbegin(); it != rowsById.cend(); ++it) {
+        const QString path = it->value(QStringLiteral("localPath")).toString();
+        if (!path.isEmpty())
+            player->setSourceFor(it.key(), QUrl::fromLocalFile(path));
+    }
+
+    player->setQueue(ids, titles);
+    if (player->hasSource(cleanId))
+        player->playTrack(cleanId);
+}
+
+void AppController::playMusicPlaylist(const QString& playlistId)
+{
+    const QString cleanId = playlistId.trimmed();
+    if (cleanId.isEmpty())
+        return;
+
+    MusicLibraryFacade* library = m_facades->musicLibrary();
+    MusicPlayerFacade* player = m_facades->musicPlayer();
+
+    QHash<QString, QVariantMap> rowsById;
+    const QVariantList rows = library->tracks();
+    for (const QVariant& value : rows) {
+        const QVariantMap row = value.toMap();
+        const QString id = row.value(QStringLiteral("id")).toString();
+        if (!id.isEmpty())
+            rowsById.insert(id, row);
+    }
+
+    QStringList playlistIds;
+    const QVariantList playlists = library->playlists();
+    for (const QVariant& value : playlists) {
+        const QVariantMap card = value.toMap();
+        if (card.value(QStringLiteral("id")).toString() != cleanId)
+            continue;
+        const QStringList trackIds = card.value(QStringLiteral("trackIds")).toStringList();
+        playlistIds = trackIds;
+        break;
+    }
+    if (playlistIds.isEmpty())
+        return;
+
+    QStringList ids;
+    QStringList titles;
+    ids.reserve(playlistIds.size());
+    titles.reserve(playlistIds.size());
+    for (const QString& id : playlistIds) {
+        if (id.isEmpty())
+            continue;
+        ids.append(id);
+        titles.append(rowsById.value(id).value(QStringLiteral("title")).toString());
+        const QString path = rowsById.value(id).value(QStringLiteral("localPath")).toString();
+        if (!path.isEmpty())
+            player->setSourceFor(id, QUrl::fromLocalFile(path));
+    }
+
+    if (ids.isEmpty())
+        return;
+    player->setQueue(ids, titles);
+    for (const QString& id : ids) {
+        if (!player->hasSource(id))
+            continue;
+        player->playTrack(id);
+        break;
+    }
 }
 
 bool AppController::chatLoading() const

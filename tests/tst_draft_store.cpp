@@ -43,6 +43,7 @@ private slots:
     void removesChat();
     void draftsAreNewestFirst();
     void acceptsNumericIds();
+    void switchesAccountsWithoutLeakingDrafts();
 };
 
 void DraftStoreTest::startsEmpty()
@@ -277,6 +278,32 @@ void DraftStoreTest::acceptsNumericIds()
     QCOMPARE(draft.replyToMessageId, qint64(888));
     QCOMPARE(draft.text, QStringLiteral("numeric chat"));
     QCOMPARE(draft.updatedAt, qint64(1234));
+}
+
+void DraftStoreTest::switchesAccountsWithoutLeakingDrafts()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    const QString first = QDir(directory.path()).filePath(QStringLiteral("account-a/state/drafts.json"));
+    const QString second = QDir(directory.path()).filePath(QStringLiteral("account-b/state/drafts.json"));
+
+    DraftStore store(first);
+    store.load();
+    store.setDraft(100, QStringLiteral("draft of account A"));
+
+    store.switchTo(second);
+    QCOMPARE(store.filePath(), second);
+    QCOMPARE(store.count(), 0);
+    QVERIFY(store.draft(100).text.isEmpty());
+
+    store.setDraft(200, QStringLiteral("draft of account B"));
+    QCOMPARE(store.count(), 1);
+
+    store.switchTo(first);
+    QCOMPARE(store.count(), 1);
+    QCOMPARE(store.draft(100).text, QStringLiteral("draft of account A"));
+    QVERIFY(store.draft(200).text.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(DraftStoreTest)

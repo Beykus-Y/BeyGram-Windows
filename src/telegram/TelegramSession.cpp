@@ -518,6 +518,42 @@ void TelegramSession::ensureTdlibParameters()
     sendTdlibParameters();
 }
 
+void TelegramSession::applyProxy(const TelegramProxySettings& settings)
+{
+    if (!settings.isValid()) {
+        reportError(QStringLiteral("Proxy settings are incomplete"));
+        return;
+    }
+
+    m_config.proxy = settings;
+    if (!m_transport.isRunning()) {
+        // The client is not up yet; start() will apply m_config.proxy.
+        return;
+    }
+
+    QJsonObject proxy{
+        {QStringLiteral("@type"), QStringLiteral("proxy")},
+        {QStringLiteral("server"), settings.server},
+        {QStringLiteral("port"), settings.port},
+        {QStringLiteral("type"), proxyTypeObject()},
+    };
+
+    sendRequest(
+        QJsonObject{{QStringLiteral("@type"), QStringLiteral("addProxy")},
+                    {QStringLiteral("proxy"), proxy},
+                    {QStringLiteral("enable"), true},
+                    {QStringLiteral("comment"), QStringLiteral("BeyGram")}},
+        [this](const QJsonObject& response) {
+            if (response.value(QStringLiteral("@type")).toString() == QLatin1String("error")) {
+                int code = 0;
+                reportError(QStringLiteral("Proxy setup failed: %1")
+                                .arg(friendlyAuthError(response, &code)),
+                            code);
+            }
+        },
+        0);
+}
+
 QJsonObject TelegramSession::proxyTypeObject() const
 {
     if (m_config.proxy.type == QLatin1String("http")) {

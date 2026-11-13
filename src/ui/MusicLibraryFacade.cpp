@@ -300,6 +300,8 @@ QVariantMap MusicLibraryFacade::trackRow(
     row.insert(QStringLiteral("durationSeconds"), track.durationSeconds);
     row.insert(QStringLiteral("duration"),
                telegram::musicDurationText(track.durationSeconds));
+    row.insert(QStringLiteral("localPath"), track.localPath);
+    row.insert(QStringLiteral("fileId"), track.fileId);
     row.insert(QStringLiteral("favorite"), m_data.favorites.contains(track.id));
     return row;
 }

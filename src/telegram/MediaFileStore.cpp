@@ -22,16 +22,49 @@ MediaFileStore::MediaFileStore(QObject* parent) : QObject(parent)
 
 void MediaFileStore::setSession(TelegramSession* session, bool reconnect)
 {
-    if (m_session == session && reconnect)
+    if (m_session == session) {
+        if (reconnect)
+            return;
+        // A forced reconnect re-registers the signal without discarding the
+        // cache: the account itself did not change.
+        if (m_session) {
+            disconnect(m_session, &TelegramSession::updateReceived, this,
+                       &MediaFileStore::handleUpdate);
+            connect(m_session, &TelegramSession::updateReceived, this,
+                    &MediaFileStore::handleUpdate);
+        }
         return;
+    }
+
     if (m_session)
         disconnect(m_session, &TelegramSession::updateReceived, this,
                    &MediaFileStore::handleUpdate);
     m_session = session;
+    // Invalidates callbacks of downloads requested from the previous session.
+    ++m_sessionGeneration;
+    clearSessionState();
     if (m_session) {
         connect(m_session, &TelegramSession::updateReceived, this,
                 &MediaFileStore::handleUpdate);
     }
+}
+
+void MediaFileStore::clearSessionState()
+{
+    bool hadPaths = false;
+    {
+        QWriteLocker locker(&m_pathsLock);
+        hadPaths = !m_paths.isEmpty() || m_revision != 0;
+        m_paths.clear();
+        m_revision = 0;
+    }
+    m_requested.clear();
+    m_failed.clear();
+
+    // Pending downloadFile callbacks cannot be unregistered from the old
+    // session; m_sessionGeneration makes them no-ops when they arrive.
+    if (hadPaths)
+        emit revisionChanged();
 }
 
 void MediaFileStore::trackFileObject(const QJsonObject& file, int priority)
@@ -44,6 +77,7 @@ void MediaFileStore::trackFileObject(const QJsonObject& file, int priority)
     const QString path = local.value(QStringLiteral("path")).toString();
     const bool complete = local.value(QStringLiteral("is_downloading_completed")).toBool();
     if (complete && !path.isEmpty()) {
+        m_failed.remove(fileId);
         bool changed = false;
         {
             QWriteLocker locker(&m_pathsLock);
@@ -87,6 +121,22 @@ bool MediaFileStore::isReady(int fileId) const
     return m_paths.contains(fileId);
 }
 
+bool MediaFileStore::isFailed(int fileId) const
+{
+    return m_failed.contains(fileId);
+}
+
+void MediaFileStore::markFailed(int fileId)
+{
+    m_requested.remove(fileId);
+    if (fileId == 0 || m_failed.contains(fileId))
+        return;
+    m_failed.insert(fileId);
+    qCDebug(lcMedia) << "file download failed" << fileId;
+    emit fileFailed(fileId);
+    emit revisionChanged();
+}
+
 void MediaFileStore::handleUpdate(const QJsonObject& update)
 {
     if (update.value(QStringLiteral("@type")).toString() == QLatin1String("updateFile"))
@@ -108,6 +158,7 @@ void MediaFileStore::handleFile(const QJsonObject& file)
         return;
 
     m_requested.remove(fileId);
+    m_failed.remove(fileId);
     bool changed = false;
     {
         QWriteLocker locker(&m_pathsLock);
@@ -139,6 +190,7 @@ void MediaFileStore::requestDownload(int fileId, int priority)
 
     m_requested.insert(fileId);
     qCDebug(lcMedia) << "download requested" << fileId;
+    const int sessionGeneration = m_sessionGeneration;
     m_session->sendRequest(
         QJsonObject{{QStringLiteral("@type"), QStringLiteral("downloadFile")},
                     {QStringLiteral("file_id"), fileId},
@@ -146,14 +198,23 @@ void MediaFileStore::requestDownload(int fileId, int priority)
                     {QStringLiteral("offset"), 0},
                     {QStringLiteral("limit"), 0},
                     {QStringLiteral("synchronous"), false}},
-        [this, fileId](const QJsonObject& response) {
+        [this, fileId, sessionGeneration](const QJsonObject& response) {
+            if (sessionGeneration != m_sessionGeneration)
+                return;
             if (response.value(QStringLiteral("@type")).toString() == QLatin1String("file")) {
-                handleFile(response);
+                handleDownloadResponse(sessionGeneration, response);
             } else {
-                m_requested.remove(fileId);
+                markFailed(fileId);
             }
         },
         120000);
+}
+
+void MediaFileStore::handleDownloadResponse(int sessionGeneration, const QJsonObject& response)
+{
+    if (sessionGeneration != m_sessionGeneration)
+        return;
+    handleFile(response);
 }
 
 } // namespace beygram::telegram

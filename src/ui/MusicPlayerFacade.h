@@ -8,6 +8,10 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
+
+class QAudioOutput;
+class QMediaPlayer;
 
 namespace beygram::ui {
 
@@ -157,6 +161,18 @@ public:
     /// the title of the current track changes.
     Q_INVOKABLE void setTitleFor(const QString& id, const QString& title);
 
+    /// Registers the playable source of track \a id. A local file or an http(s)
+    /// stream both work. The facade loads it with QMediaPlayer when the track
+    /// becomes current; an empty source unregisters the track.
+    Q_INVOKABLE void setSourceFor(const QString& id, const QUrl& source);
+
+    /// Whether track \a id has a playable source registered.
+    [[nodiscard]] bool hasSource(const QString& id) const;
+
+    /// Starts the queued track \a id. Unknown ids are ignored. Unlike
+    /// playPause(), this selects the track even when another one is current.
+    Q_INVOKABLE void playTrack(const QString& id);
+
 signals:
     /// Emitted whenever any observable property above changed.
     void changed();
@@ -186,10 +202,22 @@ private:
     /// Emits changed() when the current snapshot differs from \a before.
     void commit(const Snapshot& before);
 
+    /// Loads the current track's source and matches QMediaPlayer to the
+    /// facade's playing flag. A track without a registered source is stopped.
+    void syncAudio();
+
+    /// Creates the QMediaPlayer backend on first use, so a facade that never
+    /// plays anything (tests, settings screens) does not open an audio device.
+    void ensureAudio();
+
     telegram::MusicPlayer m_player;
     telegram::PlaybackSettings m_settings;
     telegram::MusicSessionStore m_sessionStore;
     QHash<QString, QString> m_titles;
+    QHash<QString, QUrl> m_sources;
+    QMediaPlayer* m_audio = nullptr;
+    QAudioOutput* m_output = nullptr;
+    QString m_loadedTrackId;
 };
 
 } // namespace beygram::ui

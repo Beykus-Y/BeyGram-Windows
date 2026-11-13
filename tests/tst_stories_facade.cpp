@@ -53,6 +53,7 @@ void StoriesFacadeTest::startsClosed()
 
     QVERIFY(!facade.active());
     QCOMPARE(facade.currentStoryId(), QString());
+    QCOMPARE(facade.chatId(), QString());
     QCOMPARE(facade.index(), 0);
     QCOMPARE(facade.count(), 0);
     QCOMPARE(facade.progress(), 0.0);
@@ -69,6 +70,7 @@ void StoriesFacadeTest::openStartsFirstStory()
 
     QVERIFY(facade.active());
     QCOMPARE(facade.currentStoryId(), QStringLiteral("700"));
+    QCOMPARE(facade.chatId(), QStringLiteral("42"));
     QCOMPARE(facade.index(), 0);
     QCOMPARE(facade.count(), 3);
     QCOMPARE(facade.progress(), 0.0);

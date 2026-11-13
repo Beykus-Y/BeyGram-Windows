@@ -65,6 +65,7 @@ struct MessageData {
     int mediaWidth = 0;
     int mediaHeight = 0;
     bool mediaReady = false;
+    bool mediaFailed = false;
     int mediaRevision = 0;
 };
 
