@@ -49,6 +49,8 @@ private slots:
 
     void playPauseStartsFirstTrack();
     void playPauseTogglesWithoutRestarting();
+    void playTrackSelectsRequestedTrack();
+    void sourceRegistrationTracksAvailability();
 
     void nextAndPreviousWalkTheQueue();
     void nextFromIdleStartsFirstTrack();
@@ -199,6 +201,42 @@ void MusicPlayerFacadeTest::playPauseStartsFirstTrack()
     QCOMPARE(facade.positionMs(), 0);
     QCOMPARE(trackSpy.count(), 1);
     QCOMPARE(firstArgument(trackSpy, 0), QStringLiteral("a"));
+}
+
+void MusicPlayerFacadeTest::playTrackSelectsRequestedTrack()
+{
+    MusicPlayerFacade facade;
+    facade.setQueue(list({"a", "b"}), list({"A", "B"}));
+
+    QSignalSpy trackSpy(&facade, &MusicPlayerFacade::trackChanged);
+    facade.playTrack(QStringLiteral("b"));
+
+    QVERIFY(facade.playing());
+    QCOMPARE(facade.title(), QStringLiteral("B"));
+    QCOMPARE(facade.positionMs(), 0);
+    QCOMPARE(trackSpy.count(), 1);
+    QCOMPARE(firstArgument(trackSpy, 0), QStringLiteral("b"));
+
+    // An id that is not queued cannot replace the current track.
+    facade.playTrack(QStringLiteral("missing"));
+    QCOMPARE(facade.title(), QStringLiteral("B"));
+    QVERIFY(facade.playing());
+    QCOMPARE(trackSpy.count(), 1);
+}
+
+void MusicPlayerFacadeTest::sourceRegistrationTracksAvailability()
+{
+    MusicPlayerFacade facade;
+    QVERIFY(!facade.hasSource(QStringLiteral("a")));
+
+    facade.setSourceFor(QStringLiteral("a"),
+                        QUrl::fromLocalFile(QStringLiteral("C:/music/a.mp3")));
+    QVERIFY(facade.hasSource(QStringLiteral("a")));
+    QVERIFY(!facade.hasSource(QStringLiteral("b")));
+
+    // An empty source unregisters the track again.
+    facade.setSourceFor(QStringLiteral("a"), QUrl());
+    QVERIFY(!facade.hasSource(QStringLiteral("a")));
 }
 
 void MusicPlayerFacadeTest::playPauseTogglesWithoutRestarting()

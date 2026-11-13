@@ -39,6 +39,7 @@ class StoriesFacade final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool active READ active NOTIFY changed)
     Q_PROPERTY(QString currentStoryId READ currentStoryId NOTIFY changed)
+    Q_PROPERTY(QString chatId READ chatId NOTIFY changed)
     Q_PROPERTY(int index READ index NOTIFY changed)
     Q_PROPERTY(int count READ count NOTIFY changed)
     Q_PROPERTY(double progress READ progress NOTIFY changed)
@@ -56,6 +57,9 @@ public:
 
     /// Story on screen as a string, empty when the viewer is closed.
     [[nodiscard]] QString currentStoryId() const;
+
+    /// Chat that posted the story on screen, empty when the viewer is closed.
+    [[nodiscard]] QString chatId() const;
 
     /// Zero based position of the story on screen, 0 when the viewer is closed.
     [[nodiscard]] int index() const;

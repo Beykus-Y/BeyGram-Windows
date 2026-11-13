@@ -62,6 +62,11 @@ QString StoriesFacade::currentStoryId() const
     return formatId(m_controller->currentStoryId());
 }
 
+QString StoriesFacade::chatId() const
+{
+    return formatId(m_controller->chatId());
+}
+
 int StoriesFacade::index() const
 {
     return m_controller->currentIndex();

@@ -88,6 +88,11 @@ public:
     void resendCode();
     void requestQrCodeLogin();
 
+    /// Applies proxy settings to the running client (or stores them for the
+    /// next start). Uses TDLib addProxy with enable=true; an incomplete
+    /// settings object is rejected before it reaches the wire.
+    void applyProxy(const TelegramProxySettings& settings);
+
     void clearError();
 
     /// Raw request entry point for the upcoming repositories. Never call this

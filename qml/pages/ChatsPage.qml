@@ -25,6 +25,12 @@ Item {
     property var forwardMessageId: 0
     property bool chatInfoOpen: false
 
+    // Transient search-jump state: the message currently highlighted after a
+    // jump, plus the target kept pending while its chat history loads.
+    property var highlightedMessageId: 0
+    property var _pendingJumpMessageId: 0
+    property var _jumpChatId: 0
+
     readonly property int wideBreakpoint: 860
     readonly property bool wideLayout: page.width >= page.wideBreakpoint
     readonly property int chatListWidth: Math.min(380, Math.max(320, Math.round(page.width * 0.30)))
@@ -106,6 +112,93 @@ Item {
             page.closeChatInfo()
         else
             page.openChatInfo()
+    }
+
+    // Scrolls the conversation to `messageId` and highlights it for ~1.5 s.
+    // A global-search result opens the chat first, so the target message may
+    // still be loading; the jump then stays pending until it appears.
+    function jumpToMessage(messageId) {
+        const id = Number(messageId)
+        if (!id || id <= 0)
+            return
+        page._pendingJumpMessageId = id
+        page._jumpChatId = Number(BeyGramApp.currentChatId)
+        page.revealPendingMessage()
+    }
+
+    // The C++ message model exposes no invokable id lookup, so resolve the row
+    // through the tracker that mirrors BeyGramApp.messages.
+    function messageIndex(messageId) {
+        const target = String(messageId)
+        for (var i = 0; i < mediaTracker.count; ++i) {
+            var entry = mediaTracker.objectAt(i) as MediaTrackerEntry
+            if (entry && String(entry.messageId) === target)
+                return i
+        }
+        return -1
+    }
+
+    function revealPendingMessage() {
+        const id = Number(page._pendingJumpMessageId)
+        if (id <= 0)
+            return false
+        if (Number(BeyGramApp.currentChatId) !== Number(page._jumpChatId)) {
+            page._pendingJumpMessageId = 0
+            return false
+        }
+        if (!page.revealMessage(id))
+            return false
+        page._pendingJumpMessageId = 0
+        return true
+    }
+
+    // Scrolls to `messageId` (when present) and keeps it highlighted.
+    function revealMessage(messageId) {
+        const id = Number(messageId)
+        if (id <= 0)
+            return false
+        const index = page.messageIndex(id)
+        if (index < 0)
+            return false
+        page.highlightedMessageId = id
+        highlightTimer.restart()
+        Qt.callLater(function() {
+            // Re-resolve: the model may have been replaced by the time the
+            // deferred scroll runs.
+            const row = page.messageIndex(id)
+            if (row >= 0)
+                messageListView.positionViewAtIndex(row, ListView.Center)
+        })
+        return true
+    }
+
+    // Re-anchors an in-flight jump after the model is replaced (cached page
+    // swapped for authoritative history) or a pending target arrives.
+    function reanchorMessage() {
+        if (page.revealPendingMessage())
+            return
+        if (page.highlightedMessageId !== 0)
+            page.revealMessage(page.highlightedMessageId)
+    }
+
+    function nearBottom() {
+        if (messageListView.count === 0)
+            return true
+        return messageListView.contentHeight
+               - messageListView.contentY - messageListView.height <= 120
+    }
+
+    // Tracked on scroll only: onCountChanged must see the distance the user had
+    // before the new row grew contentHeight.
+    function syncNearBottom() {
+        messageListView.wasNearBottom = page.nearBottom()
+    }
+
+    function lastMessageOutgoing() {
+        if (mediaTracker.count === 0)
+            return false
+        var entry = mediaTracker.objectAt(mediaTracker.count - 1) as MediaTrackerEntry
+        return entry ? Boolean(entry.outgoing) : false
     }
 
     function insertComposerText(value) {
@@ -190,6 +283,7 @@ Item {
 
     component MediaTrackerEntry: QtObject {
         required property var messageId
+        required property bool outgoing
         required property int mediaFileId
         required property string contentType
     }
@@ -289,6 +383,14 @@ Item {
         function onModelReset() { Qt.callLater(page.syncArchiveCount) }
     }
 
+    // Retry a pending search jump as history streams in.
+    Connections {
+        target: BeyGramApp.messages
+        ignoreUnknownSignals: true
+        function onRowsInserted() { Qt.callLater(page.revealPendingMessage) }
+        function onModelReset() { Qt.callLater(page.reanchorMessage) }
+    }
+
     Component.onCompleted: {
         Qt.callLater(page.syncChatStats)
         Qt.callLater(page.syncArchiveCount)
@@ -319,6 +421,14 @@ Item {
             else
                 BeyGramApp.clearSearch()
         }
+    }
+
+    // Clears the transient highlight set by jumpToMessage().
+    Timer {
+        id: highlightTimer
+        interval: 1500
+        repeat: false
+        onTriggered: page.highlightedMessageId = 0
     }
 
     RowLayout {
@@ -848,6 +958,12 @@ Item {
                             model: BeyGramApp.messages
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
+                            // Updated on scroll/resize only, so onCountChanged can
+                            // read the pre-insert distance from the bottom.
+                            property bool wasNearBottom: true
+                            onContentYChanged: page.syncNearBottom()
+                            onHeightChanged: page.syncNearBottom()
+
                             section.property: "day"
                             section.criteria: ViewSection.FullString
                             section.delegate: Item {
@@ -922,39 +1038,43 @@ Item {
                             delegate: MessageBubble {
                                 id: msgBubble
 
-                                required property var messageId
-                                required property string text
-                                required property string textHtml
-                                required property string replyPreview
-                                required property string reactionsJson
-                                required property string linkUrl
-                                required property string linkTitle
-                                required property string linkDescription
-                                required property string linkSite
-                                required property int linkFileId
-                                required property bool linkVideo
-                                required property string pollQuestion
-                                required property string pollOptionsJson
-                                required property int pollTotal
-                                required property bool pollClosed
-                                required property bool pollQuiz
-                                required property bool pollMultiple
-                                required property bool outgoing
-                                required property string senderName
-                                required property var date
-                                required property bool pending
-                                required property bool failed
-                                required property bool edited
-                                required property string contentType
-                                required property int mediaFileId
-                                required property int mediaFullFileId
-                                required property int mediaWidth
-                                required property int mediaHeight
-                                required property bool mediaReady
-                                required property int mediaRevision
+                                messageId: model.messageId
+                                text: model.text
+                                textHtml: model.textHtml
+                                replyPreview: model.replyPreview
+                                reactionsJson: model.reactionsJson
+                                linkUrl: model.linkUrl
+                                linkTitle: model.linkTitle
+                                linkDescription: model.linkDescription
+                                linkSite: model.linkSite
+                                linkFileId: model.linkFileId
+                                linkVideo: model.linkVideo
+                                pollQuestion: model.pollQuestion
+                                pollOptionsJson: model.pollOptionsJson
+                                pollTotal: model.pollTotal
+                                pollClosed: model.pollClosed
+                                pollQuiz: model.pollQuiz
+                                pollMultiple: model.pollMultiple
+                                outgoing: model.outgoing
+                                senderName: model.senderName
+                                date: model.date
+                                pending: model.pending
+                                failed: model.failed
+                                edited: model.edited
+                                contentType: model.contentType
+                                mediaFileId: model.mediaFileId
+                                mediaFullFileId: model.mediaFullFileId
+                                mediaWidth: model.mediaWidth
+                                mediaHeight: model.mediaHeight
+                                mediaReady: model.mediaReady
+                                mediaFailed: model.mediaFailed
+                                mediaRevision: model.mediaRevision
 
                                 selectable: BeyGramApp.selection ? BeyGramApp.selection.active : false
                                 selected: page.isMessageSelected(msgBubble.messageId)
+                                          || (page.highlightedMessageId !== 0
+                                              && Number(msgBubble.messageId)
+                                                 === Number(page.highlightedMessageId))
 
                                 onMediaOpenRequested: (fileId) => BeyGramMediaViewer.open(
                                                           fileId, BeyGramApp.currentChatTitle)
@@ -1006,8 +1126,23 @@ Item {
                             }
 
                             onCountChanged: {
-                                if (!BeyGramApp.historyLoading)
-                                    Qt.callLater(positionViewAtEnd)
+                                if (BeyGramApp.historyLoading)
+                                    return
+                                // A search jump owns the position while it runs.
+                                if (page._pendingJumpMessageId > 0
+                                        || page.highlightedMessageId !== 0)
+                                    return
+                                // Capture the pre-insert distance: appending only
+                                // grows contentHeight, so a user reading history
+                                // stays put unless the new message is outgoing.
+                                const wasNearBottom = messageListView.wasNearBottom
+                                Qt.callLater(function() {
+                                    if (page._pendingJumpMessageId > 0
+                                            || page.highlightedMessageId !== 0)
+                                        return
+                                    if (wasNearBottom || page.lastMessageOutgoing())
+                                        messageListView.positionViewAtEnd()
+                                })
                             }
                         }
 
@@ -1041,7 +1176,13 @@ Item {
                                     width: searchList.width
                                     title: text.length > 0 ? text : qsTr("[Media]")
                                     subtitle: date > 0 ? BeyGramLang.formatDateTime(date) : ""
-                                    onClicked: page.closeSearch()
+                                    onClicked: {
+                                        // Capture the id before clearSearch() resets
+                                        // the result model out from under us.
+                                        const id = model.messageId
+                                        page.jumpToMessage(id)
+                                        page.closeSearch()
+                                    }
                                 }
                             }
 
@@ -1900,6 +2041,16 @@ Item {
         target: BeyGramApp
 
         function onInitialHistoryLoaded() {
+            // A search jump owns the initial position; re-anchor it after the
+            // cached page is replaced, and fall back to the newest message only
+            // when the target is not part of this history.
+            if (page.revealPendingMessage())
+                return
+            // The target is not in this history: give up rather than suppress
+            // auto-scroll indefinitely.
+            page._pendingJumpMessageId = 0
+            if (page.revealMessage(page.highlightedMessageId))
+                return
             Qt.callLater(messageListView.positionViewAtEnd)
         }
 
@@ -1912,6 +2063,12 @@ Item {
                 page.loadedChatId = 0
             } else if (BeyGramApp.currentChatId !== page.loadedChatId) {
                 page.loadDraft()
+            }
+            // Drop any jump/highlight aimed at the chat we just left.
+            if (Number(page._jumpChatId) !== Number(BeyGramApp.currentChatId)) {
+                page._pendingJumpMessageId = 0
+                page.highlightedMessageId = 0
+                highlightTimer.stop()
             }
             Qt.callLater(page.syncChatStats)
         }

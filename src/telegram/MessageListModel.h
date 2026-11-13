@@ -29,6 +29,7 @@ public:
         MediaWidthRole,
         MediaHeightRole,
         MediaReadyRole,
+        MediaFailedRole,
         MediaRevisionRole,
         ReplyToMessageIdRole,
         ReplyPreviewRole,
@@ -68,6 +69,8 @@ public:
     bool updateContent(qint64 messageId, const QJsonObject& content, bool edited);
     bool updateSenderName(qint64 userId, const QString& name);
     void markMediaReady(int fileId);
+    void markMediaFailed(int fileId);
+    [[nodiscard]] int mediaFileIdFor(qint64 messageId) const;
     void resolveReplyPreviews();
     void removeIds(const QVector<qint64>& ids);
     [[nodiscard]] bool contains(qint64 messageId) const;

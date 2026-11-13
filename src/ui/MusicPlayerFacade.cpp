@@ -2,8 +2,10 @@
 
 #include "core/AppPaths.h"
 
+#include <QAudioOutput>
 #include <QDateTime>
 #include <QDir>
+#include <QMediaPlayer>
 
 #include <utility>
 
@@ -46,6 +48,80 @@ MusicPlayerFacade::MusicPlayerFacade(QObject* parent)
     // changed() once per call instead of once per internal model.
     connect(&m_player, &telegram::MusicPlayer::trackChanged,
             this, &MusicPlayerFacade::trackChanged);
+    connect(&m_player, &telegram::MusicPlayer::changed, this,
+            [this] { syncAudio(); });
+}
+
+void MusicPlayerFacade::ensureAudio()
+{
+    if (m_audio)
+        return;
+
+    m_output = new QAudioOutput(this);
+    m_output->setVolume(1.0f);
+    m_audio = new QMediaPlayer(this);
+    m_audio->setAudioOutput(m_output);
+    m_audio->setPlaybackRate(static_cast<float>(m_settings.speed()));
+
+    connect(m_audio, &QMediaPlayer::positionChanged, this, [this](qint64 position) {
+        if (m_loadedTrackId.isEmpty() || m_loadedTrackId != m_player.currentTrackId())
+            return;
+        const Snapshot before = snapshot();
+        m_player.setPositionMs(static_cast<int>(position));
+        commit(before);
+    });
+    connect(m_audio, &QMediaPlayer::durationChanged, this, [this](qint64 duration) {
+        if (m_loadedTrackId.isEmpty() || m_loadedTrackId != m_player.currentTrackId())
+            return;
+        const Snapshot before = snapshot();
+        m_player.setDurationMs(static_cast<int>(duration));
+        commit(before);
+    });
+    connect(m_audio, &QMediaPlayer::mediaStatusChanged, this,
+            [this](QMediaPlayer::MediaStatus status) {
+                if (status != QMediaPlayer::EndOfMedia)
+                    return;
+                const QString previous = m_player.currentTrackId();
+                next();
+                if (m_player.currentTrackId() == previous && m_player.playing()) {
+                    // Repeat-one stays on the same track and emits no
+                    // trackChanged(); rewind explicitly so it can play again.
+                    m_audio->setPosition(0);
+                    m_audio->play();
+                }
+            });
+    connect(m_audio, &QMediaPlayer::errorOccurred, this,
+            [this](QMediaPlayer::Error, const QString&) {
+                const Snapshot before = snapshot();
+                m_player.setPlaying(false);
+                commit(before);
+            });
+}
+
+void MusicPlayerFacade::syncAudio()
+{
+    const QString id = m_player.currentTrackId();
+    const QUrl source = m_sources.value(id);
+    if (id.isEmpty() || source.isEmpty()) {
+        if (m_audio && m_audio->playbackState() != QMediaPlayer::StoppedState)
+            m_audio->stop();
+        m_loadedTrackId.clear();
+        return;
+    }
+
+    ensureAudio();
+    if (m_loadedTrackId != id) {
+        m_loadedTrackId = id;
+        m_audio->setSource(source);
+        m_audio->setPlaybackRate(static_cast<float>(m_settings.speed()));
+    }
+
+    if (m_player.playing()) {
+        if (m_audio->playbackState() != QMediaPlayer::PlayingState)
+            m_audio->play();
+    } else if (m_audio->playbackState() == QMediaPlayer::PlayingState) {
+        m_audio->pause();
+    }
 }
 
 QString MusicPlayerFacade::title() const
@@ -77,6 +153,8 @@ void MusicPlayerFacade::setSpeed(double speed)
 {
     const Snapshot before = snapshot();
     m_settings.setSpeed(speed);
+    if (m_audio)
+        m_audio->setPlaybackRate(static_cast<float>(m_settings.speed()));
     commit(before);
 }
 
@@ -198,6 +276,8 @@ void MusicPlayerFacade::seek(int ms)
 {
     const Snapshot before = snapshot();
     m_player.setPositionMs(ms);
+    if (m_audio && m_loadedTrackId == m_player.currentTrackId())
+        m_audio->setPosition(m_player.positionMs());
     commit(before);
 }
 
@@ -306,6 +386,45 @@ void MusicPlayerFacade::setTitleFor(const QString& id, const QString& title)
         m_titles.insert(id, title);
     }
 
+    commit(before);
+}
+
+void MusicPlayerFacade::setSourceFor(const QString& id, const QUrl& source)
+{
+    const QString cleanId = id.trimmed();
+    if (cleanId.isEmpty())
+        return;
+
+    if (!source.isValid() || source.isEmpty()) {
+        m_sources.remove(cleanId);
+    } else {
+        if (m_sources.value(cleanId) == source)
+            return;
+        m_sources.insert(cleanId, source);
+    }
+
+    if (cleanId == m_player.currentTrackId())
+        syncAudio();
+}
+
+bool MusicPlayerFacade::hasSource(const QString& id) const
+{
+    return m_sources.contains(id.trimmed());
+}
+
+void MusicPlayerFacade::playTrack(const QString& id)
+{
+    const QString cleanId = id.trimmed();
+    if (cleanId.isEmpty())
+        return;
+
+    const QVector<QString> queue = m_player.queue();
+    const int index = static_cast<int>(queue.indexOf(cleanId));
+    if (index < 0)
+        return;
+
+    const Snapshot before = snapshot();
+    m_player.playAt(index);
     commit(before);
 }
 

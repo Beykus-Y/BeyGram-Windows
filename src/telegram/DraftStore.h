@@ -30,6 +30,10 @@ public:
     /// Reads the JSON file. Missing, unreadable or corrupt input is ignored.
     void load();
 
+    /// Points the store at another account's file. The in-memory drafts are
+    /// dropped before the new file is read, so drafts never cross accounts.
+    void switchTo(const QString& filePath);
+
     [[nodiscard]] QString filePath() const;
     [[nodiscard]] Draft draft(qint64 chatId) const;
     /// All drafts, most recently edited first; ties broken by chat id.

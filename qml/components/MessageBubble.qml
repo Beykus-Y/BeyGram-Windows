@@ -45,6 +45,7 @@ Item {
     property int mediaWidth: 0
     property int mediaHeight: 0
     property bool mediaReady: false
+    property bool mediaFailed: false
     property int mediaRevision: 0
 
     // --- Selection --------------------------------------------------------
@@ -82,8 +83,10 @@ Item {
                                           : bubbleItem.contentType === "animation" ? qsTr("GIF")
                                           : qsTr("Document")
 
-    readonly property bool _stickerOnly: bubbleItem.contentType === "sticker"                                         && bubbleItem.replyPreview.length === 0
-                                         && bubbleItem.displayText().length === 0
+    // Sticker messages carry an emoji fallback in `text`; that text is never a
+    // bubble body, so the content type alone decides whether to draw a bubble.
+    readonly property bool _stickerOnly: bubbleItem.contentType === "sticker"
+                                         && bubbleItem.replyPreview.length === 0
                                          && bubbleItem.linkUrl.length === 0
                                          && bubbleItem.pollQuestion.length === 0
                                          && (bubbleItem.outgoing || bubbleItem.senderName.length === 0)
@@ -100,15 +103,19 @@ Item {
                                                        Math.min(mediaPreviewWidth,
                                                                 maxBubbleWidth - _hPad * 2))
 
+    // Inline timestamp fits only when the *plain* text is short and nothing else
+    // shares the bubble. textHtml is deliberately ignored: the formatter fills
+    // it for plain text too, so it says nothing about length or line count.
     readonly property bool canInlineMeta: {
-        const body = bubbleItem.displayText()
+        const body = bubbleItem.text
         return body.length > 0
                && body.length <= 32
                && body.indexOf("\n") < 0
-               && bubbleItem.textHtml.length === 0
+               && bubbleItem.displayText().length > 0
                && (bubbleItem.outgoing || bubbleItem.senderName.length === 0)
                && bubbleItem.replyPreview.length === 0
-               && !(bubbleItem.mediaFileId > 0 && bubbleItem.contentType !== "sticker")
+               && bubbleItem.mediaFileId <= 0
+               && !bubbleItem._hasMediaBlock
                && bubbleItem.contentType !== "sticker"
                && bubbleItem.contentType !== "voice"
                && bubbleItem.contentType !== "audio"
@@ -250,10 +257,12 @@ Item {
                : Math.min(bubbleItem.maxBubbleWidth,
                           Math.max(80, content.implicitWidth + bubbleItem._hPad * 2))
         height: content.implicitHeight + bubbleItem._vPad * 2
-        anchors.right: bubbleItem.outgoing ? bubbleItem.right : undefined
-        anchors.left: bubbleItem.outgoing ? undefined : bubbleItem.left
-        anchors.rightMargin: Design.space4
-        anchors.leftMargin: bubbleItem.selectable ? Design.space10 : Design.space4
+        // Position with an explicit x instead of toggling left/right anchors:
+        // a delegate reused for the other direction kept both anchors active,
+        // which stretched every bubble to the full row width.
+        x: bubbleItem.outgoing
+           ? bubbleItem.width - width - Design.space4
+           : (bubbleItem.selectable ? Design.space10 : Design.space4)
         radius: bubbleItem._bubbleRadius
         bottomRightRadius: bubbleItem.outgoing ? bubbleItem._tailRadius
                                                : bubbleItem._bubbleRadius
@@ -405,7 +414,36 @@ Item {
                 DsSpinner {
                     anchors.centerIn: parent
                     running: bubbleItem.mediaFileId > 0 && !bubbleItem.mediaReady
+                             && !bubbleItem.mediaFailed
                     visible: running
+                }
+
+                // Download failed (or timed out): stop spinning, explain why and
+                // keep a retry affordance where the spinner was.
+                Column {
+                    anchors.centerIn: parent
+                    spacing: Design.space1
+                    visible: bubbleItem.mediaFileId > 0 && !bubbleItem.mediaReady
+                             && bubbleItem.mediaFailed
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "\u27F3"
+                        color: BeyGramTheme.danger
+                        font.pixelSize: 20
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: Math.max(24, mediaFrame.width - Design.space4)
+                        text: qsTr("Could not load media")
+                        color: BeyGramTheme.danger
+                        font.pixelSize: Design.fontSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
                 }
 
                 // No file id yet (or the download never started): keep the block
@@ -461,6 +499,7 @@ Item {
                 ready: bubbleItem.mediaReady
                 revision: bubbleItem.mediaRevision
                 animated: false
+                emoji: bubbleItem.text
                 onClicked: bubbleItem.mediaOpenRequested(
                                bubbleItem.mediaFullFileId > 0
                                ? bubbleItem.mediaFullFileId
@@ -543,7 +582,8 @@ Item {
             // Standard multi-line / rich text body
             Text {
                 Layout.fillWidth: true
-                visible: !bubbleItem.canInlineMeta && bubbleItem.displayText().length > 0
+                visible: !bubbleItem.canInlineMeta && !bubbleItem._stickerOnly
+                         && bubbleItem.displayText().length > 0
                 text: bubbleItem.textHtml.length > 0
                       ? bubbleItem.textHtml
                       : bubbleItem.displayText()

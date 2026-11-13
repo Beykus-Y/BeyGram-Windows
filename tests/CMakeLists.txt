@@ -341,6 +341,16 @@ beygram_add_test(tst_quick_switcher_facade)
 beygram_add_test(tst_saved_messages_facade)
 beygram_add_test(tst_shared_media_facade)
 beygram_add_test(tst_swipe_settings_facade)
+beygram_add_test(tst_media_file_store_session)
+beygram_add_test(tst_message_model_merge)
+beygram_add_test(tst_message_bubble_render)
+target_link_libraries(tst_message_bubble_render
+    PRIVATE
+        beygram_qml
+        beygram_qmlplugin
+        Qt6::Quick
+        Qt6::QuickControls2
+)
 set_tests_properties(tst_tdlib_integration PROPERTIES TIMEOUT 180)
 
 beygram_add_test(tst_qml_ui)

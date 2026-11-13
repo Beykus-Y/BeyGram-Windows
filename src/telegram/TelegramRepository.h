@@ -8,6 +8,7 @@
 #include "MessageHistoryStore.h"
 #include "PollSend.h"
 #include "SearchResultModel.h"
+#include "StorageStatsModel.h"
 #include "TelegramTypes.h"
 #include "UserProfile.h"
 #include "TelegramUpdateScheduler.h"
@@ -63,6 +64,7 @@ public:
     void terminateSession(qint64 sessionId);
     void terminateAllOtherSessions();
     void openStory(qint64 storyId);
+    void openStoryForChat(qint64 posterChatId, qint64 storyId);
     void requestPinnedMessage();
     void unpinPinnedMessage();
     void sendTyping();
@@ -78,8 +80,15 @@ public:
     void closeArchive();
     void setChatArchived(qint64 chatId, bool archived);
     void setChatMuted(qint64 chatId, bool muted);
+    void setChatNotificationSettings(qint64 chatId, bool muted, bool sound,
+                                     bool showPreview);
     void updateOwnProfile(const QString& firstName, const QString& lastName,
                           const QString& username, const QString& bio);
+    void applyProxy(const QString& type, const QString& host, int port,
+                    const QString& user, const QString& password);
+    void reactToStory(qint64 posterChatId, qint64 storyId, const QString& emoji);
+    void requestStorageStatistics();
+    void cleanStorageCache(const QStringList& kinds);
 
     [[nodiscard]] qint64 currentChatId() const { return m_currentChatId; }
     [[nodiscard]] QString currentChatTitle() const { return m_currentChatTitle; }
@@ -111,6 +120,8 @@ signals:
     void pinnedMessageChanged(qint64 messageId, const QString& preview);
     void typingChanged(qint64 chatId, const QString& label);
     void ownProfileSaved();
+    void storageStatisticsLoaded(const QVector<StorageRow>& rows);
+    void storageCleanupFinished();
 
     // Internal request signals: they carry plain JSON to the parse worker.
     void parseChatRequested(quint64 jobId, qint64 chatId, const QJsonObject& chat);
@@ -134,6 +145,7 @@ private:
     void enqueueChatParse(qint64 chatId, const QJsonObject& chat, bool inMainList = true);
     void updateChatFromMessage(qint64 chatId, const QJsonObject& message);
     void trackMessageMedia(MessageData& message);
+    void trackMessageMediaById(qint64 messageId);
     void resolveSender(MessageData& message);
     void requestUser(qint64 userId);
     void setError(const QString& message);

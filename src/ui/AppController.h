@@ -418,6 +418,8 @@ public:
     [[nodiscard]] MediaPlaybackController* playback();
     Q_INVOKABLE bool saveOpenMediaAs(const QUrl& target);
     Q_INVOKABLE void openMediaPlayback(int fileId, const QString& title);
+    Q_INVOKABLE void playMusicTrack(const QString& trackId);
+    Q_INVOKABLE void playMusicPlaylist(const QString& playlistId);
 
     // Credential provisioning (developer API id/hash).
     Q_INVOKABLE bool saveCredentials(const QString& apiId, const QString& apiHash);
@@ -464,6 +466,9 @@ private:
     telegram::MediaFileStore m_mediaStore;
     MediaViewerController m_mediaViewer;
     MediaPlaybackController m_playback;
+    /// File id the user asked to play last. A late download of an older
+    /// request must not replace the newer one on screen.
+    int m_pendingPlaybackFileId = 0;
     NotificationSettingsStore m_notificationSettings;
     telegram::DraftStore m_drafts;
     QTimer* m_busyTimer = nullptr;

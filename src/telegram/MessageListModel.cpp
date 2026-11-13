@@ -39,6 +39,7 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case MediaWidthRole: return message.mediaWidth;
     case MediaHeightRole: return message.mediaHeight;
     case MediaReadyRole: return message.mediaReady;
+    case MediaFailedRole: return message.mediaFailed;
     case MediaRevisionRole: return message.mediaRevision;
     case ReplyToMessageIdRole: return message.replyToMessageId;
     case ReplyPreviewRole: return message.replyPreview;
@@ -83,6 +84,7 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {MediaWidthRole, "mediaWidth"},
         {MediaHeightRole, "mediaHeight"},
         {MediaReadyRole, "mediaReady"},
+        {MediaFailedRole, "mediaFailed"},
         {MediaRevisionRole, "mediaRevision"},
         {ReplyToMessageIdRole, "replyToMessageId"},
         {ReplyPreviewRole, "replyPreview"},
@@ -213,6 +215,14 @@ bool MessageListModel::updateContent(qint64 messageId, const QJsonObject& conten
     MessageData& message = m_messages[existing];
     message.text = messageContentText(content);
     message.contentType = messageContentLabel(content);
+    // Content can change type (text -> photo, photo -> video, ...), so the
+    // attachment fields must be recomputed with it, not left from the old type.
+    message.mediaFileId = messageThumbnailFileId(content, &message.mediaWidth,
+                                                 &message.mediaHeight);
+    message.mediaFullFileId = messageFullFileId(content);
+    message.mediaReady = false;
+    message.mediaFailed = false;
+    message.mediaRevision += 1;
     const QJsonObject formatted =
         content.contains(QStringLiteral("text"))
         ? content.value(QStringLiteral("text")).toObject()
@@ -252,10 +262,32 @@ void MessageListModel::markMediaReady(int fileId)
         if (m_messages[row].mediaReady)
             continue;
         m_messages[row].mediaReady = true;
+        m_messages[row].mediaFailed = false;
         ++m_messages[row].mediaRevision;
         const QModelIndex changed = index(row);
-        emit dataChanged(changed, changed, {MediaReadyRole, MediaRevisionRole});
+        emit dataChanged(changed, changed, {MediaReadyRole, MediaFailedRole, MediaRevisionRole});
     }
+}
+
+void MessageListModel::markMediaFailed(int fileId)
+{
+    if (fileId == 0)
+        return;
+    for (int row = 0; row < m_messages.size(); ++row) {
+        if (m_messages[row].mediaFileId != fileId)
+            continue;
+        if (m_messages[row].mediaReady || m_messages[row].mediaFailed)
+            continue;
+        m_messages[row].mediaFailed = true;
+        const QModelIndex changed = index(row);
+        emit dataChanged(changed, changed, {MediaFailedRole});
+    }
+}
+
+int MessageListModel::mediaFileIdFor(qint64 messageId) const
+{
+    const int row = indexForId(messageId);
+    return row >= 0 ? m_messages[row].mediaFileId : 0;
 }
 
 void MessageListModel::resolveReplyPreviews()

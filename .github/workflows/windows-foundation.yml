@@ -7,6 +7,8 @@ name: Windows foundation CI
 on:
   push:
     branches:
+      - DEV
+      - main
       - feature/windows-foundation
       - feature/windows-authentication
       - feature/windows-chats

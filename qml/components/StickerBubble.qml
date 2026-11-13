@@ -18,6 +18,9 @@ Item {
     property int revision: 0
     property bool animated: false
     property int emojiSize: 128
+    /// Emoji fallback shown while the sticker file is not available. Telegram
+    /// always sends one with the sticker, so the bubble is never blank.
+    property string emoji: ""
 
     signal clicked()
 
@@ -46,11 +49,13 @@ Item {
         Text {
             anchors.centerIn: parent
             width: Math.max(0, parent.width - Design.space3)
-            text: qsTr("[Sticker]")
-            color: BeyGramTheme.muted
-            font.pixelSize: Design.fontCaption
+            text: root.emoji.length > 0 ? root.emoji : qsTr("[Sticker]")
+            color: root.emoji.length > 0 ? BeyGramTheme.text : BeyGramTheme.muted
+            font.pixelSize: root.emoji.length > 0
+                            ? Math.max(24, Math.min(root.width, root.height) * 0.62)
+                            : Design.fontCaption
             horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
+            elide: root.emoji.length > 0 ? Text.ElideNone : Text.ElideRight
         }
     }
 

@@ -260,7 +260,7 @@ handlers during shutdown to avoid callbacks into a destructing session.
 
 ## Tests
 
-`ctest` runs 322 suites:
+`ctest` runs 325 suites:
 
 - redaction and logging;
 - WCAG contrast and theme tokens;
@@ -285,9 +285,13 @@ handlers during shutdown to avoid callbacks into a destructing session.
 - real TDLib integration (skipped when the DLL is absent): trusted load, local
   `td_execute`, `@extra` correlation, reach
   `authorizationStateWaitPhoneNumber` with a temporary database, reject a second
-  session for the same account, close, reopen and verify restart.
+  session for the same account, close, reopen and verify restart;
+- review regressions: media-store session isolation and stale callbacks, history
+  merge/content retargeting, a real QML render of `MessageBubble` (alignment,
+  sticker emoji, media placeholder), account-scoped drafts, media-failure roles
+  and music source registration.
 
-Local Phase 2 run with TDLib 1.8.69: **322/322 passed**. Manual checks with a real
+Local Phase 2 run with TDLib 1.8.69: **325/325 passed**. Manual checks with a real
 authorized session through a local SOCKS5 proxy: the chat list loaded 500+
 chats with pins/unread/muted state, a private chat opened with real history,
 messages rendered with sender/time/edited state, and the close handshake exited
