@@ -164,6 +164,24 @@ class AppController final : public QObject {
     Q_PROPERTY(QObject* statistics READ statistics CONSTANT)
     Q_PROPERTY(QObject* security READ security CONSTANT)
     Q_PROPERTY(QObject* deepLinks READ deepLinks CONSTANT)
+    Q_PROPERTY(QObject* musicLibrary READ musicLibrary CONSTANT)
+    Q_PROPERTY(QObject* musicPlayer READ musicPlayer CONSTANT)
+    Q_PROPERTY(QObject* musicSearch READ musicSearch CONSTANT)
+    Q_PROPERTY(QObject* equalizer READ equalizer CONSTANT)
+    Q_PROPERTY(QObject* bgMusic READ bgMusic CONSTANT)
+    Q_PROPERTY(QObject* lyrics READ lyrics CONSTANT)
+    Q_PROPERTY(QObject* savedMessages READ savedMessages CONSTANT)
+    Q_PROPERTY(QObject* notificationScopes READ notificationScopes CONSTANT)
+    Q_PROPERTY(QObject* swipeSettings READ swipeSettings CONSTANT)
+    Q_PROPERTY(QObject* muteSchedule READ muteSchedule CONSTANT)
+    Q_PROPERTY(QObject* attachment READ attachment CONSTANT)
+    Q_PROPERTY(QObject* multiForward READ multiForward CONSTANT)
+    Q_PROPERTY(QObject* messageActions READ messageActions CONSTANT)
+    Q_PROPERTY(QObject* quickSwitcher READ quickSwitcher CONSTANT)
+    Q_PROPERTY(QObject* forumTopics READ forumTopics CONSTANT)
+    Q_PROPERTY(QObject* sharedMedia READ sharedMedia CONSTANT)
+    Q_PROPERTY(QObject* groupAdmin READ groupAdmin CONSTANT)
+    Q_PROPERTY(QObject* callHistory READ callHistory CONSTANT)
 
     Q_PROPERTY(QString bgMediaTitle READ bgMediaTitle CONSTANT)
     Q_PROPERTY(QString bgMediaDetail READ bgMediaDetail CONSTANT)
@@ -294,6 +312,24 @@ public:
     [[nodiscard]] QObject* statistics();
     [[nodiscard]] QObject* security();
     [[nodiscard]] QObject* deepLinks();
+    [[nodiscard]] QObject* musicLibrary();
+    [[nodiscard]] QObject* musicPlayer();
+    [[nodiscard]] QObject* musicSearch();
+    [[nodiscard]] QObject* equalizer();
+    [[nodiscard]] QObject* bgMusic();
+    [[nodiscard]] QObject* lyrics();
+    [[nodiscard]] QObject* savedMessages();
+    [[nodiscard]] QObject* notificationScopes();
+    [[nodiscard]] QObject* swipeSettings();
+    [[nodiscard]] QObject* muteSchedule();
+    [[nodiscard]] QObject* attachment();
+    [[nodiscard]] QObject* multiForward();
+    [[nodiscard]] QObject* messageActions();
+    [[nodiscard]] QObject* quickSwitcher();
+    [[nodiscard]] QObject* forumTopics();
+    [[nodiscard]] QObject* sharedMedia();
+    [[nodiscard]] QObject* groupAdmin();
+    [[nodiscard]] QObject* callHistory();
     Q_INVOKABLE void unpinPinnedMessage();
     Q_INVOKABLE void notifyTyping();
     void setNotificationsEnabled(bool enabled);

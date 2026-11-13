@@ -1,6 +1,24 @@
 #pragma once
 
 #include "AppearanceFacade.h"
+#include "SwipeSettingsFacade.h"
+#include "SharedMediaFacade.h"
+#include "SavedMessagesFacade.h"
+#include "QuickSwitcherFacade.h"
+#include "NotificationScopesFacade.h"
+#include "MuteScheduleFacade.h"
+#include "MusicSearchFacade.h"
+#include "MusicPlayerFacade.h"
+#include "MusicLibraryFacade.h"
+#include "MultiForwardFacade.h"
+#include "MessageActionsFacade.h"
+#include "LyricsFacade.h"
+#include "GroupAdminFacade.h"
+#include "ForumTopicsFacade.h"
+#include "EqualizerFacade.h"
+#include "CallHistoryFacade.h"
+#include "BgMusicFacade.h"
+#include "AttachmentFacade.h"
 #include "BotsFacade.h"
 #include "CallsFacade.h"
 #include "ChatListFacade.h"
@@ -76,6 +94,25 @@ public:
     [[nodiscard]] SecurityFacade* security() { return &m_security; }
     [[nodiscard]] DeepLinksFacade* deepLinks() { return &m_deepLinks; }
 
+    [[nodiscard]] MusicLibraryFacade* musicLibrary() { return &m_musicLibrary; }
+    [[nodiscard]] MusicPlayerFacade* musicPlayer() { return &m_musicPlayer; }
+    [[nodiscard]] MusicSearchFacade* musicSearch() { return &m_musicSearch; }
+    [[nodiscard]] EqualizerFacade* equalizer() { return &m_equalizer; }
+    [[nodiscard]] BgMusicFacade* bgMusic() { return &m_bgMusic; }
+    [[nodiscard]] LyricsFacade* lyrics() { return &m_lyrics; }
+    [[nodiscard]] SavedMessagesFacade* savedMessages() { return &m_savedMessages; }
+    [[nodiscard]] NotificationScopesFacade* notificationScopes() { return &m_notificationScopes; }
+    [[nodiscard]] SwipeSettingsFacade* swipeSettings() { return &m_swipeSettings; }
+    [[nodiscard]] MuteScheduleFacade* muteSchedule() { return &m_muteSchedule; }
+    [[nodiscard]] AttachmentFacade* attachment() { return &m_attachment; }
+    [[nodiscard]] MultiForwardFacade* multiForward() { return &m_multiForward; }
+    [[nodiscard]] MessageActionsFacade* messageActions() { return &m_messageActions; }
+    [[nodiscard]] QuickSwitcherFacade* quickSwitcher() { return &m_quickSwitcher; }
+    [[nodiscard]] ForumTopicsFacade* forumTopics() { return &m_forumTopics; }
+    [[nodiscard]] SharedMediaFacade* sharedMedia() { return &m_sharedMedia; }
+    [[nodiscard]] GroupAdminFacade* groupAdmin() { return &m_groupAdmin; }
+    [[nodiscard]] CallHistoryFacade* callHistory() { return &m_callHistory; }
+
 private:
     StickerPanelFacade m_stickerPanel;
     SelectionFacade m_selection;
@@ -107,6 +144,24 @@ private:
     StatisticsFacade m_statistics;
     SecurityFacade m_security;
     DeepLinksFacade m_deepLinks;
+    MusicLibraryFacade m_musicLibrary;
+    MusicPlayerFacade m_musicPlayer;
+    MusicSearchFacade m_musicSearch;
+    EqualizerFacade m_equalizer;
+    BgMusicFacade m_bgMusic;
+    LyricsFacade m_lyrics;
+    SavedMessagesFacade m_savedMessages;
+    NotificationScopesFacade m_notificationScopes;
+    SwipeSettingsFacade m_swipeSettings;
+    MuteScheduleFacade m_muteSchedule;
+    AttachmentFacade m_attachment;
+    MultiForwardFacade m_multiForward;
+    MessageActionsFacade m_messageActions;
+    QuickSwitcherFacade m_quickSwitcher;
+    ForumTopicsFacade m_forumTopics;
+    SharedMediaFacade m_sharedMedia;
+    GroupAdminFacade m_groupAdmin;
+    CallHistoryFacade m_callHistory;
 };
 
 } // namespace beygram::ui

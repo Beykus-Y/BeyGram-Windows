@@ -1,5 +1,41 @@
 add_library(beygram_ui STATIC
     AppController.cpp
+    SwipeSettingsFacade.cpp
+    SwipeSettingsFacade.h
+    SharedMediaFacade.cpp
+    SharedMediaFacade.h
+    SavedMessagesFacade.cpp
+    SavedMessagesFacade.h
+    QuickSwitcherFacade.cpp
+    QuickSwitcherFacade.h
+    NotificationScopesFacade.cpp
+    NotificationScopesFacade.h
+    MuteScheduleFacade.cpp
+    MuteScheduleFacade.h
+    MusicSearchFacade.cpp
+    MusicSearchFacade.h
+    MusicPlayerFacade.cpp
+    MusicPlayerFacade.h
+    MusicLibraryFacade.cpp
+    MusicLibraryFacade.h
+    MultiForwardFacade.cpp
+    MultiForwardFacade.h
+    MessageActionsFacade.cpp
+    MessageActionsFacade.h
+    LyricsFacade.cpp
+    LyricsFacade.h
+    GroupAdminFacade.cpp
+    GroupAdminFacade.h
+    ForumTopicsFacade.cpp
+    ForumTopicsFacade.h
+    EqualizerFacade.cpp
+    EqualizerFacade.h
+    CallHistoryFacade.cpp
+    CallHistoryFacade.h
+    BgMusicFacade.cpp
+    BgMusicFacade.h
+    AttachmentFacade.cpp
+    AttachmentFacade.h
     VoiceComposerFacade.cpp
     VoiceComposerFacade.h
     UiFacades.cpp

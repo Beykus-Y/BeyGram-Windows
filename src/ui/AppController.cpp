@@ -1037,6 +1037,24 @@ QObject* AppController::shortcuts() { return m_facades->shortcuts(); }
 QObject* AppController::statistics() { return m_facades->statistics(); }
 QObject* AppController::security() { return m_facades->security(); }
 QObject* AppController::deepLinks() { return m_facades->deepLinks(); }
+QObject* AppController::musicLibrary() { return m_facades->musicLibrary(); }
+QObject* AppController::musicPlayer() { return m_facades->musicPlayer(); }
+QObject* AppController::musicSearch() { return m_facades->musicSearch(); }
+QObject* AppController::equalizer() { return m_facades->equalizer(); }
+QObject* AppController::bgMusic() { return m_facades->bgMusic(); }
+QObject* AppController::lyrics() { return m_facades->lyrics(); }
+QObject* AppController::savedMessages() { return m_facades->savedMessages(); }
+QObject* AppController::notificationScopes() { return m_facades->notificationScopes(); }
+QObject* AppController::swipeSettings() { return m_facades->swipeSettings(); }
+QObject* AppController::muteSchedule() { return m_facades->muteSchedule(); }
+QObject* AppController::attachment() { return m_facades->attachment(); }
+QObject* AppController::multiForward() { return m_facades->multiForward(); }
+QObject* AppController::messageActions() { return m_facades->messageActions(); }
+QObject* AppController::quickSwitcher() { return m_facades->quickSwitcher(); }
+QObject* AppController::forumTopics() { return m_facades->forumTopics(); }
+QObject* AppController::sharedMedia() { return m_facades->sharedMedia(); }
+QObject* AppController::groupAdmin() { return m_facades->groupAdmin(); }
+QObject* AppController::callHistory() { return m_facades->callHistory(); }
 
 void AppController::notifyTyping()
 {

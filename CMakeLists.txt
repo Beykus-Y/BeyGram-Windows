@@ -146,6 +146,24 @@ qt_add_qml_module(beygram_qml
         qml/pages/GlobalSearchPage.qml
         qml/pages/ToolsPage.qml
         qml/pages/DesignGalleryPage.qml
+        qml/pages/SavedMessagesPage.qml
+        qml/pages/MusicSearchPage.qml
+        qml/pages/MusicLibraryPage.qml
+        qml/components/SwipeSettingsPanel.qml
+        qml/components/SharedMediaPanel.qml
+        qml/components/QuickSwitcher.qml
+        qml/components/NowPlayingBar.qml
+        qml/components/NotificationScopesPanel.qml
+        qml/components/MuteScheduleSheet.qml
+        qml/components/MultiForwardDialog.qml
+        qml/components/MessageActionsMenu.qml
+        qml/components/LyricsPanel.qml
+        qml/components/GroupAdminPanel.qml
+        qml/components/ForumTopicsPanel.qml
+        qml/components/EqualizerPanel.qml
+        qml/components/CallHistoryPanel.qml
+        qml/components/BgMusicPanel.qml
+        qml/components/AttachmentSheet.qml
         qml/ds/ChatWallpaper.qml
         qml/ds/DsTooltip.qml
         qml/ds/DsToast.qml

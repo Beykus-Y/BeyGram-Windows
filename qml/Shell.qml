@@ -61,7 +61,8 @@ Item {
         { key: "chats", title: qsTr("Chats"), glyph: "\uE8BD", shortcut: "Ctrl+1" },
         { key: "search", title: qsTr("Search"), glyph: "\uE721", shortcut: "Ctrl+K" },
         { key: "profile", title: qsTr("Profile"), glyph: "\uE77B", shortcut: "Ctrl+3" },
-        { key: "settings", title: qsTr("Settings"), glyph: "\uE713", shortcut: "Ctrl+," }
+        { key: "settings", title: qsTr("Settings"), glyph: "\uE713", shortcut: "Ctrl+," },
+        { key: "music", title: qsTr("Music"), glyph: "\uE8D6", shortcut: "Ctrl+5" }
     ]
 
     function selectSection(index) {
@@ -134,6 +135,8 @@ Item {
     Shortcut { sequence: "Ctrl+2"; onActivated: shell.selectSection(1) }
     Shortcut { sequence: "Ctrl+3"; onActivated: shell.selectSection(2) }
     Shortcut { sequence: "Ctrl+4"; onActivated: shell.selectSection(3) }
+    Shortcut { sequence: "Ctrl+5"; onActivated: shell.selectSection(4) }
+    Shortcut { sequence: "Ctrl+Shift+K"; onActivated: BeyGramApp.quickSwitcher.show() }
     Shortcut { sequence: "Ctrl+,"; onActivated: shell.selectSection(3) }
     Shortcut { sequence: "Ctrl+D"; onActivated: BeyGramAppearance.setThemeMode(BeyGramTheme.darkMode ? "Light" : "Dark") }
 
@@ -594,6 +597,10 @@ Item {
             SettingsPage {
                 id: settingsPage
             }
+
+            MusicLibraryPage {
+                facade: BeyGramApp.musicLibrary
+            }
         }
     }
 
@@ -617,6 +624,23 @@ Item {
         visible: (BeyGramApp.playbackBar ? BeyGramApp.playbackBar.active : false)
                  && shell.currentSection !== 0
         facade: BeyGramApp.playbackBar
+    }
+    NowPlayingBar {
+        anchors.left: content.left
+        anchors.right: content.right
+        anchors.bottom: content.bottom
+        facade: BeyGramApp.musicPlayer
+    }
+    QuickSwitcher {
+        anchors.fill: parent
+        facade: BeyGramApp.quickSwitcher
+        Connections {
+            target: BeyGramApp.quickSwitcher
+            function onChatActivated(chatId) {
+                BeyGramApp.openChat(chatId)
+                shell.selectSection(0)
+            }
+        }
     }
     DeepLinkPrompt {
         anchors.horizontalCenter: parent.horizontalCenter
