@@ -848,18 +848,25 @@ Item {
                             model: BeyGramApp.messages
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                            section.property: "date"
+                            section.property: "day"
                             section.criteria: ViewSection.FullString
                             section.delegate: Item {
                                 id: dateSection
 
                                 required property string section
 
-                                readonly property real stamp: Number(dateSection.section)
+                                // The model's "day" role is a local yyyy-MM-dd key,
+                                // so one section is exactly one calendar day.
+                                readonly property real stamp: {
+                                    const parts = dateSection.section.split("-")
+                                    if (parts.length !== 3)
+                                        return 0
+                                    const day = new Date(Number(parts[0]),
+                                                         Number(parts[1]) - 1,
+                                                         Number(parts[2]))
+                                    return day.getTime() / 1000
+                                }
                                 readonly property bool newDay: stamp > 0
-                                                               && (ListView.previousSection === ""
-                                                                   || page.dayStart(Number(ListView.previousSection))
-                                                                      !== page.dayStart(stamp))
 
                                 width: messageListView.width
                                 height: newDay ? datePill.height + Design.space4 : 0

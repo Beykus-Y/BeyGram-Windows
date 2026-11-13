@@ -71,8 +71,18 @@ Item {
     readonly property bool _isLiquidGlass: BeyGramAppearance.designStyle === "LiquidGlass"
     readonly property bool _isAmoled: BeyGramTheme.modeName === "Amoled"
     readonly property bool _isCompact: BeyGramAppearance.listDensity === "Compact"
-    readonly property bool _stickerOnly: bubbleItem.contentType === "sticker"
-                                         && bubbleItem.replyPreview.length === 0
+    /// Content that keeps a media block even before its file is downloaded, so
+    /// the bubble does not collapse into an empty pill.
+    readonly property bool _hasMediaBlock: bubbleItem.contentType === "photo"
+                                           || bubbleItem.contentType === "video"
+                                           || bubbleItem.contentType === "animation"
+                                           || bubbleItem.contentType === "document"
+    readonly property string _mediaLabel: bubbleItem.contentType === "photo" ? qsTr("Photo")
+                                          : bubbleItem.contentType === "video" ? qsTr("Video")
+                                          : bubbleItem.contentType === "animation" ? qsTr("GIF")
+                                          : qsTr("Document")
+
+    readonly property bool _stickerOnly: bubbleItem.contentType === "sticker"                                         && bubbleItem.replyPreview.length === 0
                                          && bubbleItem.displayText().length === 0
                                          && bubbleItem.linkUrl.length === 0
                                          && bubbleItem.pollQuestion.length === 0
@@ -346,11 +356,15 @@ Item {
             Rectangle {
                 id: mediaFrame
                 Layout.alignment: Qt.AlignLeft
-                Layout.preferredWidth: bubbleItem.mediaDisplayWidth
-                Layout.preferredHeight: bubbleItem.mediaHeightForWidth(
-                                            bubbleItem.mediaDisplayWidth)
+                Layout.preferredWidth: bubbleItem.mediaFileId > 0
+                                       ? bubbleItem.mediaDisplayWidth
+                                       : 220
+                Layout.preferredHeight: bubbleItem.mediaFileId > 0
+                                        ? bubbleItem.mediaHeightForWidth(
+                                              bubbleItem.mediaDisplayWidth)
+                                        : 140
                 implicitWidth: bubbleItem.mediaDisplayWidth
-                visible: bubbleItem.mediaFileId > 0
+                visible: (bubbleItem.mediaFileId > 0 || bubbleItem._hasMediaBlock)
                          && bubbleItem.contentType !== "sticker"
                 radius: Design.radiusMd
                 color: Qt.alpha(BeyGramTheme.surface2, 0.7)
@@ -392,6 +406,28 @@ Item {
                     anchors.centerIn: parent
                     running: bubbleItem.mediaFileId > 0 && !bubbleItem.mediaReady
                     visible: running
+                }
+
+                // No file id yet (or the download never started): keep the block
+                // recognisable instead of showing an empty outline.
+                Column {
+                    anchors.centerIn: parent
+                    spacing: Design.space1
+                    visible: bubbleItem.mediaFileId <= 0 && bubbleItem._hasMediaBlock
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "\u25A3"
+                        color: BeyGramTheme.muted
+                        font.pixelSize: 22
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: bubbleItem._mediaLabel
+                        color: BeyGramTheme.muted
+                        font.pixelSize: Design.fontSmall
+                    }
                 }
 
                 MouseArea {

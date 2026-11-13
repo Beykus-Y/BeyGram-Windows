@@ -3,6 +3,7 @@
 #include "TextFormatting.h"
 
 #include <algorithm>
+#include <QDateTime>
 
 namespace beygram::telegram {
 
@@ -54,6 +55,11 @@ QVariant MessageListModel::data(const QModelIndex& index, int role) const
     case PollClosedRole: return message.pollClosed;
     case PollQuizRole: return message.pollQuiz;
     case PollMultipleRole: return message.pollMultiple;
+    case DayRole: {
+        // Section key for the date separators: one string per local day.
+        const QDateTime moment = QDateTime::fromSecsSinceEpoch(message.date);
+        return moment.date().toString(QStringLiteral("yyyy-MM-dd"));
+    }
     default: return {};
     }
 }
@@ -93,6 +99,7 @@ QHash<int, QByteArray> MessageListModel::roleNames() const
         {PollClosedRole, "pollClosed"},
         {PollQuizRole, "pollQuiz"},
         {PollMultipleRole, "pollMultiple"},
+        {DayRole, "day"},
     };
 }
 

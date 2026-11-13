@@ -45,6 +45,7 @@ public:
         PollClosedRole,
         PollQuizRole,
         PollMultipleRole,
+        DayRole,
     };
     Q_ENUM(Role)
 
