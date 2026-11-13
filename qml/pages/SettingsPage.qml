@@ -584,12 +584,12 @@ Item {
                                             delegate: DsListRow {
                                                 id: folderRow
                                                 required property var folderId
-                                                required property string title
+                                                required property string folderTitle
                                                 required property int unreadCount
                                                 required property bool isMain
 
                                                 width: folderListView.width
-                                                title: folderRow.title
+                                                title: folderTitle
                                                 subtitle: folderRow.isMain
                                                           ? qsTr("Default chat list")
                                                           : qsTr("Custom folder")
