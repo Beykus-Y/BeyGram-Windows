@@ -335,6 +335,58 @@ add_library(beygram_telegram STATIC
     ChatCache.h
     MessageCache.cpp
     MessageCache.h
+    AttachmentOptions.cpp
+    AttachmentOptions.h
+    ChatMuteSchedule.cpp
+    ChatMuteSchedule.h
+    ChatPreviewModel.cpp
+    ChatPreviewModel.h
+    ChatSwipeSettings.cpp
+    ChatSwipeSettings.h
+    DeliveryStatusModel.cpp
+    DeliveryStatusModel.h
+    EditHistoryModel.cpp
+    EditHistoryModel.h
+    LazyChatLoader.cpp
+    LazyChatLoader.h
+    LinkPreviewCache.cpp
+    LinkPreviewCache.h
+    MediaWarmup.cpp
+    MediaWarmup.h
+    MessageActions.cpp
+    MessageActions.h
+    OwnProfile.cpp
+    OwnProfile.h
+    PresenceAggregator.cpp
+    PresenceAggregator.h
+    ReplyChainModel.cpp
+    ReplyChainModel.h
+    UnreadDividerModel.cpp
+    UnreadDividerModel.h
+    music/BgMusic.cpp
+    music/BgMusic.h
+    music/BgMusicImport.cpp
+    music/BgMusicImport.h
+    music/EqualizerModel.cpp
+    music/EqualizerModel.h
+    music/MusicHistory.cpp
+    music/MusicHistory.h
+    music/MusicLibraryEdits.cpp
+    music/MusicLibraryEdits.h
+    music/MusicLibraryStore.cpp
+    music/MusicLibraryStore.h
+    music/MusicLinks.cpp
+    music/MusicLinks.h
+    music/MusicModels.cpp
+    music/MusicModels.h
+    music/MusicPlayer.cpp
+    music/MusicPlayer.h
+    music/MusicProviders.cpp
+    music/MusicProviders.h
+    music/MusicSearch.cpp
+    music/MusicSearch.h
+    music/MusicSmartCollections.cpp
+    music/MusicSmartCollections.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
