@@ -607,6 +607,9 @@ void AppController::ensureRepository()
     m_repository->setChatCachePath(
         QDir(AppPaths::dataDirectory())
             .filePath(QStringLiteral("state/chats-cache.json")));
+    m_repository->setMessageCachePath(
+        QDir(AppPaths::dataDirectory())
+            .filePath(QStringLiteral("state/messages")));
     m_mediaStore.setSession(m_session.get());
 
     // Facade requests -> repository actions. Each connection is scoped to the

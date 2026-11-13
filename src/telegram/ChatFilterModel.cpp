@@ -8,6 +8,12 @@ ChatFilterModel::ChatFilterModel(QObject* parent) : QSortFilterProxyModel(parent
 {
     setDynamicSortFilter(true);
     setFilterCaseSensitivity(Qt::CaseInsensitive);
+
+    const auto notifyCount = [this] { emit countChanged(); };
+    connect(this, &QAbstractItemModel::rowsInserted, this, notifyCount);
+    connect(this, &QAbstractItemModel::rowsRemoved, this, notifyCount);
+    connect(this, &QAbstractItemModel::modelReset, this, notifyCount);
+    connect(this, &QAbstractItemModel::layoutChanged, this, notifyCount);
 }
 
 void ChatFilterModel::setFilterText(const QString& text)
@@ -17,6 +23,7 @@ void ChatFilterModel::setFilterText(const QString& text)
     m_filterText = text.trimmed();
     invalidateFilter();
     emit filterTextChanged();
+    emit countChanged();
 }
 
 bool ChatFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const

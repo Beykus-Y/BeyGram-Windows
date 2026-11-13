@@ -19,6 +19,7 @@
 #include "ChatFolders.h"
 #include "ArchiveChats.h"
 #include "ChatCache.h"
+#include "MessageCache.h"
 #include "ChatNotificationRequests.h"
 #include "FolderChats.h"
 #include "ForwardMessages.h"
@@ -185,6 +186,11 @@ void TelegramRepository::start()
 void TelegramRepository::setChatCachePath(const QString& path)
 {
     m_chatCachePath = path;
+}
+
+void TelegramRepository::setMessageCachePath(const QString& directory)
+{
+    m_messageCachePath = directory;
 }
 
 void TelegramRepository::requestChats()
@@ -670,6 +676,29 @@ void TelegramRepository::openChat(qint64 chatId)
     emit currentChatChanged();
     emit stateChanged();
 
+    // Paint the newest cached page immediately; the history request below
+    // replaces it with the authoritative answer.
+    if (!m_messageCachePath.isEmpty()) {
+        const CachedMessages cached = loadCachedMessages(m_messageCachePath, chatId);
+        QVector<MessageData> cachedMessages;
+        cachedMessages.reserve(cached.messages.size());
+        for (const QJsonValue& value : cached.messages) {
+            MessageData message = messageFromJson(value.toObject());
+            if (message.id == 0)
+                continue;
+            trackMessageMedia(message);
+            if (isPrivateChat(m_currentChatType) && !message.outgoing)
+                message.senderName = m_currentChatTitle;
+            resolveSender(message);
+            cachedMessages.append(message);
+        }
+        if (!cachedMessages.isEmpty()) {
+            m_history.setMessages(cachedMessages);
+            m_messageModel->setMessages(m_history.messages());
+            m_messageModel->resolveReplyPreviews();
+        }
+    }
+
     requestHistory(chatId, 0, false);
     requestPinnedMessage();
 }
@@ -733,6 +762,8 @@ void TelegramRepository::handleHistory(const QJsonObject& response, qint64 chatI
     }
 
     const QJsonArray messages = response.value(QStringLiteral("messages")).toArray();
+    if (!older && !m_messageCachePath.isEmpty())
+        saveCachedMessages(m_messageCachePath, chatId, messages);
     emit parseHistoryRequested(jobId, chatId, older, messages);
 }
 

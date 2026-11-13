@@ -333,6 +333,8 @@ add_library(beygram_telegram STATIC
     StealthSchedule.h
     ChatCache.cpp
     ChatCache.h
+    MessageCache.cpp
+    MessageCache.h
     ChatFolders.cpp
     ContactSearch.cpp
     ContactSearch.h
