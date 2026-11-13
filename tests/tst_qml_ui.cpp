@@ -177,6 +177,7 @@ void QmlUiTest::mainAndCorePagesLoadWithoutQmlWarnings()
         QCoreApplication::processEvents();
     }
 
+
     // Exercise live theme and language switches with loaded UI.
     theme.setModeName(QStringLiteral("Amoled"));
     theme.setPresetName(QStringLiteral("Graphite"));

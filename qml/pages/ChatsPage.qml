@@ -1035,45 +1035,11 @@ Item {
                                 }
                             }
 
-                            delegate: MessageBubble {
-                                id: msgBubble
-
-                                messageId: model.messageId
-                                text: model.text
-                                textHtml: model.textHtml
-                                replyPreview: model.replyPreview
-                                reactionsJson: model.reactionsJson
-                                linkUrl: model.linkUrl
-                                linkTitle: model.linkTitle
-                                linkDescription: model.linkDescription
-                                linkSite: model.linkSite
-                                linkFileId: model.linkFileId
-                                linkVideo: model.linkVideo
-                                pollQuestion: model.pollQuestion
-                                pollOptionsJson: model.pollOptionsJson
-                                pollTotal: model.pollTotal
-                                pollClosed: model.pollClosed
-                                pollQuiz: model.pollQuiz
-                                pollMultiple: model.pollMultiple
-                                outgoing: model.outgoing
-                                senderName: model.senderName
-                                date: model.date
-                                pending: model.pending
-                                failed: model.failed
-                                edited: model.edited
-                                contentType: model.contentType
-                                mediaFileId: model.mediaFileId
-                                mediaFullFileId: model.mediaFullFileId
-                                mediaWidth: model.mediaWidth
-                                mediaHeight: model.mediaHeight
-                                mediaReady: model.mediaReady
-                                mediaFailed: model.mediaFailed
-                                mediaRevision: model.mediaRevision
-
+                            delegate: MessageDelegate {
                                 selectable: BeyGramApp.selection ? BeyGramApp.selection.active : false
-                                selected: page.isMessageSelected(msgBubble.messageId)
+                                selected: page.isMessageSelected(messageId)
                                           || (page.highlightedMessageId !== 0
-                                              && Number(msgBubble.messageId)
+                                              && Number(messageId)
                                                  === Number(page.highlightedMessageId))
 
                                 onMediaOpenRequested: (fileId) => BeyGramMediaViewer.open(
@@ -1084,7 +1050,7 @@ Item {
                                 onReplyRequested: (id, preview) => BeyGramApp.beginReply(
                                                       id, preview)
                                 onReactionRequested: (emoji) => BeyGramApp.sendReaction(
-                                                         BeyGramApp.currentChatId, msgBubble.messageId, emoji)
+                                                         BeyGramApp.currentChatId, messageId, emoji)
                                 onAddReactionRequested: (id, anchorItem) => {
                                     if (!BeyGramApp.reactions)
                                         return
@@ -1114,7 +1080,7 @@ Item {
                                 }
                                 onPollOptionSelected: (index) => BeyGramApp.votePoll(
                                                            BeyGramApp.currentChatId,
-                                                           msgBubble.messageId, index)
+                                                           messageId, index)
                                 onDeleteRequested: (id) => {
                                     deleteDialog.messageId = id
                                     deleteDialog.open()
@@ -1170,6 +1136,7 @@ Item {
                                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
                                 delegate: DsListRow {
+                                    required property var messageId
                                     required property string text
                                     required property var date
 
@@ -1179,7 +1146,7 @@ Item {
                                     onClicked: {
                                         // Capture the id before clearSearch() resets
                                         // the result model out from under us.
-                                        const id = model.messageId
+                                        const id = messageId
                                         page.jumpToMessage(id)
                                         page.closeSearch()
                                     }

@@ -351,6 +351,15 @@ target_link_libraries(tst_message_bubble_render
         Qt6::Quick
         Qt6::QuickControls2
 )
+beygram_add_test(tst_message_delegate_render)
+target_link_libraries(tst_message_delegate_render
+    PRIVATE
+        beygram_qml
+        beygram_qmlplugin
+        Qt6::Quick
+        Qt6::QuickControls2
+)
+beygram_add_test(tst_qml_bound_model_access)
 set_tests_properties(tst_tdlib_integration PROPERTIES TIMEOUT 180)
 
 beygram_add_test(tst_qml_ui)
